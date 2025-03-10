@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+demog<-fread("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Comorbidities/HTP_CLEANED_051420_v0.4_COMORB_MASTER_RecordID_vs_LabID.Labels.tsv") %>%
+  select(RecordID, Event_name, Sex, Karyotype, LabID, Age_at_visit) %>%
+  filter(Event_name!="Current")
+#demog
+
+temp<-fread("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Comorbidities/BMI Report 06.12.20.csv")
+bmi<-temp[, 1:6] %>%
+  `colnames<-`(c("RecordID", "LabID", "Event_name", "Height_cm", "Weight_kg", "BMI")) %>%
+  mutate(RecordID = gsub("NDAR_", "", RecordID)) %>%
+  left_join(demog, by=c("RecordID", "LabID", "Event_name")) %>%
+  rename(Age = Age_at_visit) %>%
+  mutate(Adult_Child = ifelse(Age<18, "Child",
+                              ifelse(Age>=18, "Adult", NA)),
+         Adult = ifelse(Age>=18, 1,
+                        ifelse(Age<18, 0, NA)),
+         Female = ifelse(Sex=="Female", 1,
+                         ifelse(Sex=="Male", 0, NA)),
+         T21 = ifelse(Karyotype=="Control", 0,
+                       ifelse(Karyotype=="T21", 1, NA))) %>%
+  group_by(Adult) %>%
+  mutate(Mean_Age = mean(Age)) %>%
+  ungroup() %>%
+  mutate(Age_centered = Age - Mean_Age)
+
+# To remove multicollinearity between the age-group contrast and the chronological age variables, center the chronological age variable separately in each age group.
+
+bmi
+```
+
+# Moderator = Adult
+```{r}
+data.mediation<-bmi %>% select(RecordID, LabID, T21, Age, Age_centered, Adult, Female, Height_cm, Weight_kg) %>% unique() %>% na.omit() #%>%
+  #filter(Female == 0)
+  #filter(T21==0)
+  #mutate(Adult = as.factor(Adult))
+data.mediation
+
+set.seed(1234) # IMPORTANT
+
+Predictor = "Age_centered"
+Outcome = "Weight_kg"
+Mediator = "Height_cm"
+Moderator = "Adult"
+
+formula.TotalEffect <- as.formula( paste(Outcome, " ~ ", Predictor,
+                                         #" + Female + ",
+                                         " +  T21 + Female + ",
+                                         Predictor, "*", Moderator, sep="") )
+formula.Mediator <- as.formula( paste(Mediator, " ~ ", Predictor,
+                                      #" + Female + ",
+                                      " + T21 + Female + ",
+                                      Predictor, "*", Moderator, sep="") )
+formula.Outcome <- as.formula( paste(Outcome, " ~ ", Mediator, " + T21 + Female + ", Predictor,
+                                     #" + Female + ",
+                                     " + ",
+                                     Predictor, "*", Moderator, " + ", Mediator, "*", Moderator, sep="") )
+formula.TotalEffect
+formula.Mediator
+formula.Outcome
+
+fit.TotalEffect = lm(formula.TotalEffect, data = data.mediation)
+
+fit.Mediator = lm(formula.Mediator, data = data.mediation)
+
+fit.Outcome = lm(formula.Outcome, data = data.mediation)
+
+# Run mediation models:
+#results.mediation = mediate(fit.Mediator,
+#                            fit.Outcome,
+#                            treat = Predictor,
+#                            mediator = Mediator, #, boot=T) ) #'boot' must be 'FALSE' for models used
+#                            sims = 10000)
+#summary.mediation<-summary(results.mediation)
+
+set.seed(1234)
+results.mediation_Children = mediate(fit.Mediator,
+                            fit.Outcome,
+                            treat = Predictor,
+                            mediator = Mediator,
+                            covariates = list(Adult = 0), #, boot=T) ) #'boot' must be 'FALSE' for models used
+                            sims = 10000)
+summary.mediation_Children<-summary(results.mediation_Children)
+results.mediation_Adults = mediate(fit.Mediator,
+                            fit.Outcome,
+                            treat = Predictor,
+                            mediator = Mediator,
+                            covariates = list(Adult = 1), #, boot=T) ) #'boot' must be 'FALSE' for models used
+                            sims = 10000)
+summary.mediation_Adults<-summary(results.mediation_Adults)
+
+#summary.mediation
+summary.mediation_Children
+# Causal Mediation Analysis 
+# 
+# Quasi-Bayesian Confidence Intervals
+# 
+# (Inference Conditional on the Covariate Values Specified in `covariates')
+# 
+#                Estimate 95% CI Lower 95% CI Upper p-value    
+# ACME              3.436        2.281         4.57  <2e-16 ***
+# ADE               0.378       -0.824         1.57    0.54    
+# Total Effect      3.815        3.357         4.27  <2e-16 ***
+# Prop. Mediated    0.900        0.598         1.22  <2e-16 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Sample Size Used: 823 
+# 
+# 
+# Simulations: 10000 
+summary.mediation_Adults
+# Causal Mediation Analysis 
+# 
+# Quasi-Bayesian Confidence Intervals
+# 
+# (Inference Conditional on the Covariate Values Specified in `covariates')
+# 
+#                Estimate 95% CI Lower 95% CI Upper p-value    
+# ACME            -0.0255      -0.0673         0.01     0.2    
+# ADE              0.2802       0.1762         0.38  <2e-16 ***
+# Total Effect     0.2547       0.1434         0.36  <2e-16 ***
+# Prop. Mediated  -0.0993      -0.3624         0.05     0.2    
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Sample Size Used: 823 
+# 
+# 
+# Simulations: 10000 
+
+```

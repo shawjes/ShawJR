@@ -1,0 +1,122 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# Deleted repository on github.com
+
+# Removed repository from Github desktop application
+
+# Then:
+# https://docs.github.com/en/get-started/git-basics/ignoring-files
+cd /Users/jessica/Dropbox/ShawJR
+touch .gitignore
+
+cd '/Users/jessica/Dropbox/ShawJR/2025'
+git rm -r --cached .
+```
+
+```{r}
+echo "" >> .gitignore
+echo "# Files over 4mb" >> .gitignore
+find * -size +100M -type f -print >> .gitignore
+```
+
+```{r}
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/git
+git push -u origin main
+
+git add .gitignore
+git branch -M main
+git remote add origin https://github.com/shawjes/ShawJR.git
+git push -u origin main
+
+
+git add "~/Dropbox/ShawJR/2025/dev/prog"
+git commit -m "Commit /dev/prog"
+git branch -M main
+git push -u origin main
+```
+
+```{r}
+# https://gist.github.com/jonjack/bf295d4170edeb00e96fb158f9b1ba3c?permalink_comment_id=3749099
+git config --global credential.helper osxkeychain
+```
+
+
+```{r}
+# "Because you have email privacy enabled, jessica.rose.shaw@gmail.com will be used for account-related notifications as well as password resets. 10553385+shawjes@users.noreply.github.com will be used for web-based Git operations, e.g., edits and merges."
+```
+
+
+```{r}
+echo ".Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Ignore folders:
+'/Users/jessica/Dropbox/ShawJR/2025/dev/papers'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/rawdata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/indata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/aidata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/ardata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/ddata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/output'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/background_gene_sets'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/inspo'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/renv'" >> .gitignore
+```
+
+# Personal access token generated 3/10/2025 (PAT = 'ShawJR')
+```{r}
+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
+
+$ git clone https://github.com/USERNAME/REPO.git
+git clone 
+Username: YOUR-USERNAME
+Password: YOUR-PERSONAL-ACCESS-TOKEN
+```
+
+
+```{r}
+# https://stackoverflow.com/questions/2545602/how-can-i-git-ignore-subfolders-subdirectories
+cd '/Users/jessica/Dropbox/ShawJR/2025/dev'
+git rm -r --cached .
+
+cd '/Users/jessica/Dropbox/ShawJR/2025'
+git rm -r --cached .
+
+
+```
+
+```{r}
+cd '/Users/jessica/Dropbox/ShawJR/2025'
+git remote add origin https://github.com/shawjes/ShawJR
+  
+
+```
+
+```{r}
+'/Users/jessica/Dropbox/ShawJR/2025/dev/papers'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/rawdata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/indata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/aidata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/ardata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/ddata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/output'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/background_gene_sets'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/inspo'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/renv'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/'
+
+```
+
+

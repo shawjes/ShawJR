@@ -1,0 +1,15 @@
+Variable	Example	Description
+LabID	HTP0708A	Human Trisome Project sample/biospecimen identifier
+Sample_type	Plasma	Type of sample taken/extracted from biospecimen
+Platform	LCMS_Metabolomics	Description of assay platform/strategy
+Analyte	(15Z)-Tetracosenoic acid	Metabolite name
+Alternate_name	Nervonic acid	Metabolite alternate name
+HMDB	HMDB0002368	Human Metabolome Database identifier
+PubChem	5281120	Pubchem identifier
+KEGG	C08323	KEGG compound identifier
+Units	relative abundance	Description of measurement units
+Value	403865.4417	Measurement value
+Zero_replacement	FALSE	Was measurement value subject to zero replacement during data pre-processing
+Data_contact	email address	Contact for queries about data set
+Date_exported	11102021	Date of data set preparation/export
+Script	HTP_data_Synapse_v0.1.R	Data preparation script

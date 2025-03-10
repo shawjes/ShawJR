@@ -1,0 +1,260 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)))
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata.split <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  filter(Aptamer_in_P4C == 1) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster) # Note this is the only revision to ardata for modeling
+
+ardata.split %>% rbindlist()
+```
+
+```{r}
+ardata.split %>%
+  rbindlist() %>%
+  dplyr::select(LabID,
+                UniProt_Aptamer_Chr_Cluster,
+                Aptamer_in_P4C,
+                Aptamer_in_Lehallier2019,
+                Zlog10_relative_abundance, Karyotype, Sex) %>%
+  unique() %>%
+  group_by(UniProt_Aptamer_Chr_Cluster, Karyotype) %>%
+  summarise(N = n())
+```
+
+#### Vectorize model formulas to be fit
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL);
+model_formulas <- tmp$model_formula;
+names(model_formulas) <- tmp$model_name;
+
+#names(model_formulas)[[1]]
+#model_formulas[[1]]
+#names(model_formulas)[[2]]
+#model_formulas[[2]]
+#names(model_formulas)[[3]]
+#model_formulas[[3]]
+
+model_formulas
+```
+
+```{r}
+# https://future.futureverse.org/reference/plan.html
+
+# https://stackoverflow.com/questions/77244972/limit-of-workers-in-futureplan-function-higher-than-available-cpus-cores
+
+parallelly::availableCores()
+```
+
+
+#### Compare runtimes for...
+#### purrr() vs.
+#### furrr with plan(sequential) vs.
+#### furrr with plan(multisession, workers = 2) vs.
+#### furrr with plan(multisession, workers = 4)
+```{r}
+options(future.globals.maxSize = 5e10);
+
+#n_aptamers <- c(10, 100, 500, 1000, 4632)
+n_aptamers <- c(10, 100, 500, 1000)
+tdiff_setup_purrr <- 0
+tdiff_purrr <- list()
+# purrr
+for ( i in 1:length(n_aptamers) ) {
+  t0 <- Sys.time()
+  set.seed(1234)
+  lm_tidy <- ardata.split %>%
+    head(n = n_aptamers[[i]]) %>%
+    purrr::map(~lm(as.formula(model_formulas[[2]]), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formulas[[2]]) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  t1 <- Sys.time();
+  
+  tdiff_purrr[[i]] <- t1 - t0
+  names(tdiff_purrr)[[i]] <- paste0("purrr | n_aptamers = ", n_aptamers[[i]])
+}
+  
+# furrr with plan(sequential);
+t0 <- Sys.time();
+plan(sequential);
+t1 <- Sys.time();
+tdiff_setup_furrr_sequential <- t1 - t0;
+tdiff_furrr.sequential <- list()
+for ( i in 1:length(n_aptamers) ) {
+  t0 <- Sys.time();
+  set.seed(1234)
+  lm_tidy <- ardata.split %>%
+    head(n = n_aptamers[[i]]) %>%
+    furrr::future_map(~lm(as.formula(model_formulas[[2]]), data = .)) %>%
+    furrr::future_map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formulas[[2]]) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  t1 <- Sys.time();
+  
+  tdiff_furrr.sequential[[i]] <- t1 - t0
+  names(tdiff_furrr.sequential)[[i]] <- paste0("furrr sequential | n_aptamers = ", n_aptamers[[i]])
+}
+
+# furrr with plan(multisession, workers = 2);
+t0 <- Sys.time();
+plan(multisession, workers = 2);
+t1 <- Sys.time();
+tdiff_setup_furrr_multisession2 <- t1 - t0;
+tdiff_furrr.multisession2 <- list()
+for ( i in 1:length(n_aptamers) ) {
+  t0 <- Sys.time();
+  set.seed(1234)
+  lm_tidy <- ardata.split %>%
+    head(n = n_aptamers[[i]]) %>%
+    furrr::future_map(~lm(as.formula(model_formulas[[2]]), data = .)) %>%
+    furrr::future_map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formulas[[2]]) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  t1 <- Sys.time();
+  
+  tdiff_furrr.multisession2[[i]] <- t1 - t0;
+  names(tdiff_furrr.multisession2)[[i]] <- paste0("furrr multisession2 | n_aptamers = ", n_aptamers[[i]])
+}
+
+# furrr with plan(multisession, workers = 4);
+t0 <- Sys.time();
+plan(multisession, workers = 4);
+t1 <- Sys.time();
+tdiff_setup_furrr_multisession4 <- t1 - t0;
+tdiff_furrr.multisession4 <- list()
+for ( i in 1:length(n_aptamers) ) {
+  t0 <- Sys.time();
+  set.seed(1234)
+  lm_tidy <- ardata.split %>%
+    head(n = n_aptamers[[i]]) %>%
+    furrr::future_map(~lm(as.formula(model_formulas[[2]]), data = .)) %>%
+    furrr::future_map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formulas[[2]]) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  t1 <- Sys.time();
+  
+  tdiff_furrr.multisession4[[i]] <- t1 - t0;
+  names(tdiff_furrr.multisession4)[[i]] <- paste0("furrr multisession4 | n_aptamers = ", n_aptamers[[i]])
+}
+```
+
+```{r}
+ls(pattern = "_setup_")
+
+tdiff_setup_purrr
+tdiff_setup_furrr_sequential
+tdiff_setup_furrr_multisession2
+tdiff_setup_furrr_multisession4
+```
+
+#### Compare timing
+```{r}
+ggdata.compare_timing <- list((tdiff_purrr %>%
+                                 lapply(as.data.frame) %>% 
+                                 rbindlist(idcol = "id") %>%
+                                 dplyr::rename(tdiff = `X[[i]]`) %>%
+                                 mutate(n_aptamers = n_aptamers)),
+                              (tdiff_furrr.sequential %>% 
+                                 lapply(as.data.frame) %>% 
+                                 rbindlist(idcol = "id") %>%
+                                 dplyr::rename(tdiff = `X[[i]]`) %>%
+                                 mutate(n_aptamers = n_aptamers)),
+                              (tdiff_furrr.multisession2 %>% lapply(as.data.frame) %>%
+                                 rbindlist(idcol = "id") %>%
+                                 dplyr::rename(tdiff = `X[[i]]`)) %>%
+                                mutate(n_aptamers = n_aptamers),
+                              (tdiff_furrr.multisession4 %>% lapply(as.data.frame) %>%
+                                 rbindlist(idcol = "id") %>%
+                                 dplyr::rename(tdiff = `X[[i]]`)) %>%
+                                mutate(n_aptamers = n_aptamers)) %>%
+  rbindlist() %>%
+  mutate(package = case_when(grepl("purrr", id)==TRUE ~ "purrr",
+                             grepl("furrr", id)==TRUE ~ "furrr",
+                             .default = NA),
+         furrr_plan = case_when(grepl("sequential", id)==TRUE ~ "plan(sequential)",
+                                grepl("multisession2", id)==TRUE ~ "plan(multisession, workers = 2)",
+                                grepl("multisession4", id)==TRUE ~ "plan(multisession, workers = 4)",
+                                .default = NA),
+         runtype = paste0(package, " with ", furrr_plan),
+         runtype = gsub(" with NA", "", runtype)) %>%
+  dplyr::select(n_aptamers,
+                runtype,
+                #package, furrr_plan,
+                tdiff) %>%
+  dplyr::rename(tdiff_seconds = tdiff) %>%
+  mutate(tdiff_seconds.num = as.numeric(tdiff_seconds));
+
+ggdata.compare_timing %>%
+  ggplot(aes(x = n_aptamers, y = tdiff_seconds.num, color = runtype, fill = runtype)) +
+  geom_smooth(se = TRUE) +
+  geom_point()
+```
+
+

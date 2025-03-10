@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r echo=True, include=FALSE}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r echo=True, include=FALSE}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+
+select <- dplyr::select
+filter <- dplyr::filter
+rename <- dplyr::rename
+```
+
+#### Read Analysis Tracker
+```{r}
+# setwd(dir.docs)
+# analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+#   filter(run_model == 1)
+# 
+# analysis_tracker
+```
+
+#### Read indata
+```{r}
+setwd(dir.indata)
+in_rna <- fread("in_donovan2024_p4c_rna_fpkm.csv.gz")
+```
+
+#### Prepare ai_p4c_rna_d21_mean_sd
+```{r}
+head(in_rna)
+
+ai_p4c_rna_d21_mean_sd <- in_rna %>%
+  mutate(Analyte = paste0(Gene_name, " (", EnsemblID, ")")) %>%
+  select(LabID, Analyte, Units, Value) %>%
+  unique() %>%
+  filter(grepl("B", LabID)==TRUE) %>% # LabIDs containing the letter "B" are P4C Controls (D21)
+  group_by(Analyte) %>%
+  summarise(d21_mean_log10FPKM = mean(log10(Value + 0.005), na.rm=TRUE),
+            d21_sd_log10FPKM = sd(log10(Value + 0.005), na.rm=TRUE)) %>%
+  ungroup();
+
+setwd(dir.aidata)
+fwrite(ai_p4c_rna_d21_mean_sd, "ai_p4c_rna_d21_mean_sd.csv.gz")
+```

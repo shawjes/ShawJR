@@ -1,0 +1,784 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#rm(list = ls(all = TRUE))
+library(openxlsx)
+library(data.table)
+library(dplyr)
+library(tidyr)
+#library(lattice)
+library(ggplot2)
+#library(infer)
+library(miceadds)
+require(dplyr)
+library(FedData)
+library(ggrepel)
+```
+
+# Read in model results
+```{r}
+model1<-read.xlsx("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx",
+                  sheet="Model 1")
+model2<-read.xlsx("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx",
+                  sheet="Model 2")
+model3<-read.xlsx("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx",
+                  sheet="Model 3")
+model1A<-read.xlsx("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx",
+                  sheet="Model 1A")
+model1B<-read.xlsx("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx",
+                  sheet="Model 1B")
+
+model1
+model2
+model3
+model1A
+model1B
+
+# Need volcano plots for:
+# Age:
+# - Age (Model 1)
+# - Age within T21 (Model 1A)
+# - Age within D21 (Model 1B)
+# - Age*T21 (Model 2)
+# Female:
+# - Female (Model 1)
+# - Female within T21 (Model 1A)
+# - Female within D21 (Model 1B)
+# - Age*T21 (Model 3)
+
+# Then circle back to add:
+# T21 adjusted for age and sex
+# T21 adjusted or age, sex, and T21*age
+# T21 adjusted or age, sex, and T21*sex
+```
+
+```{r}
+T21.m1<-model1 %>%
+  mutate(Model = "M1") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_T21, FDR_T21) %>%
+  mutate(Term = "T21") %>%
+  rename(log2FC = log2FC_T21, FDR = FDR_T21) %>%
+  mutate(Volcano_Title = "Effect of T21",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+T21.m2<-model2 %>%
+  mutate(Model = "M2") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_T21, FDR_T21) %>%
+  mutate(Term = "T21") %>%
+  rename(log2FC = log2FC_T21, FDR = FDR_T21) %>%
+  mutate(Volcano_Title = "Effect of T21",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+T21.m3<-model3 %>%
+  mutate(Model = "M3") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_T21, FDR_T21) %>%
+  mutate(Term = "T21") %>%
+  rename(log2FC = log2FC_T21, FDR = FDR_T21) %>%
+  mutate(Volcano_Title = "Effect of T21",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+```
+
+```{r}
+# Need volcano plots for:
+# Age:
+# - Age (Model 1)
+# - Age within T21 (Model 1A)
+# - Age within D21 (Model 1B)
+# - Age*T21 (Model 2)
+
+age.m1<-model1 %>%
+  mutate(Model = "M1") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_Age, FDR_Age) %>%
+  mutate(Term = "Age") %>%
+  rename(log2FC = log2FC_Age, FDR = FDR_Age) %>%
+  mutate(Volcano_Title = "Effect of age overall",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+age.m1A<-model1A %>%
+  mutate(Model = "M1A") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_Age, FDR_Age) %>%
+  mutate(Term = "Age") %>%
+  rename(log2FC = log2FC_Age, FDR = FDR_Age) %>%
+  mutate(Volcano_Title = "Effect of age in T21s",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+
+age.m1B<-model1B %>%
+  mutate(Model = "M1B") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_Age, FDR_Age) %>%
+  mutate(Term = "Age") %>%
+  rename(log2FC = log2FC_Age, FDR = FDR_Age) %>%
+  mutate(Volcano_Title = "Effect of age in D21s",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+T21byAge.m2<-model2 %>%
+  mutate(Model = "M2") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, `log2FC_T21:Age`, `FDR_T21:Age`) %>%
+  mutate(Term = "T21:Age") %>%
+  rename(log2FC = `log2FC_T21:Age`, FDR = `FDR_T21:Age`) %>%
+  mutate(Volcano_Title = "Effect of T21 on age-dependent trajectory",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+age.m1
+age.m1A
+age.m1B
+T21byAge.m2
+
+# Female:
+# - Female (Model 1)
+# - Female within T21 (Model 1A)
+# - Female within D21 (Model 1B)
+# - Age*T21 (Model 3)
+female.m1<-model1 %>%
+  mutate(Model = "M1") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_Female, FDR_Female) %>%
+  mutate(Term = "Female") %>%
+  rename(log2FC = log2FC_Female, FDR = FDR_Female) %>%
+  mutate(Volcano_Title = "Effect of female sex overall",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+female.m1A<-model1A %>%
+  mutate(Model = "M1A") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_Female, FDR_Female) %>%
+  mutate(Term = "Female") %>%
+  rename(log2FC = log2FC_Female, FDR = FDR_Female) %>%
+  mutate(Volcano_Title = "Effect of female sex in T21s",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+female.m1B<-model1B %>%
+  mutate(Model = "M1B") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, log2FC_Female, FDR_Female) %>%
+  mutate(Term = "Female") %>%
+  rename(log2FC = log2FC_Female, FDR = FDR_Female) %>%
+  mutate(Volcano_Title = "Effect of female sex in D21s",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+T21byFemale.m3<-model3 %>%
+  mutate(Model = "M3") %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=FALSE) %>%
+  select(Model, Model_Call, Samples_Analyzed, Analyte, `log2FC_T21:Female`, `FDR_T21:Female`) %>%
+  mutate(Term = "FDR_T21:Female") %>%
+  rename(log2FC = `log2FC_T21:Female`, FDR = `FDR_T21:Female`) %>%
+  mutate(Volcano_Title = "Differential effect of female sex by karyotype",
+         Model_Formula = gsub("lmerTest::lmer[(]formula = ", "", Model_Call),
+         Model_Formula = gsub(", data = . , REML = TRUE)", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Model_Formula = gsub("CalcConcMean_AfterImputation", "Conc.", Model_Formula),
+         Result_Category = ifelse(FDR<0.05 & log2FC<0, "Significantly downregulated",
+                                  ifelse(FDR<0.05 & log2FC>0, "Significantly upregulated",
+                                         ifelse(FDR>0.05, "Not statistically significant", NA)))) %>%
+  select(Model, Model_Formula, Samples_Analyzed, Analyte, Term, log2FC, FDR, Result_Category, Volcano_Title)
+
+female.m1
+female.m1A
+female.m1B
+T21byFemale.m3
+```
+
+###################
+# Volcano plot(s) #
+###################
+
+```{r}
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3")
+
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+#
+
+standard_colors <- c("#333333", "#009b4e") 
+```
+
+```{r}
+T21.m1
+female.m1
+female.m1A
+female.m1B
+```
+
+```{r}
+# Volcano for Model 1 effect of T21, after adjustment for age, sex, and sample source:
+df<-T21.m1
+my_title <- paste("MSD: ", df$Volcano_Title[1], " adjusted for\nage, sex, and sample source", sep="")
+save_as<-paste("MSD_051220_Volcano_MatchT21scales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1],
+               " adjusted for age, sex, and sample source", sep="")
+my_title
+save_as
+df %>%
+  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0, 20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+  labs(title = my_title,
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/MatchT21scales")
+ggsave(filename = paste(save_as, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+
+
+# Volcano for Model 1 effect of Female
+df<-female.m1
+my_title <- paste("MSD: ", gsub(" overall", "", df$Volcano_Title[1]), " adjusted for\nT21, age, and sample source", sep="")
+save_as<-paste("MSD_051220_Volcano_MatchT21scales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1],
+               " adjusted for T21, age, and sample source", sep="")
+my_title
+save_as
+df %>%  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0,20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+  labs(title = my_title,
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/MatchT21scales")
+ggsave(filename = paste(save_as, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+
+
+# Volcano for Model 2 effect of T21, after adjustment for age, sex, T21 by sex, and sample source:
+df<-female.m1A
+my_title <- paste("MSD: ", df$Volcano_Title[1], " adjusted for\nage and sample source", sep="")
+save_as<-paste("MSD_051220_Volcano_MatchT21scales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1],
+               " adjusted for age and sample source", sep="")
+my_title
+save_as
+df %>%
+  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0,20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+  labs(title = my_title,
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+
+save_as.matched<-paste("MSD_051220_Volcano_MatchT21scales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1], gsub(":", " -", my_title), sep="")
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/MatchT21scales")
+ggsave(filename = paste(save_as, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+
+# Volcano for Model 1B effect of Female sex
+df<-female.m1B
+my_title <- paste("MSD: ", df$Volcano_Title[1], " adjusted for\nage and sample source", sep="")
+save_as<-paste("MSD_051220_Volcano_MatchT21scales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1],
+               " adjusted for age and sample source", sep="")
+my_title
+save_as
+df  %>%
+  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0,20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+  labs(title = my_title,
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+
+save_as.matched<-paste("MSD_051220_Volcano_MatchT21scales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1], gsub(":", " -", my_title), sep="")
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/MatchT21scales")
+ggsave(filename = paste(save_as, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+```
+
+
+#### Make list containing data for each plot
+```{r}
+#volcano.data<-list(age.m1, age.m1A, age.m1B, age.m2, female.m1, female.m1A, female.m1B, female.m3)
+#volcano.data[[1]]
+
+plotData.age<-list(age.m1, age.m1A, age.m1B, T21byAge.m2)
+plotData.female<-list(female.m1, female.m1A, female.m1B, T21byFemale.m3)
+plotData.age
+plotData.female
+```
+
+##### Make volcano plots
+
+#### Volcano plots for the effect of T21 in models 1, 2, and 3
+```{r}
+wrapper <- function(x, ...) 
+{
+  paste(strwrap(x, ...), collapse = "\n")
+}
+
+# Volcano for Model 1 effect of T21, after adjustment for age, sex, and sample source:
+df<-T21.m1
+my_title <- paste("MSD: ", df$Volcano_Title, " adjusted for age, sex, and sample source", sep="")
+df %>%
+  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0, 20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+#  ggtitle(wrapper(my_title, width = 20)) +
+  labs(title = paste("MSD: ", df$Volcano_Title, " adjusted for\nage, sex, and sample source", sep=""),
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+
+save_as.matched<-paste("MSD_051220_Volcano_MatchedScales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1], " adjusted for age, sex, and sample source", sep="")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/T21_comparisons")
+ggsave(filename = paste(save_as.matched, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as.matched, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+
+
+# Volcano for Model 2 effect of T21, after adjustment for age, sex, T21 by age, and sample source:
+df<-T21.m2
+df %>%
+  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0,20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+  labs(title = paste("MSD: ", df$Volcano_Title, " adjusted for age,\nsex, T21 by age, and sample source", sep=""),
+#  labs(title = paste("MSD: ", df$Volcano_Title, sep=""),
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+
+save_as.matched<-paste("MSD_051220_Volcano_MatchedScales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1], " adjusted for age, sex, T21 by age, and sample source", sep="")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/T21_comparisons")
+ggsave(filename = paste(save_as.matched, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as.matched, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+
+
+# Volcano for Model 2 effect of T21, after adjustment for age, sex, T21 by sex, and sample source:
+df<-T21.m3
+df  %>%
+  # generate labels
+  mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+  ggplot(aes(log2FC, -log10(FDR))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+  geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+  # set axis limits
+  xlim(-2, 2) +
+  ylim(0,20) +
+  # set axis labels
+  xlab(bquote('Fold Change '~(log[2])~'')) +
+  ylab(bquote(''~-log[10](P[BH])~'')) +
+  # set colors
+  scale_color_manual(values = c("Not statistically significant" = "grey",
+                                "Significantly upregulated" = "#153152",
+                                "Significantly downregulated" = "#006c9e"), name = NULL) +
+  # Add labels
+  geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 20)) +
+  theme(aspect.ratio = 1.2,
+        #legend.position = c(0.15, 0.9), # depends on data scales
+        legend.position = "none" ) +
+  #    legend.background = element_blank() ) +
+  labs(title = paste("MSD: ", df$Volcano_Title, " adjusted for age,\nsex, T21 by age, and sample source", sep=""),
+#  labs(title = paste("MSD: ", T21.m1$Volcano_Title, sep=""),
+       subtitle = paste(df$Model, ": ", df$Model_Formula, sep=""))
+
+save_as.matched<-paste("MSD_051220_Volcano_MatchedScales - ",
+                       "Model ", gsub("M", "", df$Model[1]), " - ", df$Volcano_Title[1], " adjusted for age, sex, T21 by sex, and sample source", sep="")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/T21_comparisons")
+ggsave(filename = paste(save_as.matched, ".png", sep=""), width = 5, height = 5, units = "in")
+ggsave(filename = paste(save_as.matched, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+```
+
+##### Age-related volcano plots with matching axis scales
+```{r}
+p<-list()
+save_as<-vector("list", 4)
+for ( i in 1:length(plotData.age) ) {
+  p[[i]]<-plotData.age[[i]] %>%
+    # generate labels for select genes
+    mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+    ggplot(aes(log2FC, -log10(FDR))) +
+    geom_hline(yintercept = -log10(0.05), linetype = 2) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+    # set axis limits
+    xlim(-0.15, 0.15) +
+    ylim(0,45) +
+    # set axis labels
+    xlab(bquote('Fold Change '~(log[2])~'')) +
+    ylab(bquote(''~-log[10](P[BH])~'')) +
+    # set colors
+    scale_color_manual(values = c("Not statistically significant" = "grey",
+                                  "Significantly upregulated" = "#153152",
+                                  "Significantly downregulated" = "#006c9e"), name = NULL) +
+    # Add labels
+    geom_text_repel(aes(label = label), xlim = c(-2,2), ylim = c(0, 45)) +
+    theme(aspect.ratio = 1.2,
+          #legend.position = c(0.15, 0.9), # depends on data scales
+          legend.position = "none" ) +
+    #    legend.background = element_blank() ) +
+    labs(title = paste("MSD: ", plotData.age[[i]]$Volcano_Title, sep=""),
+         subtitle = paste(plotData.age[[i]]$Model, ": ", plotData.age[[i]]$Model_Formula, sep=""))
+  
+  save_as.matched<-paste("MSD_051220_Volcano_MatchedScales - ",
+                 "Model ", gsub("M", "", plotData.age[[i]]$Model[1]), " - ", plotData.age[[i]]$Volcano_Title[1], sep="")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/Age_comparisons/Matched_Scales")
+  ggsave(filename = paste(save_as.matched, ".png", sep=""), width = 5, height = 5, units = "in")
+  ggsave(filename = paste(save_as.matched, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+}
+save_as
+p
+```
+
+##### Age-related volcano plots with dynamic axis scales
+```{r}
+p.freeScales<-list()
+for ( i in 1:length(plotData.age) ) {
+
+  # Get x-axis limits based on range of the data:
+  absValue.Xlimits<-max( abs( 1.05*min(plotData.age[[i]]$log2FC) ),
+             abs( 1.05*max(plotData.age[[i]]$log2FC) ) )
+  Xlimits<-c(-absValue.Xlimits, absValue.Xlimits)
+
+  # Get y-axis maximum based on range of the corrected P-values:
+  Ymax<-1.05*max( -log10(plotData.age[[i]]$FDR) )
+
+  p.freeScales[[i]]<-plotData.age[[i]] %>%
+    # generate labels for select genes
+    mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+    ggplot(aes(log2FC, -log10(FDR))) +
+    geom_hline(yintercept = -log10(0.05), linetype = 2) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+    # set axis limits
+    xlim(Xlimits) +
+    ylim(0, max(3, Ymax)) +
+    # set axis labels
+    xlab(bquote('Fold Change '~(log[2])~'')) +
+    ylab(bquote(''~-log[10](P[BH])~'')) +
+    # set colors
+    scale_color_manual(values = c("Not statistically significant" = "grey",
+                                  "Significantly upregulated" = "#153152",
+                                  "Significantly downregulated" = "#006c9e"), name = NULL) +
+    # Add labels
+    geom_text_repel(aes(label = label), xlim = c(Xlimits), ylim = c(0, max(3, Ymax))) +
+    theme(aspect.ratio = 1.2,
+          #legend.position = c(0.15, 0.9), # depends on data scales
+          legend.position = "none" ) +
+    #    legend.background = element_blank() ) +
+    labs(title = paste("MSD: ", plotData.age[[i]]$Volcano_Title, sep=""),
+         subtitle = paste(plotData.age[[i]]$Model, ": ", plotData.age[[i]]$Model_Formula, sep=""))
+  
+  save_as.free<-paste("MSD_051220_Volcano_FreeScales - ",
+                 "Model ", gsub("M", "", plotData.age[[i]]$Model[1]), " - ", plotData.age[[i]]$Volcano_Title[1], sep="")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/Age_comparisons/Free_Scales")
+  ggsave(filename = paste(save_as.free, ".png", sep=""), width = 5, height = 5, units = "in")
+  ggsave(filename = paste(save_as.free, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+}
+
+p.freeScales
+```
+
+##### Sex-related volcano plots with matching axis scales
+```{r}
+p<-list()
+for ( i in 1:length(plotData.female) ) {
+  p[[i]]<-plotData.female[[i]] %>%
+    # generate labels for select genes
+    mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+    ggplot(aes(log2FC, -log10(FDR))) +
+    geom_hline(yintercept = -log10(0.05), linetype = 2) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+    # set axis limits
+    xlim(-1, 1) +
+    ylim(0, 3.5) +
+    # set axis labels
+    xlab(bquote('Fold Change '~(log[2])~'')) +
+    ylab(bquote(''~-log[10](P[BH])~'')) +
+    # set colors
+    scale_color_manual(values = c("Not statistically significant" = "grey",
+                                  "Significantly upregulated" = "#153152",
+                                  "Significantly downregulated" = "#006c9e"), name = NULL) +
+    # Add labels
+    geom_text_repel(aes(label = label), xlim = c(-1, 1)) +
+    theme(aspect.ratio = 1.2,
+          #legend.position = c(0.15, 0.9), # depends on data scales
+          legend.position = "none" ) +
+    #    legend.background = element_blank() ) +
+    labs(title = paste("MSD: ", plotData.female[[i]]$Volcano_Title, sep=""),
+         subtitle = paste(plotData.female[[i]]$Model, ": ", plotData.female[[i]]$Model_Formula, sep=""))
+
+  save_as.matched<-paste("MSD_051220_Volcano_MatchedScales - ",
+                 "Model ", gsub("M", "", plotData.female[[i]]$Model[1]), " - ", plotData.female[[i]]$Volcano_Title[1], sep="")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/Sex_comparisons/Matched_Scales")
+  ggsave(filename = paste(save_as.matched, ".png", sep=""), width = 5, height = 5, units = "in")
+  ggsave(filename = paste(save_as.matched, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+}
+p
+```
+
+##### Sex-related volcano plots with dynamic axis scales
+```{r}
+p.freeScales<-list()
+for ( i in 1:length(plotData.female) ) {
+
+  # Get x-axis limits based on range of the data:
+  absValue.Xlimits<-max( abs( 1.05*min(plotData.female[[i]]$log2FC) ),
+             abs( 1.05*max(plotData.female[[i]]$log2FC) ) )
+  Xlimits<-c(-absValue.Xlimits, absValue.Xlimits)
+
+  # Get y-axis maximum based on range of the corrected P-values:
+  Ymax<-1.05*max( -log10(plotData.female[[i]]$FDR) )
+
+  p.freeScales[[i]]<-plotData.female[[i]] %>%
+    # generate labels for select genes
+    mutate(label = if_else(Result_Category!="Not statistically significant", Analyte, "")) %>%
+    ggplot(aes(log2FC, -log10(FDR))) +
+    geom_hline(yintercept = -log10(0.05), linetype = 2) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    geom_point(data = . %>% filter(Result_Category=="Not statistically significant"), aes(), color = "dark gray") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly upregulated"), aes(), colour = "#153152") +
+    geom_point(data = . %>% filter(Result_Category=="Significantly downregulated"), aes(), colour = "#006c9e") +
+    # set axis limits
+    xlim(Xlimits) +
+    ylim(0, max(3, Ymax)) +
+    # set axis labels
+    xlab(bquote('Fold Change '~(log[2])~'')) +
+    ylab(bquote(''~-log[10](P[BH])~'')) +
+    # set colors
+    scale_color_manual(values = c("Not statistically significant" = "grey",
+                                  "Significantly upregulated" = "#153152",
+                                  "Significantly downregulated" = "#006c9e"), name = NULL) +
+    # Add labels
+    geom_text_repel(aes(label = label), xlim = c(Xlimits), ylim = c(0, max(3, Ymax))) +
+    theme(aspect.ratio = 1.2,
+          #legend.position = c(0.15, 0.9), # depends on data scales
+          legend.position = "none" ) +
+    #    legend.background = element_blank() ) +
+    labs(title = paste("MSD: ", plotData.female[[i]]$Volcano_Title, sep=""),
+         subtitle = paste(plotData.female[[i]]$Model, ": ", plotData.female[[i]]$Model_Formula, sep=""))
+
+  save_as.free<-paste("MSD_051220_Volcano_FreeScales - ",
+                 "Model ", gsub("M", "", plotData.female[[i]]$Model[1]), " - ", plotData.female[[i]]$Volcano_Title[1], sep="")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Volcano/Sex_comparisons/Free_Scales")
+  ggsave(filename = paste(save_as.free, ".png", sep=""), width = 5, height = 5, units = "in")
+  ggsave(filename = paste(save_as.free, ".pdf", sep=""), device = cairo_pdf, width = 5, height = 5, units = "in")
+  
+}
+
+p.freeScales
+```
+

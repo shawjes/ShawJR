@@ -1,0 +1,191 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+t_p4c_soma_lm_singleaptamer_res_wide %>%
+  filter(PadjBH_T21byAge < 0.10) 
+
+ggdata_sigT21byAge_updown %>%
+  filter(chr21 == "Chromosome 21")
+
+ggbar_sigT21_updown
+ggbar_sigT21byAge_updown
+```
+
+#### LOESS prediction and plotting of age trajectories in D21s
+```{r}
+aptamers_sigT21byAge_up <- unique((t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(term == "T21:Age" & PadjBH<0.10 & Zlog10FC>0))$UniProt_Aptamer_Chr_Cluster);
+
+aptamers_sigT21byAge_down <- unique((t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(term == "T21:Age" & PadjBH<0.10 & Zlog10FC<0))$UniProt_Aptamer_Chr_Cluster);
+
+ar_loess_sigT21byAge_up.T21only.split<- ardata.split %>%
+  rbindlist() %>%
+  filter(T21 == 1) %>%
+  filter(UniProt_Aptamer_Chr_Cluster %in% c(aptamers_sigT21byAge_up)) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_loess_sigT21byAge_down.T21only.split <- ardata.split %>%
+  rbindlist() %>%
+  filter(T21 == 1) %>%
+  filter(UniProt_Aptamer_Chr_Cluster %in% c(aptamers_sigT21byAge_down)) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+
+ar_loess_sigT21byAge_up.T21only.split %>% length();
+ar_loess_sigT21byAge_down.T21only.split %>% length();
+# [1] 243
+# [1] 607
+
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_sigT21byAge_up.T21only <- list()
+predicted_sigT21byAge_up.T21only <- list()
+plot_predicted_sigT21byAge_up.T21only <- list()
+for ( i in 1:length(ar_loess_sigT21byAge_up.T21only.split) ){
+  set.seed(1234)
+  #loess_sigT21byAge_up[[i]] <- loess(Zlog10_relative_abundance ~ T21 + Age + Female + T21*Age,
+  #                    data = ar_loess_sigT21byAge_up.split[[i]])
+  loess_sigT21byAge_up.T21only[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+                      data = ar_loess_sigT21byAge_up.T21only.split[[i]])
+
+  names(loess_sigT21byAge_up.T21only)[[i]] <- names(ar_loess_sigT21byAge_up.T21only.split)[[i]]
+  
+  predicted_sigT21byAge_up.T21only[[i]] <-
+    data.frame(LabID = ar_loess_sigT21byAge_up.T21only.split[[i]]$LabID,
+               predicted_Zlog10_relative_abundance = loess_sigT21byAge_up.T21only[[i]]$fitted,
+               Zlog10_relative_abundance = ar_loess_sigT21byAge_up.T21only.split[[i]]$Zlog10_relative_abundance,
+               T21 = ar_loess_sigT21byAge_up.T21only.split[[i]]$T21,
+               Age = ar_loess_sigT21byAge_up.T21only.split[[i]]$Age,
+               Female = ar_loess_sigT21byAge_up.T21only.split[[i]]$Female) %>%
+    arrange(Age) %>%
+    mutate(UniProt_Aptamer_Chr_Cluster = names(ar_loess_sigT21byAge_up.T21only.split)[[i]]) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, everything());
+  names(predicted_sigT21byAge_up.T21only)[[i]] <- names(ar_loess_sigT21byAge_up.T21only.split)[[i]];
+}
+
+for ( i in 1:length(ar_loess_sigT21byAge_up.split) ){
+  plot_predicted_sigT21byAge_up.T21only[[i]] <- predicted_sigT21byAge_up.T21only[[i]] %>%
+    arrange(Age, predicted_Zlog10_relative_abundance) %>%
+    mutate(Karyotype_Sex = case_when(T21 == 0 & Female == 1 ~ "D21 XX",
+                                     T21 == 0 & Female == 0 ~ "D21 XY",
+                                     T21 == 1 & Female == 1 ~ "T21 XX",
+                                     T21 == 1 & Female == 0 ~ "T21 XY", .default = NA),
+           Karyotype = gsub(" XX", "", Karyotype_Sex),
+           Karyotype = gsub(" XY", "", Karyotype),
+           Karyotype_Sex = factor(Karyotype_Sex, levels = c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+    ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    geom_point(color = RedBlue[[2]],
+               alpha = 0.5) +
+    #geom_smooth() +
+    geom_line(color = RedBlue[[2]]) +
+    ggtitle(names(predicted_sigT21byAge_up.T21only)[[i]]);
+  names(plot_predicted_sigT21byAge_up.T21only)[[i]] <- names(plot_predicted_sigT21byAge_up.T21only)[[i]]
+}
+
+predicted_sigT21byAge_up.T21only %>% head()
+
+plot_predicted_sigT21byAge_up.T21only %>% head()
+
+```
+
+```{r}
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+library(gridExtra)
+```
+
+# PICK UP HERE (2/8/2025 ~ 6PM)
+
+#### Cluster the LOESS age-associated trajectories within D21s
+# Euclidean
+```{r}
+predicted_sigT21byAge_up.T21only.matrix <- predicted_sigT21byAge_up.T21only %>%
+  rbindlist() %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID, predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+
+# Dissimilarity matrix
+dissimilarity_sigT21byAge_up.T21only <- dist(predicted_sigT21byAge_up.T21only.matrix,
+                                             method = "euclidean") # Fav so far: "canberra"
+# This must be one of "euclidean", "maximum", "manhattan", "canberra", "binary" or "minkowski".
+
+# Hierarchical clustering using Complete Linkage
+hc1_sigT21byAge_up.T21only <- hclust(dissimilarity_sigT21byAge_up.T21only, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1_sigT21byAge_up.T21only, cex = 0.6); rect.hclust(hc1_sigT21byAge_up.T21only, k = 10, border = 2:6) # Use 6 clusters for this pilot analysis
+
+# Ward's method
+# hc5 <- hclust(d, method = "ward.D2" )
+# hc5.D21s <- hclust(d.D21s, method = "ward.D2" )
+# hc5
+# hc5.D21s
+
+# Cut tree into 6 groups
+sub_grp6_sigT21byAge_up.T21only <- cutree(hc1_sigT21byAge_up.T21only, k = 8) # hc1.D21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+#sub_grp6.D21s
+
+# Cluster plot:
+fviz_cluster(list(data = predicted_sigT21byAge_up.T21only.matrix, cluster = cutree(hc1_sigT21byAge_up.T21only, k = 6)))
+
+# PICK UP HERE (2/8/2025 ~ 630PM MT):
+
+# Add the the cluster each observation belongs to to our original data.
+predicted_sigT21byAge_up.T21only.k6_df <- predicted_sigT21byAge_up.T21only.matrix %>%
+  as.data.frame() %>%
+  mutate(cluster = sub_grp6_sigT21byAge_up.T21only) %>%
+  dplyr::select(cluster, everything()) %>%
+  rownames_to_column("UniProt_Aptamer_Chr_Cluster")%>%
+  dplyr::rename(T21byAge_Cluster = cluster) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster, everything())  %>%
+  group_by(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster) %>%
+  gather(key = "LabID", value = "predicted_Zlog10_relative_abudance", starts_with("HTP")) %>%
+  ungroup() %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster, everything())  %>%
+  dplyr::select(contains("LabID"), contains("Age"), contains("Sex"), contains("Female"),
+                contains("ptamer"),
+                contains("luster"),
+                everything()) %>%
+  full_join(ardata.split %>% rbindlist() %>% dplyr::select(LabID, Age, Sex) %>% unique(), by = c("LabID")) %>%
+  dplyr::select(contains("LabID"), contains("Age"), contains("Sex"), contains("Female"),
+                contains("ptamer"),
+                contains("luster"),
+                contains("predicted"), everything())
+predicted_sigT21byAge_up.T21only.k6_df
+
+predicted_sigT21byAge_up.T21only.k6_df.split_by_cluster <- split(predicted_sigT21byAge_up.T21only.k6_df,
+                                                                 predicted_sigT21byAge_up.T21only.k6_df$T21byAge_Cluster)
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+
+predicted_sigT21byAge_up.T21only.k6_df %>%
+  mutate(T21byAge_Cluster = paste0("T21byAge_Cluster ", T21byAge_Cluster)) %>%
+  filter(!is.na(T21byAge_Cluster) & !is.na(predicted_Zlog10_relative_abudance)) %>%
+    ggplot(aes(x = Age, y = predicted_Zlog10_relative_abudance, color = UniProt_Aptamer_Chr_Cluster)) +
+    geom_smooth(method = "loess", se = FALSE, alpha = 0.5, size = 0.75) +
+    #ggtitle(paste("Trajectory of T21-by-Age cluster ", predicted_sigT21byAge_up.T21only.k6_df.split_by_cluster[[i]]$T21byAge_Cluster[1], " in T21s")) +
+    theme(legend.position = "none") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  theme(aspect.ratio = 0.5) +
+  facet_wrap(~T21byAge_Cluster)
+
+# Draw the dendrogram with borders around the clusters:
+#plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 6, border = 2:6)
+```
+
+```{r}
+predicted_sigT21byAge_up.T21only.k6_df %>%
+  filter(T21byAge_Cluster == 8) %>%
+  ggplot(aes(x = Age, y = predicted_Zlog10_relative_abudance)) +
+  geom_line() +
+  facet_wrap(~UniProt_Aptamer_Chr_Cluster)
+```
+

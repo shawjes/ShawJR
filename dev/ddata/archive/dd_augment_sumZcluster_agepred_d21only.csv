@@ -1,0 +1,928 @@
+model_formula,LabID,T21,Karyotype,Female,Sex,Age,sumZ_Cluster_1,sumZ_Cluster_2,sumZ_Cluster_3,sumZ_Cluster_4,sumZ_Cluster_5,sumZ_Cluster_6,sumZ_Cluster_7,sumZ_Cluster_8,.fitted,.resid
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0001B2,0,Control,1,Female,25.8,-95.4441756435233,-43.4846236606848,-0.0624644351629468,-13.4182975332061,33.7051256650091,1.97570840907049,-2.03384189924683,3.92938641250249,2.72752814950955,0.522846342418022
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0018B3,0,Control,1,Female,57,-39.3541723724553,132.234908995181,22.0764358491701,46.7491318973849,-64.8694904567082,6.83553923584491,6.36886589637453,-8.82759925788422,3.82768086945758,0.215370398376971
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0019B2,0,Control,1,Female,56.9,82.1484960950751,-62.9803305708623,4.55305152978005,39.5264791502173,-48.922715665295,-56.9587512044567,9.15424191839917,-7.54542411897783,4.58210791690699,-0.540812575774706
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0022B2,0,Control,1,Female,43.2,-179.041755099719,-185.062148230232,5.93331635627797,26.0739417240075,-12.4562757104065,-34.0843902498838,-2.93083379551344,0.151597452579447,3.75438176203222,0.0114587332178462
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0026B2,0,Control,1,Female,55.6,-158.9816535071,-45.226671136469,24.8328854072952,20.7092111680569,-37.7203680166059,-14.4165942786287,6.30996673041886,-2.83794425686598,3.9122958125951,0.105887388661434
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0034B3,0,Control,1,Female,25.1,-35.1556100117914,-52.125985064631,-48.8017438169064,-26.5789245668168,-2.32049265652011,-36.6273686121657,-8.83838892543389,2.30586516436703,2.99197784144291,0.230890004694829
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0035B3,0,Control,1,Female,28.6,92.280986915317,85.7955447897206,6.41331132520223,-6.98750758928661,-2.14104289283633,-5.68484487223869,-4.99677431669815,-1.21451578689516,3.40456442161563,-0.0511577037898192
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0040B3,0,Control,1,Female,28.9,159.749421167967,-41.6597351777005,-49.2061328235809,-1.34782413799065,15.7020443068121,-33.7889027644543,-5.6682059956369,4.16313023861509,2.84005913741891,0.523782457699475
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0042B2,0,Control,0,Male,36.2,123.904145425104,60.9553743102965,11.8601731688659,19.2117232337511,-7.67205477423773,-31.3325502053712,-8.81716154422321,-4.89377047156278,3.95629111249414,-0.367231993662419
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0043B2,0,Control,0,Male,38.2,-76.1309256054897,68.7230485865223,49.3024270201227,20.6254568869781,-39.4035201265322,56.1044707043164,5.19641714155449,-0.461097819543313,3.2960021192361,0.346833396376428
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0044B2,0,Control,0,Male,35.8,-28.0299990036362,-82.8479578144415,-10.0021387692714,3.74349619749428,-6.03895605791317,-35.1272257545145,-10.3255075104016,-0.933201215811975,3.6353252871918,-0.0573773937851447
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0047B2,0,Control,0,Male,38.7,-14.9312078982812,-226.39738769247,-61.7795678046516,5.96740303071108,-7.46042107696736,-59.1295053225692,-11.3579870295411,1.46536660816237,3.30966471244577,0.346174887589971
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0048B2,0,Control,1,Female,39.4,-88.8401297798973,-85.6163697390142,7.02115088250135,0.528428686658564,-21.3421244328036,-34.569828000718,-2.95373914248449,1.01450219856631,3.8759662367581,-0.202200420454211
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0051B2,0,Control,0,Male,58.2,70.0514053425342,33.3268432251046,18.7565849987441,52.3762804993107,-76.4192721459136,1.03186982303475,12.1555262518839,-12.4990069317805,4.2684533960229,-0.204568041285508
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0055B2,0,Control,0,Male,37,-65.2659433564138,14.9821355761269,41.0644462460415,59.8274330713408,-23.3270696627279,-24.2411742386936,2.30764354939231,4.0093630954473,3.85884282526499,-0.247924912620763
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0057B2,0,Control,1,Female,34.8,-5.60246332496328,-40.7356603019166,-28.7917002211544,-5.65532047258991,-43.6573277408518,-22.9677055766798,-4.66234859042344,-0.939691504832083,3.51154711697492,0.0380702698055111
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0058B2,0,Control,0,Male,33.8,-118.174651825425,-130.999098994216,21.4980230596593,2.96915475828275,-22.796315991413,12.162328388109,-0.762580897328599,0.921845414913863,3.54504886895499,-0.0245880664660176
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0059B2,0,Control,0,Male,24.7,-28.7959838532323,-84.5155926520652,-18.6105471080697,-15.7125868826107,15.4678297346652,-11.2050666285068,-7.47167988263924,-0.383070034094792,3.05963143676074,0.147171806873193
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0061B2,0,Control,1,Female,22.2,-53.1220816793144,-24.1361134965621,8.96689072909318,-46.8172235816282,-21.4610401928955,16.0464402012426,-0.918027296501762,-1.97003748587503,3.47110126824657,-0.371008979368335
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0062B2,0,Control,1,Female,20.5,-223.632549665134,4.17944198969212,-7.90940957668221,-13.6970700495748,-41.6719195740839,-4.88328419547618,-2.51299525260462,-0.630113637562428,3.2916121124031,-0.271187226258741
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0067B2,0,Control,0,Male,20.5,-206.850909557794,-139.460319790643,-26.1593681312345,-36.0250330696822,-24.023295882519,-15.4482429049416,-8.30643158718386,2.0655566913083,3.22759018203917,-0.207165295894809
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0077B2,0,Control,0,Male,43.3,-58.0042994189424,-49.0923263934525,-4.47829895437514,13.8076601757871,-24.2437032707851,-8.4134962441862,-3.20890881401428,-2.66907071978257,3.45794529568589,0.310207339322558
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0078B2,0,Control,0,Male,27.7,-132.323680671096,-73.8428896971699,2.6279681138423,-6.27670842819724,9.88047426053634,-6.5827949787992,-2.63480364423377,2.13389833008978,3.11583971600811,0.205592697185181
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0079B2,0,Control,0,Male,28.4,-95.9314714763605,-32.8117598757273,33.6693042297783,-4.54121477103349,8.83221755388783,17.6966044527149,2.434738497292,-0.317395707049615,3.31581649948823,0.0305726456789337
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0085B2,0,Control,0,Male,33.7,-20.9570222085855,-69.1927750773288,-13.6608277501433,-3.94096500101353,-6.3327771604446,-12.8280034371958,-6.47018670845587,-0.522938958741504,3.29478532553111,0.22271251182721
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0087B2,0,Control,0,Male,55.4,-50.0562782734258,-54.0061741336073,38.751393811171,18.3122137822044,-52.0784057463044,25.7367890646029,8.10729971866723,-6.41094550424021,3.9872233651188,0.02735622863444
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0090B2,0,Control,0,Male,24.8,535.206545596464,456.822089406884,19.8196358597686,62.7209827130892,46.402399377121,-26.876273421729,-7.50468186259588,-0.738830046993161,3.18344329448596,0.0274003586849729
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0092B2,0,Control,1,Female,25.2,-149.897218269817,-34.5362073159215,-16.6134439627036,-42.2976920790374,-36.3903591496374,-5.59936997861767,-3.04067739681726,1.42368980195958,3.29296618644296,-0.0661221919255777
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0095B2,0,Control,1,Female,37.7,-37.8604097710143,-76.0470442800631,-12.9646453256311,-0.366625774616969,-42.9846383233461,-26.7067318413188,-5.62577588229494,1.34642118684519,3.72057691096334,-0.0909168165093699
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0096B2,0,Control,0,Male,25.6,-27.6877205234858,-55.4413698794093,8.44452809760243,18.5536688337062,20.04351700976,11.0515173470385,0.956936742593637,-0.514131344518254,2.96534812750698,0.27724422397854
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0098B2,0,Control,1,Female,54.9,-33.658962126972,-3.62464258573601,45.68359705032,23.6875657061684,-31.1681858261267,13.1135288689941,4.01375036151221,-5.51053174658453,3.98437721088383,0.0211361376316561
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0100B2,0,Control,1,Female,33.5,-81.565102179452,-42.1011054129652,13.3936405085588,-27.56930236473,17.527739338211,18.1003713077661,6.58155284283596,0.748684344885437,2.98641380502082,0.525131633810203
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0104B2,0,Control,1,Female,36.6,6.04000341860558,23.2947468260881,11.7287518101926,-14.3413630710889,-3.75917223975837,30.7205790269998,1.78200414803781,-2.76514290421916,3.0810794992592,0.518968741148119
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0105B3,0,Control,1,Female,30,-144.251003663792,53.4579918506614,46.6310445139203,-11.146680668696,-12.4277899127328,84.800043822725,9.68002457579743,-3.39101465694302,2.78090298269887,0.620294398963285
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0111B2,0,Control,1,Female,44.5,-68.1832830242768,-125.248691431514,-20.8619611349892,-21.5657997343983,-63.205803797643,-13.0625198260799,0.284292704597104,-3.96032851083956,3.84521814522708,-0.0497289560548824
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0118B,0,Control,0,Male,44.3,-56.5987329432844,-140.62889761718,-31.588200454235,35.0019092362421,-23.380764569989,-67.3822968755852,-14.0925840250874,2.19809468786076,3.73495406865074,0.0560306084003526
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0125B,0,Control,1,Female,26.9,135.223784226581,70.0108075703981,-25.8387913329394,-32.4576201635021,-6.70005922079074,-15.9466285154846,-5.50197501447311,-1.8289196448241,3.26219239011635,0.0299338964914431
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0126B2,0,Control,1,Female,48,540.827824820728,311.654474877251,-45.1941953912414,64.5602779492605,8.91844295830643,-66.9046499370681,-10.5431600272092,-9.26393291170077,3.49773368067036,0.373467330237527
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0127B2,0,Control,1,Female,8.2,-31.4820034915829,6.73278801295319,24.3734157508633,-5.69127921825386,53.8832223663916,58.735893606707,7.12969169074708,5.26828200039447,2.1126497934053,-0.00851563913509112
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0146B,0,Control,0,Male,47.4,-101.659772366071,50.3716416302482,28.7254336409397,24.5386127448658,-54.7321562690164,14.9141272707413,6.49210418857817,-2.68681095102326,3.67469588708467,0.183926341616362
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0147B,0,Control,1,Female,38.6,-184.835119555702,-107.153686502648,-0.621048871839051,-26.7746083157523,-48.9620312236319,27.768036396188,2.05474245600947,0.848955584578459,3.23667186098036,0.416580415490423
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0148B2,0,Control,0,Male,41.7,52.4783776310576,-26.5042002147907,-1.3558763782671,29.6104816288591,-18.7273703436568,-33.5001059924488,-6.56515793949806,-3.84967433998433,3.85113294811188,-0.12063181930712
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0149B,0,Control,1,Female,53.2,34.8561580617929,11.9919359817669,-22.3248773127183,3.41105485301059,-61.6859062104063,-46.5594384742122,-0.793939232818364,-2.59807079260637,4.03083340007701,-0.0567750037294088
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0202B,0,Control,0,Male,61.3,-190.65004722484,-56.8388842570486,52.347467650642,-9.11519691620216,-40.3415467944239,24.6787794905467,8.75421645548056,-3.38366471728716,3.94799292681307,0.167786916129092
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0205B,0,Control,1,Female,42.6,-94.6276273320092,6.5617574914649,18.0025927780882,4.41980558856354,-75.5020883921414,29.7641860093831,4.95244735976647,-4.90608966457968,3.72011070545131,0.0317435478240125
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0206B,0,Control,0,Male,15.8,157.975995977951,59.5104531508815,-5.41819629813724,7.65907239634815,0.902620356348249,4.19677927247481,-1.39699188883017,-0.691245983824204,3.10894897834923,-0.348939038316304
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0208B,0,Control,1,Female,20.1,-95.202183254455,69.9502628888857,28.6795512896876,-5.64600408659516,34.4377022039183,25.2179397488075,7.24119249662234,3.2351813710758,2.66319035229506,0.337529462769974
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0214B2,0,Control,1,Female,21.6,352.114260353046,239.710606580705,-48.8780439438628,-3.04109368678176,21.8056395653156,-37.6291636612619,-7.9850391567682,-9.65628311427402,3.0819107694206,-0.00921745473047952
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0216B2,0,Control,1,Female,17.2,-65.6247595534757,-47.0136846608369,-16.560862914394,-28.3453475123425,-13.6538020451528,7.52881319846855,0.945601558372886,-2.0524432841557,3.07862623646263,-0.233716852643227
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0242B3,0,Control,1,Female,20.3,-165.107035726011,-112.912965980591,-12.5109889017249,-41.4567919368345,-1.82183147612133,1.45783948556026,-2.53477920232316,-0.934657365658625,3.11578838585234,-0.105167499804598
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0287B,0,Control,0,Male,53.6,-66.95925285219,-60.7784779699217,-3.15269043949237,11.2650533006821,-40.9935961006388,-13.0620788649084,-1.56742126273819,-2.37572875477978,3.68139686107126,0.300152207005493
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0288B,0,Control,0,Male,9.2,127.555530383413,15.6914005662036,9.84443804293713,6.58117067104166,69.342715839587,33.4719106554707,6.09880796122434,3.29167569687952,2.25343494148982,-0.0342314574348279
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0289B,0,Control,0,Male,7.1,-15.6736248740056,80.5729274958417,14.7768929497039,17.0084386478298,58.1165305052138,52.1760997019772,4.64512452360145,7.01059682436622,1.81616104352022,0.143933740527052
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0290B,0,Control,1,Female,43.3,-44.3540086725703,-45.8940228010292,-28.2615702247958,6.84602717256172,-1.35963213675467,-34.0405063823376,-2.43693797493173,3.66755474950337,3.06246199679266,0.705690638215786
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0294B,0,Control,0,Male,4.2,-10.1545154429416,61.6845571061988,9.16515542658751,-7.45621729433744,17.1152770808448,35.81232866088,4.27873057445908,3.89385907916805,2.4992623153361,-1.06417779004678
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0307B,0,Control,1,Female,28.9,20.7266901945546,-59.8672541813508,-64.0037085509923,-79.8726724569915,-47.4001378016602,-11.3073168954719,-1.22950420171205,2.1719630968151,3.06806294285168,0.295778652266702
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0314B,0,Control,1,Female,29.3,-110.929405237714,-120.092247346585,-26.1585917185939,-25.0013972967009,-28.8000205725787,-22.147996353989,-1.64961059258133,0.163513407491968,3.42043871331159,-0.0428511972885639
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0316B,0,Control,1,Female,29.6,-18.1569171374297,38.8823243945824,-3.15823112958432,-20.2420658109904,-27.2812996085802,0.189407609857872,-3.35347243837623,-1.1670498935388,3.39007367804727,-0.00229931671725225
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0322B,0,Control,0,Male,29,112.657617609083,22.1153857544775,-1.8268788206725,-29.3222253400193,1.47178246340269,-4.99449434854461,-2.93527728530562,-1.30384127092397,3.41668558407569,-0.0493897540892179
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0338B,0,Control,0,Male,27.5,-81.9280978558317,-168.50361551192,-17.2713913709099,-10.1188917069242,-10.8803263523982,-13.7265823200828,-3.78432147108224,-1.45336364136443,3.3964263419081,-0.0822403372355725
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0343B,0,Control,0,Male,46.2,-4.75182151186909,54.7950131778358,47.8179631615262,12.0117953754331,-26.2977161895327,17.9114745959052,4.04013168205099,0.511100626813096,3.72898843546055,0.103991362627145
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0346B,0,Control,1,Female,37.1,9.85804464548215,-144.528221483446,-54.9062048731409,12.8616649334394,-2.90000869016656,-73.040557693935,-10.0154894988162,-0.129438920707077,3.47613716630333,0.137479803310063
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0347B,0,Control,1,Female,14,-40.0979773138531,-65.0370130495264,-34.0456640563375,-29.2863296932603,10.0678534675141,-26.1360453357197,-1.71246271462195,-0.667672155693847,3.04941908132096,-0.410361751705697
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0349B,0,Control,1,Female,10,10.100929521808,-44.298267781567,-23.5345103007385,-5.5205460984221,21.3224145162104,-19.8916722141747,-0.593937885118702,2.02952585277765,2.89556932421976,-0.592984231225712
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0352B,0,Control,0,Male,43.2,-87.1976264517823,50.2952293846774,28.275518217921,49.8166111591211,-38.9467154032395,-4.18552953602262,4.08676718098783,-8.15261943485829,3.86629115312161,-0.100450657871542
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0355B,0,Control,0,Male,12.3,261.984465738755,100.833021747576,-48.4771314693466,36.3030278020334,59.0850072901457,-21.2406613461592,-7.85697146511255,3.01793572973584,2.15138746232359,0.35821180005478
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0361B2,0,Control,0,Male,11.5,48.8351919216169,63.1955401995461,43.4681632870066,20.836474779289,90.4237324801199,49.3245814705547,15.6929538142791,4.28862000115087,2.1049641705991,0.337382864770109
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0376B,0,Control,1,Female,24,627.750617527266,360.6145167714,20.252623932126,-28.242566479871,62.6022616102825,4.78909692419411,12.0288669296192,1.22931988051391,3.04264572280951,0.135408107538435
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0429B,0,Control,1,Female,11.5,-18.6010381271752,-43.4104057999956,-21.9387190683127,-39.9852759195581,21.7206682070149,19.7261156875739,0.383479648116806,-3.14117272890894,2.65466359576721,-0.212316560398003
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0444B2,0,Control,1,Female,9.9,-36.1120449055815,32.781921488228,34.9647689031494,3.79808808727308,38.1525484108087,59.7940165732153,7.82702397251583,4.06577405547335,2.35666003012471,-0.0641252729841608
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0447B2,0,Control,1,Female,16.5,93.0088141757278,-50.3233515491036,0.942073230783192,-37.839156362446,18.5555460072634,38.2434034959207,5.54321891626027,-1.70213944128068,2.85513757631749,-0.0517771954109554
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0455B,0,Control,1,Female,7.3,-89.6856660221858,-6.55275978814113,-3.86524710728369,-4.4349401526508,29.9116277730563,36.8134649926262,5.42528893812619,1.03628412588459,2.25454435758224,-0.266670009427894
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0457B,0,Control,1,Female,7.3,10.9906425764221,72.7638358161065,12.5608146207937,-2.22213625376964,70.8742912719453,36.175283454241,4.58807839744414,0.210802430706673,2.16721395347717,-0.179339605322828
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0466B,0,Control,1,Female,10.9,-144.083591742546,77.81387865307,0.25186993440445,-4.64805682338243,5.88543920030254,39.477662902647,2.84691900409351,1.2588244992294,2.32662703366701,0.0621357555680895
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0492B,0,Control,0,Male,4.8,75.5484547232762,71.7595877807053,-10.7495567102111,0.10461360706066,43.4865422747137,14.5909405895648,-3.10957968066206,5.24814189320631,2.27888773780713,-0.710271819893289
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0493B,0,Control,0,Male,8.7,451.931369663521,114.291214042726,-56.2052474406314,3.85810836569739,126.750784712641,-37.3626116606916,-6.76614669683308,2.96589517862146,1.92781719980073,0.23550582585981
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0495B,0,Control,1,Female,4.5,68.7865504194267,-0.367041063312511,-14.4683643594668,10.0894541422618,61.2155618342877,16.491133589889,-0.233727884716511,6.42440832576002,2.05522633612895,-0.551148939352677
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0497B,0,Control,0,Male,54.4,115.980306794357,170.216423035079,30.5101303925299,43.4253313782112,-23.075326814508,-2.99698288986904,-0.838017414219696,-4.31030657252901,3.73355340916881,0.262810744693089
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0498B,0,Control,0,Male,11.9,19.3508405148877,-21.8849741582658,-18.6246736677883,11.9312034507803,12.7601660930809,-13.0775527094014,-2.36953598574851,2.36960115013331,2.88120615047105,-0.404667750353566
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0502B,0,Control,0,Male,27.1,-36.880795482797,-20.4125330008624,-23.3578918758126,2.64292033725018,11.8360380736989,-37.5657694533015,-3.43787183584912,2.1437152923974,3.09800373137677,0.20152999650889
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0506B,0,Control,0,Male,31.2,-61.5971397945571,26.199353887572,25.0440736769084,9.92311984779059,-6.24223823118086,-9.95521999140379,-5.03119353805779,5.51705889187708,3.4335056941226,0.00691240069283516
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0508B2,0,Control,0,Male,29.9,-40.3574488830223,-20.7972455364047,-0.417964778853982,5.14855631964101,-6.22317666938076,-23.2143241223661,-4.41087533546795,-2.40836780373809,3.547634444141,-0.149775963744358
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0520B,0,Control,1,Female,7.6,67.9742880125054,-23.1381385417167,-61.188590708575,3.26670405362584,1.12155740603324,-11.0466612283536,-4.3044891474942,-4.13950172274804,2.60619366992766,-0.57804542263538
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0523B,0,Control,1,Female,23.3,-171.824536178987,-158.129966170567,4.99172126880623,-33.6981105397517,1.63655429500822,11.3660275120874,-1.04098664810373,6.11467788656301,3.04155801729011,0.106895343281545
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0524B,0,Control,0,Male,24.5,-0.556034404556929,-161.654454076374,-35.2860556880326,-19.0711713930768,42.5884081708408,-45.0871518746498,-9.98956329308299,-3.20980778690077,3.22821532436707,-0.0295422068163842
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0527B,0,Control,0,Male,7.4,-50.1786761436026,-25.5419450712366,21.5217619639669,4.06090763117875,60.4555496967727,17.0228363424831,2.35570329608109,8.13685361561741,2.45410272686913,-0.452622726659008
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0551B,0,Control,1,Female,18,63.2882783968596,183.425286049294,-29.6336041198139,-22.7481544181541,-13.6057287516203,-15.6506719189117,-6.51284680082249,-0.763141741718732,2.97214456666631,-0.0817728087701486
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0555B,0,Control,1,Female,47.3,-84.6844340484901,-38.8882072186095,28.6158424986456,14.0676791865386,-16.9912068440725,-1.98123217543345,4.21449102368016,-0.568702973378344,3.66991015280632,0.18660014269157
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0557B,0,Control,1,Female,40.1,181.133750676645,17.1495861524215,-44.3564399056018,-14.2586963746212,-22.8079182470966,-56.9354458829559,-4.05674516189213,-1.19510538491222,3.67052246039291,0.0208538739196111
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0559B,0,Control,0,Male,10.8,-45.6377752782685,-30.5100586961954,-31.6978030402527,-30.6604212214607,22.3982735902229,13.0203528348675,-2.95866820411717,8.54299156147134,2.18360499086593,0.195941143264248
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0567B,0,Control,1,Female,23,-32.0818687486227,16.457740195561,-6.00274751031243,16.4608828340651,13.952768613443,-15.3884008027049,-6.90585720483684,0.713440819115392,3.03192873129299,0.103565484636156
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0573B,0,Control,0,Male,19.1,-131.911930391899,-52.2860371152208,-3.15705099786817,-14.3209740074386,30.5010492179122,0.230876320826926,3.53927574821763,2.62438386507178,2.71988723247724,0.229801102575343
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0576B,0,Control,1,Female,11.2,-52.065725264303,56.9206182568136,64.3634458345933,20.2236862402541,50.8993879077263,90.3175968854301,14.3909359600194,2.1813960093383,2.22882467762028,0.187089100680766
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0582B,0,Control,1,Female,33.1,504.425458411624,255.448514791378,3.39805617771568,-11.0830512655678,2.26490818777581,-3.49009592301979,-4.55664067132462,-3.60120306377763,3.59253721479296,-0.0930039324099448
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0595B,0,Control,1,Female,34.3,-38.6206963421416,-30.3335083260351,8.33339753357193,6.39066599562428,-52.181465649016,-19.6325580808499,2.27784462386584,-6.69063315308116,4.14562933309115,-0.61048397891926
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0615B,0,Control,0,Male,9.2,40.7853575148786,150.226338489798,64.6593602873567,17.3251792067665,40.5561798431064,69.528525280242,15.1209215892461,10.589739453284,2.31594415595876,-0.0967406719037629
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0628B,0,Control,1,Female,4.8,-26.3398222751719,21.6643147807082,0.063170933029596,13.8826058874765,33.419622808075,21.4273475234107,-3.87266422748983,5.79438550932968,2.34455807593806,-0.775942158024211
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0648B,0,Control,0,Male,11.9,-106.04194633812,-24.761900678667,32.0592433456914,-7.78085410185977,32.6045505461127,40.0016162643252,9.19723779933787,1.42512373500223,2.71616210176796,-0.239623701650473
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0649B,0,Control,1,Female,44.6,-59.6777543036094,-128.64854601334,-2.97500442759331,15.8658821074368,-29.1783511570047,-29.8680939986251,-3.49836511184785,4.30658689854191,3.68584849095778,0.111885368068234
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0653B,0,Control,0,Male,13.9,-18.624756027295,165.073078849429,81.1641377045502,11.0570430874531,-2.35603496390032,94.6240584515615,18.8303187926302,2.54015927101181,2.78525312200279,-0.153364281866143
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0655B,0,Control,0,Male,15.8,22.2114062762171,-41.7442727638149,-8.39654350582673,-13.8913887660492,72.9100856033815,6.65112893713614,1.19705845125732,-0.751048164685628,2.449064942407,0.310944997625925
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0669B,0,Control,1,Female,14.6,-158.202996554805,-65.2150377366706,28.1231568479099,-34.3382111803014,5.62040203548377,55.462108374681,7.42030583626528,5.22843787575776,2.68784525736091,-0.00682372864661796
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",HTP0677B,0,Control,0,Male,28.7,-90.2541408838002,-35.2936595402806,-3.0133923695829,-14.7867489500486,-9.81206651764449,-8.79445876573667,2.55160414593073,1.57427212827932,3.24749959036456,0.109397532401013

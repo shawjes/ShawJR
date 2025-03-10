@@ -1,0 +1,131 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(hablar)
+
+dat %>% rationalize()
+```
+
+```{r}
+# https://david-barnett.github.io/microViz/articles/shao19-analyses.html
+
+PCA_plot <- shao4d_psX %>%
+  ord_plot(
+    colour = "birth_mode", shape = "birth_mode",
+    plot_taxa = 10:1,
+    tax_vec_length = 0.3,
+    tax_lab_style = tax_lab_style(
+      type = "label", max_angle = 90, aspect_ratio = 1,
+      size = 2.5, alpha = 0.8, fontface = "bold", # style the labels
+      label.r = unit(0, "mm") # square corners of labels - see ?geom_label
+    )
+  ) +
+  coord_fixed(ratio = 1, clip = "off", xlim = c(-2, 2))
+# match coord_fixed() ratio to tax_lab_style() aspect_ratio for correct text angles
+
+PCA_plot
+
+# Compositional heatmap:
+shao4d %>%
+  tax_transform(trans = "rclr", rank = "genus") %>%
+  tax_filter(min_prevalence = 0.1, use_counts = TRUE) %>%
+  comp_heatmap(
+    colors = heat_palette(sym = TRUE), grid_col = NA,
+    sample_side = "bottom", name = "Robust\nCLR",
+    sample_anno = sampleAnnotation(
+      "Birth mode" = anno_sample("birth_mode3"),
+      col = list("Birth mode" = c(
+        "CS Elective" = "black", "CS Emergency" = "orange", "Vaginal" = "lightgrey"
+      ))
+    )
+  )
+#> Proportional min_prevalence given: 0.1 --> min 31/306 samples.
+```
+
+
+```{r}
+ %>%
+  mutate(PadjBH_T21 = formatC(PadjBH_T21, format = "e", digits = 2),
+         PadjBH_Age = formatC(PadjBH_Age, format = "e", digits = 2),
+         PadjBH_Female = formatC(PadjBH_Female, format = "e", digits = 2),
+         PadjBH_T21byAge = formatC(PadjBH_T21byAge, format = "e", digits = 2))
+```
+
+```{r}
+purrr::discard(bitr_totypes,
+                                                                .p = ~stringr::str_detect(.x, "UNIPROT")))
+```
+
+```{r}
+a <- " anything goes here, STR1 GET_ME STR2, anything goes here"
+res <- str_match(a, "STR1\\s*(.*?)\\s*STR2")
+res
+
+
+```
+
+```{r}
+library(stringr)
+
+df1 <- read.table(text = "ABC|DEF|GHI",
+                  "ABCD|EFG|HIJK",  
+                  "ABCDE|FGHI|JKL",  
+"DEF|GHIJ|KLM",
+"GHI|JKLM|NO|PQRS",  
+"BCDE|FGHI|JKL")
+
+stringr::word(df1$V1, 1, sep = "\\|")
+
+
+```
+
+
+```{r}
+# https://stackoverflow.com/questions/11353287/how-do-you-add-a-general-label-to-facets-in-ggplot2
+
+library(ggplot2)
+test <- data.frame(x=1:20, y=21:40, 
+                   facet.a=rep(c(1,2),10), 
+                   facet.b=rep(c(1,2), each=20))
+p <- qplot(data=test, x=x, y=y, facets=facet.b~facet.a)
+
+# get gtable object
+z <- ggplotGrob(p)
+
+library(grid)
+library(gtable)
+# add label for right strip
+z <- gtable_add_cols(z, unit(z$widths[[7]], 'cm'), 7)
+z <- gtable_add_grob(z, 
+                     list(rectGrob(gp = gpar(col = NA, fill = gray(0.5))),
+                          textGrob("Variable 1", rot = -90, gp = gpar(col = gray(1)))),
+                     4, 8, 6, name = paste(runif(2)))
+
+# add label for top strip
+z <- gtable_add_rows(z, unit(z$heights[[3]], 'cm'), 2)
+z <- gtable_add_grob(z, 
+                     list(rectGrob(gp = gpar(col = NA, fill = gray(0.5))),
+                          textGrob("Variable 2", gp = gpar(col = gray(1)))),
+                     3, 4, 3, 6, name = paste(runif(2)))
+
+# add margins
+z <- gtable_add_cols(z, unit(1/8, "line"), 7)
+z <- gtable_add_rows(z, unit(1/8, "line"), 3)
+
+# draw it
+grid.newpage()
+grid.draw(z)
+```
+
+```{r}
+numb <- c(0.05, 0.05671, 0.000000027)
+formatC(numb, format = "e", digits = 2)
+```
+
+
+
+

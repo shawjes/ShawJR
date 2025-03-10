@@ -1,0 +1,10 @@
+Variable,Example,Description
+LabID,HTP0001B2,Human Trisome Project sample/biospecimen identifier
+Sample_type,WBCs,Type of sample taken/extracted from biospecimen
+Platform,CyTOF_Mass_Cytometry,Description of assay platform/strategy
+Cell_cluster_name,Classical monocytes and M-MDSCs,Name of FlowSOM cluster/cell type
+Units,percent of CD45posCD66low,Description of measurement units
+Value,10.14,Measurement value
+Data_contact,Matthew Galbraith,Contact for queries about data set
+Date_exported,06132022,Date of data set preparation/export
+Script,HTP_data_Synapse_v0.1.R,Data preparation script

@@ -1,0 +1,82 @@
+model_formula,term,log10FC,std.error,statistic,P,conf.low,conf.high
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_3,0.0148798226753819,0.00225046922181521,6.61187566181419,2.36373739155458e-09,0.0104108368115718,0.019348808539192
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_5,-0.00883043950286174,0.00133681999428514,-6.60555612618871,2.43336243211311e-09,-0.0114850990729669,-0.00617577993275654
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_6,-0.0122860979354395,0.00215218618066179,-5.70865943004131,1.35054656753736e-07,-0.0165599131578077,-0.00801228271307133
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_8,-0.0290609627393979,0.010864884753158,-2.67476033107034,0.00883552181606125,-0.0506364705948772,-0.00748545488391854
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_1,0.00108936969294838,0.000461776594646445,2.35908382013699,0.0204123955446369,0.000172372893477038,0.00200636649241973
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_2,-0.00136171311808016,0.000599154848866687,-2.27272318776334,0.0253458933587175,-0.00255151590403372,-0.000171910332126592
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_4,-0.00325292720348306,0.0017481447683991,-1.86078822663068,0.0659336595618514,-0.00672439625630914,0.000218541849343028
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",sumZ_Cluster_7,-0.00438575186672947,0.00932420790793428,-0.470361869880388,0.639197731055704,-0.022901780847643,0.0141302771141841
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",Female,1.39237606799502e-06,0.0724343394150426,1.92225963436599e-05,0.999984703760605,-0.143838850255265,0.143841635007401

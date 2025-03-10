@@ -1,0 +1,268 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_d21clustered <- fread("ar_sigt21byage_d21clustered.csv.gz")
+
+ar_sigt21byage_d21clustered %>% colnames()
+
+ar_sigt21byage_d21clustered %>%
+  dplyr::select(GeneSymbol) %>%
+  unique() %>%
+  head()
+```
+
+```{r}
+setwd(dir.ddata)
+t_p4c_soma_lm_singleaptamer_tidy <- fread("t_p4c_soma_lm_singleaptamer_tidy.csv.gz")
+
+gene_status <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  mutate(sigT21byAge = case_when(term == "T21:Age" & PadjBH<0.05 ~ 1, .default = 0)) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, PadjBH, Zlog10FC, PadjBH, sigT21byAge) %>%
+  unique() %>%
+  left_join(fread(paste0(dir.ardata, "/ar_p4c_soma.csv.gz")) %>% dplyr::select(UniProt_Aptamer_Chr_Cluster, GeneSymbol) %>% unique(),
+            by = "UniProt_Aptamer_Chr_Cluster") %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, GeneSymbol, everything()) %>%
+  unique() %>%
+  arrange(GeneSymbol);
+
+ensembl <- useMart("ensembl")
+ensembl <- useDataset("hsapiens_gene_ensembl",mart=ensembl)
+gene_mapping <- getBM(attributes=c('hgnc_symbol', 'chromosome_name', 'start_position',
+                   'end_position', 'strand'),
+      filters=c('hgnc_symbol'),
+      values=list(sort(gene_status$GeneSymbol)),
+      mart=ensembl) %>%
+  dplyr::rename(GeneSymbol = hgnc_symbol,
+                gene_start_position = start_position,
+                gene_end_position = end_position,
+                strand = strand,
+                `Chromosome(s)` = chromosome_name);
+#tmp.sigt21byage_gene_mapping %>% head()
+dim(gene_mapping)
+#[1] 4988    5
+
+chr_mapping <- getBM(attributes=c('chromosome_name', 'start_position',
+                                  'end_position', 'strand'), 
+                     mart=ensembl) %>%
+  group_by(chromosome_name, strand) %>%
+  summarise(chromosome_genecoding_start_position = min(start_position),
+            chromosome_genecoding_end_position = max(end_position)) %>%
+  ungroup() %>%
+  dplyr::rename(`Chromosome(s)` = chromosome_name,
+                 strand = strand);
+
+
+gene_status_mapping <- gene_mapping %>%
+  left_join(chr_mapping,
+            by = intersect(colnames(gene_mapping),
+                           colnames(chr_mapping))) %>%  #"Chromosome(s)" "strand"
+  mutate(dist_from_chr_genecoding_startpos = gene_start_position - chromosome_genecoding_start_position,
+         dist_from_chr_genecoding_endpos = gene_end_position - chromosome_genecoding_end_position) %>%
+  group_by(`Chromosome(s)`) %>%
+  mutate(Zdist_from_chr_genecoding_startpos = (dist_from_chr_genecoding_startpos -
+           mean(dist_from_chr_genecoding_startpos, na.rm=T)) / sd(dist_from_chr_genecoding_startpos, na.rm=T)) %>%
+  ungroup() %>%
+  left_join(gene_status, by = intersect(colnames(.), colnames(gene_status)));
+
+gene_status_mapping.split <- gene_status_mapping %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  split(., .$`Chromosome(s)`);
+names(gene_status_mapping.split)
+f_gene_status_dist_startchr<- list()
+f_gene_status_dist_endchr <- list()
+for ( i in 1:length(gene_status_mapping.split)) {
+  f_gene_status_dist_startchr[[i]] <- gene_status_mapping.split[[i]] %>%
+  filter(Zlog10FC<0) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = dist_from_chr_genecoding_startpos, y = -1*log10(PadjBH)*Zlog10FC)) +
+  #geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="lm", se = T) +
+    ggtitle(names(gene_status_mapping.split)[[i]])
+  
+  f_gene_status_dist_endchr[[i]] <- gene_status_mapping.split[[i]] %>%
+  filter(Zlog10FC<0) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = dist_from_chr_genecoding_endpos, y = -1*log10(PadjBH)*Zlog10FC)) +
+  #geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="lm", se = T) +
+    ggtitle(names(gene_status_mapping.split)[[i]])
+}
+```
+
+```{r}
+gg_gene_status_dist_startchr <- gene_status_mapping %>%
+  dplyr::filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = dist_from_chr_genecoding_startpos, y = -1*log10(PadjBH))) +
+  #geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="lm", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    #ggtitle(names(gene_status_mapping.split)[[i]]) +
+  facet_wrap(~`Chromosome(s)`, ncol = 7, scales = "free_x")
+  
+  gg_gene_status_dist_endchr<- gene_status_mapping %>%
+  filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = dist_from_chr_genecoding_endpos, y = -1*log10(PadjBH))) +
+  #geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="lm", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~`Chromosome(s)`, ncol = 7, scales = "free_x")
+  
+  gg_gene_status_dist_startchr_noY <- gene_status_mapping %>%
+  dplyr::filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+    filter(`Chromosome(s)`!="Y") %>%
+  #head(n=100) %>%
+  ggplot(aes(x = dist_from_chr_genecoding_startpos, y = -1*log10(PadjBH))) +
+  #geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="lm", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    #ggtitle(names(gene_status_mapping.split)[[i]]) +
+  facet_wrap(~`Chromosome(s)`, ncol = 7, scales = "free_x")
+  
+  gg_gene_status_dist_endchr_noY<- gene_status_mapping %>%
+  filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+    filter(`Chromosome(s)`!="Y") %>%
+  #head(n=100) %>%
+  ggplot(aes(x = dist_from_chr_genecoding_endpos, y = -1*log10(PadjBH))) +
+  #geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="lm", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~`Chromosome(s)`, ncol = 7, scales = "free_x")
+  
+  gg_gene_status_dist_startchr
+  gg_gene_status_dist_endchr
+  gg_gene_status_dist_startchr_noY
+  gg_gene_status_dist_endchr_noY
+```
+
+#### KEEP
+```{r}
+gg_gene_status_startgene <- gene_status_mapping %>%
+  dplyr::filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+  mutate(`Chromosome(s)` = factor(`Chromosome(s)`,
+                                  levels = c(as.character(seq(1:22)),"X", "Y"))) %>%
+  arrange(`Chromosome(s)`) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = gene_start_position, y =Zlog10FC, color = factor(sigT21byAge), fill = factor(sigT21byAge))) +
+  geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="loess", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    #ggtitle(names(gene_status_mapping.split)[[i]]) +
+  facet_wrap(~`Chromosome(s)`, ncol = 5, scales = "free")
+  
+  gg_gene_status_endgene<- gene_status_mapping %>%
+  filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+  mutate(`Chromosome(s)` = factor(`Chromosome(s)`,
+                                  levels = c(as.character(seq(1:22)),"X", "Y"))) %>%
+  arrange(`Chromosome(s)`) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = gene_end_position, y = Zlog10FC, color = factor(sigT21byAge), fill = factor(sigT21byAge))) +
+  geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="loess", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~`Chromosome(s)`, ncol = 5, scales = "free")
+  
+  gg_gene_status_startgene_noY <- gene_status_mapping %>%
+  dplyr::filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+    filter(`Chromosome(s)`!="Y") %>%
+  mutate(`Chromosome(s)` = factor(`Chromosome(s)`,
+                                  levels = c(as.character(seq(1:22)),"X", "Y"))) %>%
+  arrange(`Chromosome(s)`) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = gene_start_position, y = Zlog10FC, color = factor(sigT21byAge), fill = factor(sigT21byAge))) +
+  geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="loess", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    #ggtitle(names(gene_status_mapping.split)[[i]]) +
+  facet_wrap(~`Chromosome(s)`, ncol = 5, scales = "free")
+          
+  gg_gene_status_endgene_noY<- gene_status_mapping %>%
+  filter(Zlog10FC<0) %>%
+  filter(grepl("[|]", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("CHR", `Chromosome(s)`)==FALSE) %>%
+  filter(grepl("PATCH", `Chromosome(s)`)==FALSE) %>%
+    filter(`Chromosome(s)`!="Y") %>%
+  mutate(`Chromosome(s)` = factor(`Chromosome(s)`,
+                                  levels = c(as.character(seq(1:22)),"X", "Y"))) %>%
+  arrange(`Chromosome(s)`) %>%
+  #head(n=100) %>%
+  ggplot(aes(x = gene_end_position, y = Zlog10FC, color = factor(sigT21byAge), fill = factor(sigT21byAge))) +
+  geom_point(size = 0.75, alpha = 0.6) +
+    theme(aspect.ratio = 1.0) +
+  geom_smooth(method="loess", se = T) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~`Chromosome(s)`, ncol = 5, scales = "free")
+  
+  gg_gene_status_startgene
+  gg_gene_status_endgene
+  gg_gene_status_startgene_noY
+  gg_gene_status_endgene_noY
+```
+
+
+```{r}
+f_gene_status_dist_startchr
+```
+
+```{r}
+f_gene_status_dist_endchr
+
+```
+

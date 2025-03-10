@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1) %>%
+  filter(ddata_name == gsub(".Rmd", "", 
+                            basename(rstudioapi::getSourceEditorContext()$path)))
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata.split <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  filter(Aptamer_in_P4C == 1) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+# Note: the above two lines of code should be the only revision to ardata before modeling.
+
+ardata.split %>% rbindlist()
+```
+
+#### t_p4c_soma_lm_demog
+```{r}
+tmp <- ardata.split %>%
+  rbindlist() %>%
+  dplyr::select(LabID, Karyotype, Sex, Karyotype_Sex, D21_T21XX_T21XY,
+                T21, Female, Age) %>%
+  unique() %>%
+  group_by(Karyotype, Sex, Karyotype_Sex, D21_T21XX_T21XY,
+                T21, Female);
+
+q = c(0.05, 0.25, 0.5, 0.75, 0.95);
+
+t_p4c_soma_lm_singleaptamer_demog <- tmp  %>% 
+  dplyr::summarize(N = n(),
+            min_Age = min(Age) %>% round(digits = 1),
+            mean_Age = mean(Age) %>% round(digits = 1),
+            median_Age = median(Age) %>% round(digits = 1),
+            max_Age = max(Age) %>% round(digits = 1),
+            sd_Age = sd(Age) %>% round(digits = 1),
+            percentile = q,
+                   percentile_Age = quantile(Age, probs = percentile)) %>%
+  arrange(percentile) %>%
+  mutate(percentile_Age = round(percentile_Age, digits = 1),
+         percentile = paste0("p", as.character(percentile*100), "_Age")) %>%
+  spread(key = percentile, value = percentile_Age) %>%
+  dplyr::select(names(.)[1:6],
+                N,
+                mean_Age,
+                sd_Age,
+                min_Age,
+                p5_Age, p25_Age, p50_Age, p75_Age, p95_Age, max_Age)
+
+t_p4c_soma_lm_singleaptamer_demog
+```
+
+```{r}
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_demog, "t_p4c_soma_lm_singleaptamer_demog.csv")
+```

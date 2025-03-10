@@ -1,0 +1,153 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# KEEP SCRIPT
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata for clustering among D21s of protein trajectories with significant T21*Age interaction
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_nonsigt21byage_d21only_clustering_input <- fread("ar_p4c_soma_nonsigt21byage_d21only_clustering_input.csv.gz")
+
+setwd(dir.ardata)
+ar_p4c_soma_nonsigt21byage_t21only_clustering_input <- fread("ar_p4c_soma_nonsigt21byage_t21only_clustering_input.csv.gz")
+
+head(ar_p4c_soma_nonsigt21byage_d21only_clustering_input)
+head(ar_p4c_soma_nonsigt21byage_t21only_clustering_input)
+```
+
+#### Split ardata by UniProt_Aptamer_Chr_Cluster (used as uid used for convenience)
+```{r}
+ar_p4c_soma_nonsigt21byage_d21only_clustering_input.split <- ar_p4c_soma_nonsigt21byage_d21only_clustering_input %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_nonsigt21byage_t21only_clustering_input.split <- ar_p4c_soma_nonsigt21byage_t21only_clustering_input %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_nonsigt21byage_d21only_clustering_input.split[[1]]
+ar_p4c_soma_nonsigt21byage_t21only_clustering_input.split[[1]]
+
+ar_p4c_soma_nonsigt21byage_d21only_clustering_input$UniProt_Aptamer_Chr_Cluster %>% unique() %>% length()
+ar_p4c_soma_nonsigt21byage_t21only_clustering_input$UniProt_Aptamer_Chr_Cluster %>% unique() %>% length()
+```
+
+#### LOESS predictions for D21
+```{r}
+# tmp.loess_prediction.D21.df
+
+loess_fit_d21 <- list()
+loess_pred_d21 <- list()
+gg_nonsigt21byage_cluster_trajectories_d21 <- list()
+f_nonsigt21byage_cluster_trajectories_d21 <- list()
+tval_d21 <- list()
+lwr_d21 <- list()
+upr_d21 <- list()
+for ( i in 1:length(ar_p4c_soma_nonsigt21byage_d21only_clustering_input.split) ){
+#for ( i in 1:1 ){
+  set.seed(1234)
+  ardata.now <- ar_p4c_soma_nonsigt21byage_d21only_clustering_input.split[[i]];
+  loess_fit_d21[[i]] <- loess(Zlog10_relative_abundance ~ Age + Female,
+                          iterations = 10000,
+                          data = ardata.now);
+  loess_pred_d21[[i]] <- predict(loess_fit_d21[[i]], se = TRUE);
+  tval_d21[[i]] <- qt(p = 0.975, df = loess_pred_d21[[i]]$df)
+  lwr_d21[[i]] <- loess_pred_d21[[i]]$fit - tval_d21[[i]]*loess_pred_d21[[i]]$se.fit
+  upr_d21[[i]] <- loess_pred_d21[[i]]$fit + tval_d21[[i]]*loess_pred_d21[[i]]$se.fit
+  ord_d21 <- order(ardata.now$Age)
+  f_nonsigt21byage_cluster_trajectories_d21[[i]] <- ardata.now %>%
+    mutate(ci95_ll = lwr_d21[[i]][ord_d21], 
+           ci95_ul = upr_d21[[i]][ord_d21], 
+           predicted_Zlog10_relative_abundance = loess_pred_d21[[i]]$fit[ord_d21], 
+           Age = ardata.now$Age[ord_d21], 
+           Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_d21])
+}
+```
+
+#### LOESS predictions for T21
+```{r}
+loess_fit_t21 <- list()
+loess_pred_t21 <- list()
+gg_nonsigt21byage_cluster_trajectories_t21 <- list()
+f_nonsigt21byage_cluster_trajectories_t21 <- list()
+tval_t21 <- list()
+lwr_t21 <- list()
+upr_t21 <- list()
+for ( i in 1:length(ar_p4c_soma_nonsigt21byage_t21only_clustering_input.split) ){
+#for ( i in 1:1 ){
+  set.seed(1234)
+  ardata.now <- ar_p4c_soma_nonsigt21byage_t21only_clustering_input.split[[i]];
+  loess_fit_t21[[i]] <- loess(Zlog10_relative_abundance ~ Age + Female,
+                          iterations = 10000,
+                          data = ardata.now);
+  loess_pred_t21[[i]] <- predict(loess_fit_t21[[i]], se = TRUE);
+  tval_t21[[i]] <- qt(p = 0.975, df = loess_pred_t21[[i]]$df)
+  lwr_t21[[i]] <- loess_pred_t21[[i]]$fit - tval_t21[[i]]*loess_pred_t21[[i]]$se.fit
+  upr_t21[[i]] <- loess_pred_t21[[i]]$fit + tval_t21[[i]]*loess_pred_t21[[i]]$se.fit
+  ord_t21 <- order(ardata.now$Age)
+  f_nonsigt21byage_cluster_trajectories_t21[[i]] <- ardata.now %>%
+    mutate(ci95_ll = lwr_t21[[i]][ord_t21], 
+           ci95_ul = upr_t21[[i]][ord_t21], 
+           predicted_Zlog10_relative_abundance = loess_pred_t21[[i]]$fit[ord_t21], 
+           Age = ardata.now$Age[ord_t21], 
+           Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_t21])
+}
+```
+
+```{r}
+ar_nonsigt21byage_loess_predicted_values <- rbind(f_nonsigt21byage_cluster_trajectories_d21 %>% rbindlist(),
+                                               f_nonsigt21byage_cluster_trajectories_t21 %>% rbindlist()) %>%
+  mutate(Karyotype_Sex = case_when(T21 == 0 & Female == 1 ~ "D21 XX",
+                                   T21 == 0 & Female == 0 ~ "D21 XY",
+                                   
+                                   T21 == 1 & Female == 1 ~ "T21 XX",
+                                   T21 == 1 & Female == 0 ~ "T21 XY"),
+         Karyotype_Sex = factor(Karyotype_Sex, levels = c("D21 XX",
+                                                          "D21 XY",
+                                                          "T21 XX",
+                                                          "T21 XY"))) %>%
+  dplyr::select(-c(Karyotype_XY));
+
+ar_nonsigt21byage_loess_predicted_values %>% head();
+
+ar_nonsigt21byage_loess_predicted_values %>% select(Karyotype, Sex, Karyotype_Sex, T21, Female) %>%
+  unique()
+```
+
+```{r}
+setwd(dir.ardata)
+fwrite(ar_nonsigt21byage_loess_predicted_values, "ar_nonsigt21byage_loess_predicted_values.csv.gz")
+```

@@ -1,0 +1,200 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+# setwd(dir.docs)
+# analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+#   filter(run_model == 1)
+# 
+# analysis_tracker
+```
+
+#### dir.aidata
+```{r}
+setwd(dir.ddata)
+l_nonsigt21_sigt21byageneg <- fread("l_nonsigt21_sigt21byageneg.txt", sep = "\t", header = FALSE) %>%
+  mutate(id = "l_nonsigt21_sigt21byageneg")
+l_nonsigt21_sigt21byagepos <- fread("l_nonsigt21_sigt21byagepos.txt", sep = "\t", header = FALSE) %>%
+  mutate(id = "l_nonsigt21_sigt21byagepos")
+l_sigt21neg_sigt21byagepos <- fread("l_sigt21neg_sigt21byagepos.txt", sep = "\t", header = FALSE) %>%
+  mutate(id = "l_sigt21neg_sigt21byagepos")
+l_sigt21pos_sigt21byageneg <- fread("l_sigt21pos_sigt21byageneg.txt", sep = "\t", header = FALSE) %>%
+  mutate(id = "l_sigt21pos_sigt21byageneg")
+l_sigt21neg_sigt21byageneg <- fread("l_sigt21neg_sigt21byageneg.txt", sep = "\t", header = FALSE) %>%
+  mutate(id = "l_sigt21neg_sigt21byageneg")
+l_sigt21pos_sigt21byagepos <- fread("l_sigt21pos_sigt21byagepos.txt", sep = "\t", header = FALSE) %>%
+  mutate(id = "l_sigt21pos_sigt21byagepos")
+
+ai_sigt21byage_cat <- list(l_nonsigt21_sigt21byageneg,
+                        l_nonsigt21_sigt21byagepos,
+                        l_sigt21neg_sigt21byagepos,
+                        l_sigt21pos_sigt21byageneg,
+                        l_sigt21neg_sigt21byageneg,
+                        l_sigt21pos_sigt21byagepos) %>%
+  rbindlist() %>%
+  dplyr::rename(UniProt_Aptamer_Chr_Cluster = V1) %>%
+  dplyr::select(id, UniProt_Aptamer_Chr_Cluster) %>%
+  mutate(SigPadjBH_T21byAge = case_when(grepl("sigt21byage", id)==TRUE ~ "T21-by-Age* (FDR < 0.10)",
+                                        .default = ""));
+setwd(dir.aidata)
+fwrite(ai_sigt21byage_cat, "ai_sigt21byage_cat.csv")
+```
+
+#### f_p4c_soma_d21_clock_clusters_extended -> gg_p4c_soma_d21_clock_clusters_extended
+```{r}
+setwd(dir.ddata)
+f_p4c_soma_d21_clock_clusters_extended <- fread("f_p4c_soma_d21_clock_clusters_extended.csv.gz") %>%
+  full_join(gg_cat, by = "UniProt_Aptamer_Chr_Cluster") %>%
+  mutate(Clock_Cluster = factor(Clock_Cluster, levels = c(paste0("Clock Cluster ", seq(1:16)))),
+         UniProt_Aptamer_Chr_Cluster = factor(UniProt_Aptamer_Chr_Cluster)) %>%
+  #group_by(LabID) %>%
+  #slice_sample(prop = 0.10) %>%
+  #slice_sample(n = 10) %>%
+  arrange(Clock_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  ungroup() %>%
+  mutate(gg_color = case_when(Clock_Cluster == "Clock Cluster 1" ~ P4C_extended_cluster_colors[[1]],
+                              Clock_Cluster == "Clock Cluster 2" ~ P4C_extended_cluster_colors[[2]],
+                              Clock_Cluster == "Clock Cluster 3" ~ P4C_extended_cluster_colors[[3]],
+                              Clock_Cluster == "Clock Cluster 4" ~ P4C_extended_cluster_colors[[4]],
+                              Clock_Cluster == "Clock Cluster 5" ~ P4C_extended_cluster_colors[[5]],
+                              Clock_Cluster == "Clock Cluster 6" ~ P4C_extended_cluster_colors[[6]],
+                              Clock_Cluster == "Clock Cluster 7" ~ P4C_extended_cluster_colors[[7]],
+                              Clock_Cluster == "Clock Cluster 8" ~ P4C_extended_cluster_colors[[8]],
+                              
+                              Clock_Cluster == "Clock Cluster 9" ~ P4C_extended_cluster_colors[[9]],
+                              Clock_Cluster == "Clock Cluster 10" ~ P4C_extended_cluster_colors[[10]],
+                              Clock_Cluster == "Clock Cluster 11" ~ P4C_extended_cluster_colors[[11]],
+                              Clock_Cluster == "Clock Cluster 12" ~ P4C_extended_cluster_colors[[12]],
+                              Clock_Cluster == "Clock Cluster 13" ~ P4C_extended_cluster_colors[[13]],
+                              Clock_Cluster == "Clock Cluster 14" ~ P4C_extended_cluster_colors[[14]],
+                              Clock_Cluster == "Clock Cluster 15" ~ P4C_extended_cluster_colors[[15]],
+                              Clock_Cluster == "Clock Cluster 16" ~ P4C_extended_cluster_colors[[16]],
+                              .default = NA)) %>%
+  arrange(Clock_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  ungroup();
+
+f_p4c_soma_d21_clock_clusters_extended %>%
+  arrange(Clock_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  dplyr::select(Clock_Cluster, UniProt_Aptamer_Chr_Cluster, gg_color) %>%
+  unique() %>%
+  split(., .$Clock_Cluster)
+
+colors.now <- (f_p4c_soma_d21_clock_clusters_extended %>%
+  arrange(Clock_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  dplyr::select(Clock_Cluster, UniProt_Aptamer_Chr_Cluster, gg_color) %>%
+  arrange(Clock_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  unique())$gg_color
+```
+
+
+```{r}
+gg_p4c_soma_d21_clock_clusters_extended <- f_p4c_soma_d21_clock_clusters_extended %>%
+  filter(Clock_Cluster == "Clock Cluster 1") 
+  #ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = UniProt_Aptamer_Chr_Cluster)) +
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = SigPadjBH_T21byAge)) +
+  geom_smooth(method = "loess", se = FALSE, size = 0.75) +
+  ggtitle("Proteomic Clock Clusters as hierarchically clustered in Lehallier et al., 2019 (Clusters 1-8) and\nP4C D21s (Clusters 9-16)") +
+  facet_wrap(~Clock_Cluster, ncol = 8) +
+  theme(legend.position = "none",
+        aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0,
+             linetype = "dashed")
+```
+
+```{r}
+f_p4c_soma_d21_clock_clusters_extended %>% colnames()
+
+gg_p4c_soma_d21_clock_clusters_extended <- f_p4c_soma_d21_clock_clusters_extended %>%
+  #ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = UniProt_Aptamer_Chr_Cluster)) +
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = SigPadjBH_T21byAge)) +
+  geom_smooth(method = "loess", se = FALSE, size = 0.75) +
+  ggtitle("Proteomic Clock Clusters as hierarchically clustered in Lehallier et al., 2019 (Clusters 1-8) and\nP4C D21s (Clusters 9-16)") +
+  facet_wrap(~Clock_Cluster, ncol = 8) +
+  theme(legend.position = "none",
+        aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0,
+             linetype = "dashed") #+
+  #scale_color_manual(values = colors.now);
+
+# gg_p4c_soma_d21_clock_clusters_extended
+
+#### Save figure to file
+setwd(dir.output)
+save_as <- "f_p4c_soma_d21_clock_clusters_extended"
+setwd(dir.output)
+ggsave(gg_p4c_soma_d21_clock_clusters_extended,
+       filename = paste0(save_as, ".png"),
+       width = 8.5, height = 11, units = "in");
+```
+
+
+
+
+#### gg2_p4c_soma_d21_clock_clusters_extended
+```{r}
+dim(fread(paste0(dir.ddata, "/f_p4c_soma_d21_clock_clusters_extended.csv.gz")))
+#[1] 477096     40
+
+gg2_p4c_soma_d21_clock_clusters_extended <- fread(paste0(dir.ddata, "/f_p4c_soma_d21_clock_clusters_extended.csv.gz")) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Clock_Cluster)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  ggtitle("Additional Clock Clusters as hierarchically clustered within P4C D21s") +
+  facet_wrap(~Clock_Cluster, ncol = 8) +
+  theme(legend.position = "none",
+        aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  # set colors
+  scale_color_manual(values = c("Clock Cluster 1" = P4C_extended_cluster_colors[[1]],
+                                "Clock Cluster 2" = P4C_extended_cluster_colors[[2]], 
+                                "Clock Cluster 3" = P4C_extended_cluster_colors[[3]], 
+                                "Clock Cluster 4" = P4C_extended_cluster_colors[[4]], 
+                                "Clock Cluster 5" = P4C_extended_cluster_colors[[5]], 
+                                "Clock Cluster 6" = P4C_extended_cluster_colors[[6]], 
+                                "Clock Cluster 7" = P4C_extended_cluster_colors[[7]], 
+                                "Clock Cluster 8" = P4C_extended_cluster_colors[[8]],
+                                
+                                "Clock Cluster 9" = P4C_extended_cluster_colors[[9]],
+                                "Clock Cluster 10" = P4C_extended_cluster_colors[[10]], 
+                                "Clock Cluster 11" = P4C_extended_cluster_colors[[11]], 
+                                "Clock Cluster 12" = P4C_extended_cluster_colors[[12]], 
+                                "Clock Cluster 13" = P4C_extended_cluster_colors[[13]], 
+                                "Clock Cluster 14" = P4C_extended_cluster_colors[[14]], 
+                                "Clock Cluster 15" = P4C_extended_cluster_colors[[15]], 
+                                "Clock Cluster 16" = P4C_extended_cluster_colors[[16]]));
+
+# gg2_p4c_soma_d21_clock_clusters_extended
+
+setwd(dir.output)
+save_as <- "f2_p4c_soma_d21_clock_clusters_extended"
+setwd(dir.output)
+ggsave(gg2_p4c_soma_d21_clock_clusters_extended,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in");
+```
+
+```{r}
+```
+

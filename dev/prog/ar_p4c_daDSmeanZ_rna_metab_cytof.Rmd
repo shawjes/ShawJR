@@ -1,0 +1,118 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r echo=True, include=FALSE}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r echo=True, include=FALSE}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+
+select <- dplyr::select
+filter <- dplyr::filter
+rename <- dplyr::rename
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read requisite ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_rna <- fread("ar_p4c_rna.csv.gz")
+ar_p4c_metab <- fread("ar_p4c_metab.csv.gz")
+ar_p4c_cytof <- fread("ar_p4c_cytof.csv.gz")
+ar_d21t21clustered_daDScluster_meanZ <- fread("ar_d21t21clustered_daDScluster_meanZ.csv.gz") %>%
+              select(-c(T21, Female, Karyotype,
+                        Sex, Karyotype_Sex, Age)) %>%
+  mutate(Analyte = paste0("DA-DS Cluster ", DA_DS_Cluster, " (N=", N_Cluster_Aptamers, ")")) %>%
+  select(-c(DA_DS_Cluster, N_Cluster_Aptamers)) %>%
+  select(LabID, Analyte, everything()) %>%
+  spread(key = Analyte, value = MEAN_Zlog10_relative_abundance);
+
+ar_p4c_rna %>% head()
+ar_p4c_metab %>% head()
+ar_p4c_cytof %>% head()
+ar_d21t21clustered_daDScluster_meanZ %>% head()
+```
+
+```{r}
+a <- ar_d21t21clustered_daDScluster_meanZ %>% mutate(In_P4C_proteomics = 1) %>% select(LabID, In_P4C_proteomics) %>% unique()
+b <- ar_p4c_rna %>% mutate(In_P4C_RNAseq = 1) %>% select(LabID, In_P4C_RNAseq) %>% unique()
+c <- ar_p4c_metab %>% mutate(In_P4C_metab = 1) %>% select(LabID, In_P4C_metab) %>% unique()
+d <- ar_p4c_cytof %>% mutate(In_P4C_CyTOF = 1) %>% select(LabID, In_P4C_CyTOF) %>% unique()
+
+keep_labids <- (list(a, b, c, d) %>%
+  merge_recurse(by = "LabID") %>%
+  na.omit())$LabID;
+keep_labids %>% head()
+ 
+ar_p4c_daDSmeanZ_rna_metab_cytof <- rbind( ar_p4c_rna %>% select(-c(In_P4C_RNAseq)),
+       ar_p4c_metab,
+       ar_p4c_cytof, fill = TRUE) %>%
+  filter(LabID %in% keep_labids) %>%
+  full_join(ar_d21t21clustered_daDScluster_meanZ, by = "LabID") %>%
+  filter(LabID %in% keep_labids);
+
+ar_p4c_daDSmeanZ_rna_metab_cytof01 <- ar_p4c_daDSmeanZ_rna_metab_cytof %>%
+  mutate(T21 = case_when(Karyotype == "T21" ~ 1,
+                         Karyotype == "Control" ~ 0,
+                         .default = NA),
+         Female = case_when(Sex == "Female" ~ 1,
+                         Sex == "Male" ~ 0,
+                         .default = NA),
+         Karyotype_Sex = case_when(Karyotype == "Control" & Sex == "Female" ~ "D21 XX",
+                                   Karyotype == "Control" & Sex == "Male" ~ "D21 XY",
+                                   
+                                   Karyotype == "T21" & Sex == "Female" ~ "T21 XX",
+                                   Karyotype == "T21" & Sex == "Male" ~ "T21 XY",
+                                   .default = NA));
+ar_p4c_daDSmeanZ_rna_metab_cytof01 %>% head()
+
+setwd(dir.ardata)
+fwrite(ar_p4c_daDSmeanZ_rna_metab_cytof01, "ar_p4c_daDSmeanZ_rna_metab_cytof")
+```

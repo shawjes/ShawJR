@@ -1,0 +1,201 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_loess_predicted_values <- fread("ar_sigt21byage_loess_predicted_values.csv.gz") %>%
+  filter(Karyotype == "Control") # IMPORTANT - THIS IS ONE OF THE ONLY CHANGES FROM THE SCRIPT FOR D21T21CLUSTERED
+
+head(ar_sigt21byage_loess_predicted_values)
+
+ar_sigt21byage_loess_predicted_values %>%
+  select(#LabID, 
+         Karyotype, Sex, Karyotype_Sex) %>%
+  unique()
+```
+
+#### Prepare matrix of predicted values for input to hierarchical clustering
+```{r}
+loess_prediction.D21.matrix <- ar_sigt21byage_loess_predicted_values %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID,
+                predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+
+head(as.data.frame(loess_prediction.D21.matrix))
+```
+
+#### Read ardata for clustering among D21s of protein trajectories with significant T21*Age interaction
+```{r}
+# Dissimilarity matrix:
+set.seed(1234)
+d_newclusters.D21s <- dist(loess_prediction.D21.matrix,
+                           method = "euclidean");
+# Hierarchical clustering using Complete Linkage:
+set.seed(1234)
+hc1_newclusters.D21s <- hclust(d_newclusters.D21s,
+                               method = "complete");
+
+```
+
+#### Decide how many T21-by-Age Clusters make sense
+```{r}
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 4, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 6, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 7, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 8, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 9, border = 1:9);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 10, border = 1:10);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 11, border = 1:11);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 12, border = 1:12);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 13, border = 1:13);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 14, border = 1:14);
+# After filtering T21-by-Age results by PadjBH<0.05 instead of PadjBH<0.10, we need 14 T21-by-Age Clusters in order to get separation of the two branches of the middle area of the tree.
+```
+
+#### Hierarchically cluster the age-dependent trajectories of proteins with significant T21-by-Age interaction into k=14 clusters
+
+After filtering T21-by-Age results by PadjBH<0.05 instead of PadjBH<0.10, we need k=14 T21-by-Age Clusters in order to get separation of the two branches of the middle area of the tree that contains the bulk of significant results.
+```{r}
+k_hc1_newclusters.D21s <- 8
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s, 
+            border = 1:k_hc1_newclusters.D21s);
+```
+
+#### Use the cuttree function to assign aptamers to k=8 T21-by-Age Clusters ('ar_sigt21byage_d21onlyclustered')
+```{r echo=T, results='hide'}
+k_hc1_newclusters.D21s <- 8
+set.seed(1234)
+tmp.ar_sigt21byage_d21onlyclustered <- cutree(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s) %>%
+    as.data.frame() %>%
+    `colnames<-`("D21_Clock_Cluster") %>%
+    rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(k = k_hc1_newclusters.D21s) %>%
+    ungroup() %>%
+  left_join(ar_sigt21byage_loess_predicted_values, by = "UniProt_Aptamer_Chr_Cluster") #%>%
+  # mutate(D21_Clock_Cluster = case_when(D21_Clock_Cluster == 1 ~ "A",
+  #                                     D21_Clock_Cluster == 2 ~ "B",
+  #                                     D21_Clock_Cluster == 3 ~ "C",
+  #                                     D21_Clock_Cluster == 4 ~ "D",
+  #                                     D21_Clock_Cluster == 5 ~ "E",
+  #                                     D21_Clock_Cluster == 6 ~ "F",
+  #                                     D21_Clock_Cluster == 7 ~ "G",
+  #                                     D21_Clock_Cluster == 8 ~ "H"))
+
+ar_sigt21byage_d21onlyclustered <- tmp.ar_sigt21byage_d21onlyclustered %>%
+  dplyr::select(D21_Clock_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  unique() %>%
+  group_by(D21_Clock_Cluster) %>%
+  summarise(N_Cluster_Aptamers = n()) %>%
+  ungroup() %>%
+  full_join(tmp.ar_sigt21byage_d21onlyclustered, by = "D21_Clock_Cluster") 
+
+#left_join( fread(paste0(dir.ardata,
+  #                        "/ar_sigt21byage_loess_predicted_values.csv.gz")),
+  #           by = "UniProt_Aptamer_Chr_Cluster" )
+
+head(tmp.ar_sigt21byage_d21onlyclustered)
+```
+
+#### ar_sigt21byage_d21onlyclustered
+```{r}
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_d21onlyclustered, "ar_sigt21byage_d21onlyclustered.csv.gz")
+```
+
+
+```{r}
+ar_sigt21byage_d21onlyclustered %>%
+  dplyr::select(Aptamer, D21_Clock_Cluster, Lehallier2019_ClusterID, Aptamer_in_P4C, Aptamer_in_Lehallier2019) %>%
+  unique() %>%
+  dplyr::filter(Aptamer_in_Lehallier2019==1 & Aptamer_in_P4C==1) %>%
+  group_by(Aptamer_in_P4C, Aptamer_in_Lehallier2019, Lehallier2019_ClusterID, D21_Clock_Cluster) %>%
+  summarise(N = n())
+```
+
+
+
+```{r}
+ar_sigt21byage_d21onlyclustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster) %>%
+  unique() %>%
+  group_by(T21byAge_Cluster) %>%
+  summarise(N = n())
+
+ar_sigt21byage_d21onlyclustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster, Lehallier2019_ClusterID) %>%
+  unique() %>%
+  group_by(T21byAge_Cluster, Lehallier2019_ClusterID) %>%
+  summarise(N = n())
+```
+
+```{r}
+ar_sigt21byage_aptamer_clusters <- ar_sigt21byage_d21onlyclustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster) %>%
+  unique()
+
+ar_sigt21byage_aptamer_clusters
+
+ar_sigt21byage_aptamer_clusters %>%
+  split(., .$T21byAge_Cluster)
+```
+
+

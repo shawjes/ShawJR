@@ -1,0 +1,136 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Cluster protein trajectories NOT already clustered by Lehallier et al. 2019, within D21s only
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_d21only_newclusters <- fread("ar_p4c_soma_d21only.csv.gz") %>%
+  filter(Aptamer_in_P4C == 1 & Aptamer_in_Lehallier2019 == 0);
+
+ar_p4c_soma_d21only_newclusters.split <- ar_p4c_soma_d21only_newclusters %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+predicted_newclusters.D21 <- list()
+plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ar_p4c_soma_d21only_newclusters.split) ){
+  set.seed(1234)
+
+  loess_newclusters.D21[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+                          data = ar_p4c_soma_d21only_newclusters.split[[i]])
+  predicted_newclusters.D21[[i]] <- cbind(ar_p4c_soma_d21only_newclusters.split[[i]]$LabID,
+                                        loess_newclusters.D21[[i]]$fitted,
+                                        ar_p4c_soma_d21only_newclusters.split[[i]]$Zlog10_relative_abundance,
+                                        ar_p4c_soma_d21only_newclusters.split[[i]]$Age,
+                                        as.character(ar_p4c_soma_d21only_newclusters.split[[i]]$Sex)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("LabID", "predicted_Zlog10_relative_abundance", "Zlog10_relative_abundance", "Age", "Sex")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_Zlog10_relative_abundance = as.numeric(predicted_Zlog10_relative_abundance),
+           Zlog10_relative_abundance = as.numeric(Zlog10_relative_abundance),
+           Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+    arrange(Age) %>%
+    mutate(UniProt_Aptamer_Chr_Cluster = names(ar_p4c_soma_d21only_newclusters.split)[[i]]) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, everything())
+  
+  plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+    #arrange(Age) %>%
+    ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+    geom_point(color = RedBlue[[1]], alpha = 0.5) +
+    geom_line(color = RedBlue[[1]]) +
+    ggtitle(names(predicted_newclusters.D21)[[i]])
+  
+  names(loess_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only_newclusters.split)[[i]]
+  names(predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only_newclusters.split)[[i]]
+  names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only_newclusters.split)[[i]]
+}
+
+predicted_newclusters.D21 %>% head()
+
+plot_predicted_newclusters.D21 %>% head()
+```
+
+#### t_p4c_soma_aptamer_overlap_lehallier2019
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz");
+
+t_p4c_soma_aptamer_overlap_lehallier2019 <- ar_p4c_soma %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Aptamer_in_P4C, Aptamer_in_Lehallier2019) %>%
+  unique() %>%
+  group_by(Aptamer_in_P4C, Aptamer_in_Lehallier2019) %>%
+  summarise(`Aptamers (N)` = n()) %>%
+  ungroup() %>%
+  mutate(Aptamer_in_P4C = case_when(Aptamer_in_P4C==1 ~ "Yes", .default = "No"),
+         Aptamer_in_Lehallier2019 = case_when(Aptamer_in_Lehallier2019==1 ~ "Yes", .default = "No"))
+# Aptamer_in_P4C  Aptamer_in_Lehallier2019  Aptamers (N)
+# 1	              0	                        2025		
+# 1	              1	                        2607	
+
+t_p4c_soma_aptamer_overlap_lehallier2019
+
+setwd(dir.aidata)
+fwrite(t_p4c_soma_aptamer_overlap_lehallier2019,
+       "t_p4c_soma_aptamer_overlap_lehallier2019.csv")
+
+rm(ar_p4c_soma); gc()
+```

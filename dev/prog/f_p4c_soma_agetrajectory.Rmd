@@ -1,0 +1,136 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz")
+
+ar_p4c_soma
+ar_p4c_soma.split <- ar_p4c_soma %>% split(., .$Cluster)
+```
+
+```{r}
+ar_p4c_soma.split[[8]] %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE, linewidth = 2) +
+    theme_bw() +
+    ggtitle(ar_p4c_soma.split[[8]]$ggtitle[1]) +
+    coord_cartesian(xlim = c(0,100),
+                    ylim = c(-2,2)) +
+    scale_x_continuous("Age (years)", 
+                       labels = as.character(seq(0, 100, by=20)),
+                       breaks = seq(0, 100, by = 20), 
+                       expand=c(0,0)
+                       ) +
+    scale_y_continuous("Protein levels (Z-score)", 
+                       labels = as.character(seq(-2, 2, by=1)),
+                       breaks = seq(-2, 2, by = 1), 
+                       expand=c(0,0)
+                       ) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black")
+```
+
+#### f_p4c_trajectory_
+#### f_p4c_trajectory_
+```{r}
+gg_seT_ageall <- list()
+gg_seT_ageGE18 <- list()
+for ( i in 1:length(ar_p4c_soma.split) ){
+  gg_seT_ageall[[i]] <- ar_p4c_soma.split[[i]] %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE, linewidth =2) +
+    theme_bw() +
+    ggtitle(ar_p4c_soma.split[[i]]$ggtitle[1]) +
+    coord_cartesian(xlim = c(0,100),
+                    ylim = c(-2,2)) +
+    scale_x_continuous("Age (years)", 
+                       labels = as.character(seq(0, 100, by=20)),
+                       breaks = seq(0, 100, by = 20), 
+                       expand=c(0,0)
+                       ) +
+    scale_y_continuous("Protein levels (Z-score)", 
+                       labels = as.character(seq(-2, 2, by=1)),
+                       breaks = seq(-2, 2, by = 1), 
+                       expand=c(0,0)
+                       ) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black")
+  
+  gg_seT_ageGE18[[i]] <- ar_p4c_soma.split[[i]] %>%
+    filter(Age >= 18) %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE, linewidth =2) +
+    theme_bw() +
+    ggtitle(ar_p4c_soma.split[[i]]$ggtitle[1]) +
+    coord_cartesian(xlim = c(18,100),
+                    ylim = c(-2,2)) +
+    scale_x_continuous("Age (years)", 
+                       labels = as.character(seq(20, 100, by=20)),
+                       breaks = seq(20, 100, by = 20), 
+                       expand=c(0,0)
+                       ) +
+    scale_y_continuous("Protein levels (Z-score)", 
+                       labels = as.character(seq(-2, 2, by=1)),
+                       breaks = seq(-2, 2, by = 1), 
+                       expand=c(0,0)
+                       ) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black")
+}
+
+#gg_seT[[8]]
+
+for ( i in 1:length(ar_p4c_soma.split) ) {
+  setwd(dir.output)
+  ggsave(gg_seT_ageall[[i]],
+         filename = paste("f_p4c_trajectory_",
+                          ar_p4c_soma.split[[i]]$ggtitle[1], 
+                          "_seTRUE.png",
+                          sep = ""),
+         width = 5, height = 5, units = "in")
+}
+
+for ( i in 1:length(ar_p4c_soma.split) ) {
+  setwd(dir.output)
+  ggsave(gg_seT_ageGE18[[i]],
+         filename = paste("f_p4c_trajectory_",
+                          ar_p4c_soma.split[[i]]$ggtitle[1], 
+                          "_seTRUE_ageGE18.png",
+                          sep = ""),
+         width = 5, height = 5, units = "in")
+}
+
+gg_seT_ageall
+gg_seT_ageGE18
+```
+
+

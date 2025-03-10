@@ -1,0 +1,62 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read results
+```{r}
+setwd(dir.ddata)
+list.files(pattern = "tidy")
+```
+#### PICK UP HERE (1/31/2025 ~ 615PM)
+```{r}
+# TO-DO:
+# RUN SINGLE-PROTEIN MODELS AND OUTPUT FILES
+# THEN COME HERE AND MAKE GENE LISTS
+# THEN PROGRAMMATICALLY RUN GSEA ETC
+```
+
+
+```{r}
+
+ar_p4c_soma_sumZcluster <- fread("ar_p4c_soma_sumZcluster.csv.gz") %>%
+  filter(Cluster != "Cluster_Other")
+
+ar_p4c_soma_sumZcluster
+
+ar_p4c_soma_sumZcluster.split <- ar_p4c_soma_sumZcluster %>% split(., .$Cluster)
+```
+
+```{r}
+
+```
+
+#### "dd_uniprot_sigT21byAge_down
+```{r}
+
+
+```
+
+#### dd_uniprot_sigT21byAge_up.csv
+```{r}
+
+```
+

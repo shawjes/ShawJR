@@ -1,0 +1,1240 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+#library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(ggrepel)
+library(RColorBrewer)
+library(ggnewscale)
+```
+
+#### Define colors for use in plots
+```{r}
+# Define colors for plotting:
+# HEX colors pulled from the Crnic/HTP logo @ trisome.org:
+# https://coolors.co/83781b-95b46a-709255-3e5622-172815
+# https://www.colorhexa.com/006c9e
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3")
+#fills<-c("gray42", "#007db8")
+c("#DADDE4", "#006C9E")
+c("#c5c8d1", "#006C9E")
+
+values<-c("gray42", "#007db8")
+colors<-c("gray42", "#007db8")
+RedBlue<-c("#CD3333", "#1874CD")
+Purple<-"#551A8B"
+```
+
+#### Read in cleaned frequency data in long format
+```{r}
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/CyTOF/P4C_CyTOF/Cell_Engine_tables/Derived/Cell_Engine_Tables/PopFreq/Long")
+freq_data_all.long <- fread("CyTOF_P4C_021821_CellEngineTables_FreqALL_P95batchNormalized_allcells_LONG_v2.0_JRS.csv") %>%
+  mutate(AgeGroup_v1 = ifelse(Age<18, "0-18",
+                              ifelse(Age>=18 & Age<30, "18-30",
+                                     ifelse(Age>=30, "30-62", NA))),
+         AgeGroup_v2 = ifelse(Age<10, "0-10",
+                              ifelse(Age>=10 & Age<20, "10-20",
+                                     ifelse(Age>=20 & Age<30, "20-30",
+                                            ifelse(Age>=30 & Age<40, "30-40",
+                                                   ifelse(Age>=40 & Age<50, "40-50",
+                                                          ifelse(Age>=50, "50-62", NA)))))),
+         AgeGroup_v3 = ifelse(Age<18, "0-18",
+                              ifelse(Age>=18 & Age<30, "18-30",
+                                     ifelse(Age>=30 & Age<40, "30-40",
+                                            ifelse(Age>=40, "40-62", NA)))),
+         AgeGroup_v1 = factor(AgeGroup_v1, levels = c("0-18", "18-30", "30-62")),
+         AgeGroup_v2 = factor(AgeGroup_v2, levels = c("0-10", "10-20","20-30","30-40","40-50","50-62")),
+         AgeGroup_v3 = factor(AgeGroup_v3, levels = c("0-18", "18-30", "30-40", "40-62")))
+
+freq_data_all.long$Age %>% summary()
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 0.9774 14.5750 24.0500 24.6314 33.1000 61.3000 
+
+freq_data_all.long$AgeGroup_v1 %>% unique()
+#[1] 30-62 0-18  18-30
+# Levels: 0-18 18-30 30-62
+freq_data_all.long$AgeGroup_v2 %>% unique()
+#[1] 30-40 0-10  20-30 10-20 50-62 40-50
+# Levels: 0-10 10-20 20-30 30-40 40-50 50-62
+
+freq_data_all.long
+```
+
+```{r}
+freq_data_all.long %>%
+  select(RecordID, AgeGroup_v1, Karyotype, Sex) %>%
+  unique() %>%
+  group_by(AgeGroup_v1, Karyotype, Sex) %>%
+  summarise(N = n()) %>%
+  ggplot(aes(x = AgeGroup_v1, y = N, color = interaction(Karyotype, Sex), fill = interaction(Karyotype, Sex))) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = N), color = "black", position = position_stack(vjust = 0.5))
+```
+
+```{r}
+freq_data_all.long %>%
+  select(RecordID, AgeGroup_v2, Karyotype, Sex) %>%
+  unique() %>%
+  group_by(AgeGroup_v2, Karyotype, Sex) %>%
+  summarise(N = n()) %>%
+  ggplot(aes(x = AgeGroup_v2, y = N, color = interaction(Karyotype, Sex), fill = interaction(Karyotype, Sex))) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = N), color = "black", position = position_stack(vjust = 0.5))
+```
+
+```{r}
+freq_data_all.long %>%
+  select(RecordID, AgeGroup_v3, Karyotype, Sex) %>%
+  unique() %>%
+  group_by(AgeGroup_v3, Karyotype, Sex) %>%
+  summarise(N = n()) %>%
+  ggplot(aes(x = AgeGroup_v3, y = N, color = interaction(Karyotype, Sex), fill = interaction(Karyotype, Sex))) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = N), color = "black", position = position_stack(vjust = 0.5))
+```
+
+```{r}
+nonZero_minimums.D21 <- freq_data_all.long %>%
+  filter(Karyotype == "D21") %>%
+  select(RecordID, LabID, Karyotype, Age, Sex, uniquePopulationName, percentOf, `Frequency (uniquePopulationName/percentOf)`, percent) %>%
+  unique() %>%
+  group_by(`Frequency (uniquePopulationName/percentOf)`) %>%
+  filter(percent>0) %>%
+  mutate(nonZero_min_percent = min(percent)) %>%
+  ungroup() %>%
+  select(`Frequency (uniquePopulationName/percentOf)`, nonZero_min_percent) %>%
+  unique()
+
+nonZero_minimums.T21 <- freq_data_all.long %>%
+  filter(Karyotype == "T21") %>%
+  select(RecordID, LabID, Karyotype, Age, Sex, uniquePopulationName, percentOf, `Frequency (uniquePopulationName/percentOf)`, percent) %>%
+  unique() %>%
+  group_by(`Frequency (uniquePopulationName/percentOf)`) %>%
+  filter(percent>0) %>%
+  mutate(nonZero_min_percent = min(percent)) %>%
+  ungroup() %>%
+  select(`Frequency (uniquePopulationName/percentOf)`, nonZero_min_percent) %>%
+  unique()
+
+nonZero_minimums.D21
+nonZero_minimums.T21
+```
+
+#### Prepare D21-only data
+```{r}
+freq_among_D21 <- freq_data_all.long %>%
+  filter(Karyotype == "D21") %>%
+  full_join(nonZero_minimums.D21, by = "Frequency (uniquePopulationName/percentOf)") %>%
+  select(RecordID, LabID, Karyotype, Age, Sex, uniquePopulationName, percentOf, `Frequency (uniquePopulationName/percentOf)`, percent, nonZero_min_percent) %>%
+  unique() %>%
+  group_by(`Frequency (uniquePopulationName/percentOf)`) %>%
+  mutate(offset = 0.5*nonZero_min_percent,
+         log2_percent = log2(percent + offset),
+         #mean_log2_percent = mean(log2_percent),
+         #sd_log2_percent = sd(log2_percent),
+         #Z_log2_percent = (log2_percent - mean_log2_percent)/sd_log2_percent,
+         scaled_log2_percent = scale(log2_percent)) %>%
+  ungroup() %>%
+  mutate(Sex = factor(Sex, levels = c("Male", "Female"))) #%>%
+  #separate(`Frequency (uniquePopulationName/percentOf)`, into = c("uniquePopulationName", "percentOf"), sep = " [/] ", remove = FALSE, extra = "merge")
+  
+freq_among_D21 %>%
+  filter(percentOf!="Live" & percentOf!="B cells") %>%
+  select(percentOf) %>%
+  unique()
+# If I recall, CD3+ represents T cells...
+
+freq_among_D21.LiveCells <- freq_among_D21 %>% filter(percentOf == "Live")
+freq_among_D21.Bcells <- freq_among_D21 %>% filter(percentOf == "B cells")
+freq_among_D21.Tcells <- freq_among_D21 %>% filter(percentOf == "CD3+")
+
+freq_among_D21
+freq_among_D21.LiveCells
+freq_among_D21.Bcells
+freq_among_D21.Tcells
+```
+
+#### Prepare T21-only data
+```{r}
+freq_among_T21 <- freq_data_all.long %>%
+  filter(Karyotype == "T21") %>%
+  full_join(nonZero_minimums.T21, by = "Frequency (uniquePopulationName/percentOf)") %>%
+  select(RecordID, LabID, Karyotype, Age, Sex, uniquePopulationName, percentOf, `Frequency (uniquePopulationName/percentOf)`, percent, nonZero_min_percent) %>%
+  unique() %>%
+  group_by(`Frequency (uniquePopulationName/percentOf)`) %>%
+  mutate(offset = 0.5*nonZero_min_percent,
+         log2_percent = log2(percent + offset),
+         #mean_log2_percent = mean(log2_percent),
+         #sd_log2_percent = sd(log2_percent),
+         #Z_log2_percent = (log2_percent - mean_log2_percent)/sd_log2_percent,
+         scaled_log2_percent = scale(log2_percent)) %>%
+  ungroup() %>%
+  mutate(Sex = factor(Sex, levels = c("Male", "Female"))) #%>%
+  #separate(`Frequency (uniquePopulationName/percentOf)`, into = c("uniquePopulationName", "percentOf"), sep = " [/] ", remove = FALSE, extra = "merge")
+  
+freq_among_T21 %>%
+  filter(percentOf!="Live" & percentOf!="B cells") %>%
+  select(percentOf) %>%
+  unique()
+# If I recall, CD3+ represents T cells...
+
+freq_among_T21.LiveCells <- freq_among_T21 %>% filter(percentOf == "Live")
+freq_among_T21.Bcells <- freq_among_T21 %>% filter(percentOf == "B cells")
+freq_among_T21.Tcells <- freq_among_T21 %>% filter(percentOf == "CD3+")
+
+freq_among_T21
+freq_among_T21.LiveCells
+freq_among_T21.Bcells
+freq_among_T21.Tcells
+```
+
+#### Split frequency datasets by population frequency for ease of plotting
+```{r}
+freq_among_D21.split <- split(freq_among_D21, freq_among_D21$`Frequency (uniquePopulationName/percentOf)`)
+freq_among_D21.LiveCells.split <- split(freq_among_D21.LiveCells, freq_among_D21.LiveCells$`Frequency (uniquePopulationName/percentOf)`)
+freq_among_D21.Bcells.split <- split(freq_among_D21.Bcells, freq_among_D21.Bcells$`Frequency (uniquePopulationName/percentOf)`)
+freq_among_D21.Tcells.split <- split(freq_among_D21.Tcells, freq_among_D21.Tcells$`Frequency (uniquePopulationName/percentOf)`)
+
+freq_among_T21.split <- split(freq_among_T21, freq_among_T21$`Frequency (uniquePopulationName/percentOf)`)
+freq_among_T21.LiveCells.split <- split(freq_among_T21.LiveCells, freq_among_T21.LiveCells$`Frequency (uniquePopulationName/percentOf)`)
+freq_among_T21.Bcells.split <- split(freq_among_T21.Bcells, freq_among_T21.Bcells$`Frequency (uniquePopulationName/percentOf)`)
+freq_among_T21.Tcells.split <- split(freq_among_T21.Tcells, freq_among_T21.Tcells$`Frequency (uniquePopulationName/percentOf)`)
+```
+
+#### D21 LOESS trajectory plots
+```{r}
+D21_age_trajectory.LiveCells <- list()
+for ( i in 1:length(freq_among_D21.LiveCells.split) ){
+  D21_age_trajectory.LiveCells[[i]] <- freq_among_D21.LiveCells.split[[i]] %>%
+    ggplot(aes(x = Age, y = scaled_log2_percent)) + #, color = Sex)) +
+    geom_smooth(method = "loess", se = FALSE, color = RedBlue[[1]]) +
+    geom_point(alpha = 0.5, color = RedBlue[[1]]) +
+    #scale_colour_manual(values = c(RedBlue[[1]])) + #, "pink")) +
+    scale_x_continuous(breaks = seq(from = 0, to = 63, by = 10)) +
+    ggtitle(names(freq_among_D21.LiveCells.split)[[i]])
+  names(D21_age_trajectory.LiveCells)[[i]] <- names(freq_among_D21.LiveCells.split)[[i]]
+}
+
+D21_age_trajectory.Bcells <- list()
+for ( i in 1:length(freq_among_D21.Bcells.split) ){
+  D21_age_trajectory.Bcells[[i]] <- freq_among_D21.Bcells.split[[i]] %>%
+    ggplot(aes(x = Age, y = scaled_log2_percent)) + #, color = Sex)) +
+    geom_smooth(method = "loess", se = FALSE, color = RedBlue[[1]]) +
+    geom_point(alpha = 0.5, color = RedBlue[[1]]) +
+    #scale_colour_manual(values = c(RedBlue[[1]])) + #, "pink")) +
+    scale_x_continuous(breaks = seq(from = 0, to = 63, by = 10)) +
+    ggtitle(names(freq_among_D21.Bcells.split)[[i]])
+  names(D21_age_trajectory.Bcells)[[i]] <- names(freq_among_D21.Bcells.split)[[i]]
+}
+
+D21_age_trajectory.Tcells <- list()
+for ( i in 1:length(freq_among_D21.Tcells.split) ){
+  D21_age_trajectory.Tcells[[i]] <- freq_among_D21.Tcells.split[[i]] %>%
+    ggplot(aes(x = Age, y = scaled_log2_percent)) + #, color = Sex)) +
+    geom_smooth(method = "loess", se = FALSE, color = RedBlue[[1]]) +
+    geom_point(alpha = 0.5, color = RedBlue[[1]]) +
+    #scale_colour_manual(values = c(RedBlue[[1]])) + #, "pink")) +
+    scale_x_continuous(breaks = seq(from = 0, to = 63, by = 10)) +
+    ggtitle(names(freq_among_D21.Tcells.split)[[i]])
+  names(D21_age_trajectory.Tcells)[[i]] <- names(freq_among_D21.Tcells.split)[[i]]
+}
+
+D21_age_trajectory.LiveCells %>% length()
+D21_age_trajectory.Bcells %>% length()
+D21_age_trajectory.Tcells %>% length()
+#[1] 46
+#[1] 29
+#[1] 14
+```
+
+```{r}
+D21_age_trajectory.LiveCells %>% length()
+
+D21_age_trajectory.LiveCells
+```
+
+```{r}
+D21_age_trajectory.Bcells %>% length()
+D21_age_trajectory.Bcells
+```
+
+```{r}
+D21_age_trajectory.Tcells %>% length()
+D21_age_trajectory.Tcells
+```
+
+
+#### LOESS prediction and plotting of age trajectories in D21s
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess.D21.LiveCells <- list()
+predicted.D21.LiveCells <- list()
+plot_predicted.D21.LiveCells <- list()
+for ( i in 1:length(freq_among_D21.LiveCells.split) ){
+  loess.D21.LiveCells[[i]] <- loess(scaled_log2_percent ~ Age, data = freq_among_D21.LiveCells.split[[i]])
+  predicted.D21.LiveCells[[i]] <- cbind(freq_among_D21.LiveCells.split[[i]]$RecordID,
+                                        loess.D21.LiveCells[[i]]$fitted,
+                                        freq_among_D21.LiveCells.split[[i]]$scaled_log2_percent,
+                                        freq_among_D21.LiveCells.split[[i]]$Age,
+                                        as.character(freq_among_D21.LiveCells.split[[i]]$Sex)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("RecordID", "predicted_scaled_log2_percent", "scaled_log2_percent", "Age", "Sex")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_scaled_log2_percent = as.numeric(predicted_scaled_log2_percent),
+           scaled_log2_percent = as.numeric(scaled_log2_percent),
+           Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+    arrange(Age) %>%
+    mutate(Frequency = names(freq_among_D21.LiveCells.split)[[i]]) %>%
+    select(Frequency, everything())
+  
+  plot_predicted.D21.LiveCells[[i]] <- predicted.D21.LiveCells[[i]] %>%
+    #arrange(Age) %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent)) +
+    geom_point(color = RedBlue[[1]], alpha = 0.5) +
+    geom_line(color = RedBlue[[1]]) +
+    ggtitle(names(predicted.D21.LiveCells)[[i]])
+  
+  names(loess.D21.LiveCells)[[i]] <- names(freq_among_D21.LiveCells.split)[[i]]
+  names(predicted.D21.LiveCells)[[i]] <- names(freq_among_D21.LiveCells.split)[[i]]
+  names(plot_predicted.D21.LiveCells)[[i]] <- names(freq_among_D21.LiveCells.split)[[i]]
+}
+
+predicted.D21.LiveCells %>% head()
+
+plot_predicted.D21.LiveCells
+```
+
+#### LOESS prediction and plotting of age trajectories in T21s
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess.T21.LiveCells <- list()
+predicted.T21.LiveCells <- list()
+plot_predicted.T21.LiveCells <- list()
+for ( i in 1:length(freq_among_T21.LiveCells.split) ){
+  loess.T21.LiveCells[[i]] <- loess(scaled_log2_percent ~ Age, data = freq_among_T21.LiveCells.split[[i]])
+  predicted.T21.LiveCells[[i]] <- cbind(freq_among_T21.LiveCells.split[[i]]$RecordID,
+                                        loess.T21.LiveCells[[i]]$fitted,
+                                        freq_among_T21.LiveCells.split[[i]]$scaled_log2_percent,
+                                        freq_among_T21.LiveCells.split[[i]]$Age,
+                                        as.character(freq_among_T21.LiveCells.split[[i]]$Sex)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("RecordID", "predicted_scaled_log2_percent", "scaled_log2_percent", "Age", "Sex")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_scaled_log2_percent = as.numeric(predicted_scaled_log2_percent),
+           scaled_log2_percent = as.numeric(scaled_log2_percent),
+           Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+    arrange(Age) %>%
+    mutate(Frequency = names(freq_among_T21.LiveCells.split)[[i]]) %>%
+    select(Frequency, everything())
+  
+  plot_predicted.T21.LiveCells[[i]] <- predicted.T21.LiveCells[[i]] %>%
+    #arrange(Age) %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent)) +
+    geom_point(color = RedBlue[[2]], alpha = 0.5) +
+    geom_line(color = RedBlue[[2]]) +
+    ggtitle(names(predicted.T21.LiveCells)[[i]])
+  
+  names(loess.T21.LiveCells)[[i]] <- names(freq_among_T21.LiveCells.split)[[i]]
+  names(predicted.T21.LiveCells)[[i]] <- names(freq_among_T21.LiveCells.split)[[i]]
+  names(plot_predicted.T21.LiveCells)[[i]] <- names(freq_among_T21.LiveCells.split)[[i]]
+}
+
+predicted.T21.LiveCells %>% head()
+
+plot_predicted.T21.LiveCells
+```
+
+```{r}
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+library(gridExtra)
+```
+
+#### Cluster the LOESS age-associated trajectories within D21s
+```{r}
+predicted.D21.LiveCells.matrix <- predicted.D21.LiveCells %>%
+  rbindlist() %>%
+  select(Frequency, RecordID, predicted_scaled_log2_percent) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log2_percent) %>%
+  column_to_rownames(var = "Frequency") %>%
+  as.matrix()
+#predicted.D21.LiveCells.matrix %>% as.data.frame()
+
+# Dissimilarity matrix
+d.D21s <- dist(predicted.D21.LiveCells.matrix, method = "euclidean")
+  
+# Hierarchical clustering using Complete Linkage
+hc1.D21s <- hclust(d.D21s, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 6, border = 2:6) # Use 6 clusters for this pilot analysis
+
+# Ward's method
+# hc5 <- hclust(d, method = "ward.D2" )
+# hc5.D21s <- hclust(d.D21s, method = "ward.D2" )
+# hc5
+# hc5.D21s
+
+# Cut tree into 6 groups
+sub_grp6.D21s <- cutree(hc1.D21s, k = 6) # hc1.D21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+#sub_grp6.D21s
+
+# Cluster plot:
+fviz_cluster(list(data = predicted.D21.LiveCells.matrix, cluster = cutree(hc1.D21s, k = 6)))
+
+# Add the the cluster each observation belongs to to our original data.
+predicted.D21.LiveCells.k6_df <- predicted.D21.LiveCells.matrix %>%
+  as.data.frame() %>%
+  mutate(cluster = sub_grp6.D21s) %>%
+  select(cluster, everything()) %>%
+  rownames_to_column("Frequency") %>%
+  gather(key = "RecordID", value = "predicted_scaled_log2_percent", INVAL266CN1:INVZK768PCH) %>%
+  full_join(freq_among_D21.LiveCells %>% select(RecordID, LabID, Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, LabID, Age, Sex, Frequency, cluster, predicted_scaled_log2_percent)
+predicted.D21.LiveCells.k6_df
+
+predicted.D21.LiveCells.k6_df.split_by_cluster <- split(predicted.D21.LiveCells.k6_df, predicted.D21.LiveCells.k6_df$cluster)
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+cluster_loess.D21 <- list()
+for ( i in 1:length(predicted.D21.LiveCells.k6_df.split_by_cluster) ){
+  cluster_loess.D21[[i]] <- predicted.D21.LiveCells.k6_df.split_by_cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    geom_smooth(method = "loess", se = FALSE) +
+    ggtitle(paste("Trajectory of D21 cluster ", predicted.D21.LiveCells.k6_df.split_by_cluster[[i]]$cluster[1], " in D21s"))
+}
+cluster_loess.D21
+
+# Draw the dendrogram with borders around the clusters:
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 6, border = 2:6)
+```
+
+```{r}
+predicted.D21.LiveCells.matrix <- predicted.D21.LiveCells %>%
+  rbindlist() %>%
+  select(Frequency, RecordID, predicted_scaled_log2_percent) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log2_percent) %>%
+  column_to_rownames(var = "Frequency") %>%
+  as.matrix()
+#predicted.D21.LiveCells.matrix %>% as.data.frame()
+
+# Dissimilarity matrix
+d.D21s <- dist(predicted.D21.LiveCells.matrix, method = "euclidean")
+  
+# Hierarchical clustering using Complete Linkage
+hc1.D21s <- hclust(d.D21s, method = "ward.D2" )
+
+# Plot the obtained dendrogram
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 6, border = 2:6) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 10, border = 2:10) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 12, border = 2:12) # Use 6 clusters for this pilot analysis
+
+# Cut tree into 6 groups
+sub_grp12.D21s <- cutree(hc1.D21s, k = 12) # hc1.D21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+
+# Cluster plot:
+fviz_cluster(list(data = predicted.D21.LiveCells.matrix, cluster = cutree(hc1.D21s, k = 12)))
+
+# Add the the cluster each observation belongs to to our original data.
+predicted.D21.LiveCells.k12_df <- predicted.D21.LiveCells.matrix %>%
+  as.data.frame() %>%
+  mutate(D21_cluster = sub_grp12.D21s) %>%
+  select(D21_cluster, everything()) %>%
+  rownames_to_column("Frequency") %>%
+  gather(key = "RecordID", value = "predicted_scaled_log2_percent", INVAL266CN1:INVZK768PCH) %>%
+  full_join(freq_among_D21.LiveCells %>% select(RecordID, LabID, Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, LabID, Age, Sex, Frequency, D21_cluster, predicted_scaled_log2_percent)
+predicted.D21.LiveCells.k12_df
+
+predicted.D21.LiveCells.k12_df.split_by_cluster <- split(predicted.D21.LiveCells.k12_df, predicted.D21.LiveCells.k12_df$D21_cluster)
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+cluster_loess.D21 <- list()
+for ( i in 1:length(predicted.D21.LiveCells.k12_df.split_by_cluster) ){
+  cluster_loess.D21[[i]] <- predicted.D21.LiveCells.k12_df.split_by_cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    geom_smooth(method = "loess", se = FALSE) +
+    ggtitle(paste("Trajectory of D21 cluster ", predicted.D21.LiveCells.k12_df.split_by_cluster[[i]]$D21_cluster[1], " in D21s"))
+}
+cluster_loess.D21
+```
+
+```{r}
+predicted.D21.LiveCells.matrix <- predicted.D21.LiveCells %>%
+  rbindlist() %>%
+  select(Frequency, RecordID, predicted_scaled_log2_percent) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log2_percent) %>%
+  column_to_rownames(var = "Frequency") %>%
+  as.matrix()
+#predicted.D21.LiveCells.matrix %>% as.data.frame()
+
+# Dissimilarity matrix
+d.D21s <- dist(predicted.D21.LiveCells.matrix, method = "euclidean")
+  
+# Hierarchical clustering using Complete Linkage
+hc1.D21s <- hclust(d.D21s, method = "ward.D2" )
+
+# Plot the obtained dendrogram
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 6, border = 2:6) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 10, border = 2:10) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 14, border = 2:14) # Use 6 clusters for this pilot analysis
+
+# Cut tree into 6 groups
+sub_grp14.D21s <- cutree(hc1.D21s, k = 14) # hc1.D21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+
+# Cluster plot:
+fviz_cluster(list(data = predicted.D21.LiveCells.matrix, cluster = cutree(hc1.D21s, k = 14)))
+
+# Add the the cluster each observation belongs to to our original data.
+predicted.D21.LiveCells.k14_df <- predicted.D21.LiveCells.matrix %>%
+  as.data.frame() %>%
+  mutate(D21_cluster = sub_grp14.D21s) %>%
+  select(D21_cluster, everything()) %>%
+  rownames_to_column("Frequency") %>%
+  gather(key = "RecordID", value = "predicted_scaled_log2_percent", INVAL266CN1:INVZK768PCH) %>%
+  full_join(freq_among_D21.LiveCells %>% select(RecordID, LabID, Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, LabID, Age, Sex, Frequency, D21_cluster, predicted_scaled_log2_percent)
+predicted.D21.LiveCells.k14_df
+
+predicted.D21.LiveCells.k14_df.split_by_cluster <- split(predicted.D21.LiveCells.k14_df, predicted.D21.LiveCells.k14_df$D21_cluster)
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+cluster_loess.D21 <- list()
+for ( i in 1:length(predicted.D21.LiveCells.k14_df.split_by_cluster) ){
+  cluster_loess.D21[[i]] <- predicted.D21.LiveCells.k14_df.split_by_cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    geom_smooth(method = "loess", se = FALSE) +
+    ggtitle(paste("Trajectory of D21 cluster ", predicted.D21.LiveCells.k14_df.split_by_cluster[[i]]$D21_cluster[1], " in D21s"))
+}
+cluster_loess.D21
+```
+
+```{r}
+predicted.D21.LiveCells.matrix <- predicted.D21.LiveCells %>%
+  rbindlist() %>%
+  select(Frequency, RecordID, predicted_scaled_log2_percent) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log2_percent) %>%
+  column_to_rownames(var = "Frequency") %>%
+  as.matrix()
+#predicted.D21.LiveCells.matrix %>% as.data.frame()
+
+# Dissimilarity matrix
+d.D21s <- dist(predicted.D21.LiveCells.matrix, method = "euclidean")
+  
+# Hierarchical clustering using Complete Linkage
+hc1.D21s <- hclust(d.D21s, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 6, border = 2:6) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 7, border = 2:7) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 8, border = 2:8) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 9, border = 2:9) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 10, border = 2:10) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 11, border = 2:11) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 12, border = 2:12) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 13, border = 2:13) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 14, border = 2:14) # Use 6 clusters for this pilot analysis
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 15, border = 2:15) # Use 6 clusters for this pilot analysis
+
+# Cut tree into 6 groups
+sub_grp15.D21s <- cutree(hc1.D21s, k = 15) # hc1.D21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+
+# Cluster plot:
+fviz_cluster(list(data = predicted.D21.LiveCells.matrix, cluster = cutree(hc1.D21s, k = 15)))
+
+# Add the the cluster each observation belongs to to our original data.
+predicted.D21.LiveCells.k15_df <- predicted.D21.LiveCells.matrix %>%
+  as.data.frame() %>%
+  mutate(D21_cluster = sub_grp15.D21s) %>%
+  select(D21_cluster, everything()) %>%
+  rownames_to_column("Frequency") %>%
+  gather(key = "RecordID", value = "predicted_scaled_log2_percent", INVAL266CN1:INVZK768PCH) %>%
+  full_join(freq_among_D21.LiveCells %>% select(RecordID, LabID, Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, LabID, Age, Sex, Frequency, D21_cluster, predicted_scaled_log2_percent)
+predicted.D21.LiveCells.k15_df
+
+predicted.D21.LiveCells.k15_df.split_by_cluster <- split(predicted.D21.LiveCells.k15_df, predicted.D21.LiveCells.k15_df$D21_cluster)
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+cluster_loess.D21 <- list()
+for ( i in 1:length(predicted.D21.LiveCells.k15_df.split_by_cluster) ){
+  cluster_loess.D21[[i]] <- predicted.D21.LiveCells.k15_df.split_by_cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    geom_smooth(method = "loess", se = FALSE) +
+    ggtitle(paste("Trajectory of D21 cluster ", predicted.D21.LiveCells.k15_df.split_by_cluster[[i]]$D21_cluster[1], " in D21s"))
+}
+cluster_loess.D21
+
+# Output dendrogram as PNG:
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+# png(file = "CyTOF_P4C_021821_Age_Trajectory_Dendrogram_euclid_complete_k15_v0.3_JRS.png", width = 8, height = 6, units = "in", res = 750)
+# plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 15, border = 2:15)
+# dev.off()
+# Output dendrogram as PDF:
+theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14),
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+                  ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+# pdf(file = "CyTOF_P4C_021821_Age_Trajectory_Dendrogram_euclid_complete_k15_v0.3_JRS.pdf", width = 8, height = 6)
+# plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 15, border = 2:15)
+# dev.off()
+```
+
+#### Cluster the LOESS age-associated trajectories within T21s
+```{r}
+predicted.T21.LiveCells.matrix <- predicted.T21.LiveCells %>%
+  rbindlist() %>%
+  select(Frequency, RecordID, predicted_scaled_log2_percent) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log2_percent) %>%
+  column_to_rownames(var = "Frequency") %>%
+  as.matrix()
+#predicted.T21.LiveCells.matrix %>% as.data.frame()
+
+# Dissimilarity matrix
+d.T21s <- dist(predicted.T21.LiveCells.matrix, method = "euclidean")
+  
+# Hierarchical clustering using Complete Linkage
+hc1.T21s <- hclust(d.T21s, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1.T21s, cex = 0.6); rect.hclust(hc1.T21s, k = 6, border = 2:6) # Use 6 clusters for this pilot analysis
+
+# Ward's method
+# hc5 <- hclust(d, method = "ward.D2" )
+# hc5.T21s <- hclust(d.T21s, method = "ward.D2" )
+# hc5
+# hc5.T21s
+
+# Cut tree into 6 groups
+sub_grp6.T21s <- cutree(hc1.T21s, k = 6) # hc1.T21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+#sub_grp6.T21s
+
+# Cluster plot:
+fviz_cluster(list(data = predicted.T21.LiveCells.matrix, cluster = cutree(hc1.T21s, k = 6)))
+
+# Add the the cluster each observation belongs to to our original data.
+predicted.T21.LiveCells.k6_df <- predicted.T21.LiveCells.matrix %>%
+  as.data.frame() %>%
+  mutate(cluster = sub_grp6.T21s) %>%
+  select(cluster, everything()) %>%
+  rownames_to_column("Frequency") %>%
+  gather(key = "RecordID", value = "predicted_scaled_log2_percent", INVAB226VEU:INVZZ774REN) %>%
+  full_join(freq_among_T21.LiveCells %>% select(RecordID, LabID, Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, LabID, Age, Sex, Frequency, cluster, predicted_scaled_log2_percent)
+predicted.T21.LiveCells.k6_df
+
+predicted.T21.LiveCells.k6_df.split_by_cluster <- split(predicted.T21.LiveCells.k6_df, predicted.T21.LiveCells.k6_df$cluster)
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+cluster_loess.T21 <- list()
+for ( i in 1:length(predicted.T21.LiveCells.k6_df.split_by_cluster) ){
+  cluster_loess.T21[[i]] <- predicted.T21.LiveCells.k6_df.split_by_cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    geom_smooth(method = "loess", se = FALSE) +
+    ggtitle(paste("Trajectory of D21 cluster ", predicted.T21.LiveCells.k6_df.split_by_cluster[[i]]$cluster[1], " in T21s", sep = ""))
+}
+cluster_loess.T21
+
+# Draw the dendrogram with borders around the clusters:
+plot(hc1.T21s, cex = 0.6); rect.hclust(hc1.T21s, k = 6, border = 2:6)
+```
+
+#### Apply the D21 clusters to the T21 data
+```{r}
+predicted.T21.LiveCells.matrix <- predicted.T21.LiveCells %>%
+  rbindlist() %>%
+  select(Frequency, RecordID, predicted_scaled_log2_percent) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log2_percent) %>%
+  column_to_rownames(var = "Frequency") %>%
+  as.matrix()
+#predicted.T21.LiveCells.matrix %>% as.data.frame()
+
+# Add the D21 cluster to in the T21 data:
+predicted.T21.LiveCells.D21k15_df <- predicted.T21.LiveCells.matrix %>%
+  as.data.frame() %>%
+  mutate(D21_cluster = sub_grp15.D21s) %>% # *D21* cluster assignments
+  select(D21_cluster, everything()) %>%
+  rownames_to_column("Frequency") %>%
+  gather(key = "RecordID", value = "predicted_scaled_log2_percent", INVAB226VEU:INVZZ774REN) %>%
+  full_join(freq_among_T21.LiveCells %>% select(RecordID, LabID, Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, LabID, Age, Sex, Frequency, D21_cluster, predicted_scaled_log2_percent)
+predicted.T21.LiveCells.D21k15_df
+
+predicted.T21.LiveCells.D21k15_df.split_by_D21cluster <- split(predicted.T21.LiveCells.D21k15_df, predicted.T21.LiveCells.D21k15_df$D21_cluster)
+
+# Plot the predicted T21 LOESS trajectory for each cluster of populations identified in D21s:
+cluster_loess.T21 <- list()
+for ( i in 1:length(predicted.T21.LiveCells.D21k15_df.split_by_D21cluster) ){
+  cluster_loess.T21[[i]] <- predicted.T21.LiveCells.D21k15_df.split_by_D21cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    geom_smooth(method = "loess", se = FALSE) +
+    ggtitle(paste("Trajectory of D21 cluster ", predicted.T21.LiveCells.D21k15_df.split_by_D21cluster[[i]]$D21_cluster[1], " in T21s", sep = ""))
+}
+cluster_loess.T21
+```
+
+#### Design color palettes for up to 6 populations per cluster
+```{r}
+spectral_greens <- brewer.pal(30, "Spectral")[8:9]
+spectral_bluePurple <- brewer.pal(30, "Spectral") %>% tail(n = 2)
+violet <- brewer.pal(9, "BuPu")[7]
+light_blue <- brewer.pal(9, "RdYlBu")[7]
+pal.T21 <- c(spectral_bluePurple[[1]],
+             spectral_greens[[1]],
+             spectral_bluePurple[[2]],
+             light_blue,
+             spectral_greens[[2]],
+             violet)
+
+RedToYellow5 <- brewer.pal(30, "Spectral") %>% head(n = 5)
+gold <- brewer.pal(9, "YlOrRd")[[3]]
+pink <- brewer.pal(9, "RdPu")[[4]]
+pal.D21 <- c(RedToYellow5[[2]],
+             gold,
+             RedToYellow5[[3]],
+             pink,
+             RedToYellow5[[4]],
+             RedToYellow5[[1]])
+
+pal.T21
+pal.D21
+```
+
+```{r}
+predicted.D21.LiveCells.k15_df01 <- predicted.D21.LiveCells.k15_df %>%
+  mutate(Karyotype = "D21") %>%
+  mutate(Frequency = paste(Karyotype, Frequency, sep = " "))
+predicted.T21.LiveCells.D21k15_df01 <- predicted.T21.LiveCells.D21k15_df %>%
+  mutate(Karyotype = "T21") %>%
+  mutate(Frequency = paste(Karyotype, Frequency, sep = " "))
+
+plot.cluster <- list()
+for ( i in 1:15 ){
+  cluster_number <- i
+  ncolors <- predicted.D21.LiveCells.k15_df01 %>% filter(D21_cluster == cluster_number) %>% select(Frequency) %>% unique() %>% nrow()
+  plot.cluster[[i]] <- ggplot(mapping = aes(x = Age, y = predicted_scaled_log2_percent)) +
+    #geom_point(data = predicted.D21.LiveCells.k15_df01 %>% filter(D21_cluster == 1), aes(color = Frequency), alpha = 0.5, size = 0.75) +
+    geom_line(data = predicted.D21.LiveCells.k15_df01 %>% filter(D21_cluster == cluster_number), aes(color = Frequency), lwd = 1) +
+    scale_colour_manual(values = pal.D21[1:ncolors]) +
+    ggnewscale::new_scale_color() +
+    #geom_point(data = predicted.T21.LiveCells.D21k15_df01 %>% filter(D21_cluster == 1), aes(color = Frequency), alpha = 0.5, size = 0.75) +
+    geom_line(data = predicted.T21.LiveCells.D21k15_df01 %>% filter(D21_cluster == cluster_number), aes(color = Frequency), lwd = 1) +
+    scale_colour_manual(values = pal.T21[1:ncolors]) +
+    scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+    ggtitle(paste("D21 immuno-aging cluster ", cluster_number, sep = "")) +
+    theme(aspect.ratio = 1.2,
+          legend.title = element_blank()) +
+    ylab("% of live cells (Z score)")
+}
+plot.cluster
+
+plot.cluster[[6]] +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 40, linetype = "dashed", color = "black")
+
+plot.cluster[[15]] +
+  geom_vline(xintercept = 10, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 34, linetype = "dashed", color = "black")
+plot.cluster[[15]] +
+  geom_vline(xintercept = 14, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 34, linetype = "dashed", color = "black")
+
+# Blue vs. Red intersection: 10 and 34
+plot.cluster[[7]] +
+  geom_vline(xintercept = 10, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 34, linetype = "dashed", color = "black")
+
+# Green vs. yellow intersection: 8 and 27
+plot.cluster[[7]] +
+  geom_vline(xintercept = 8, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 27, linetype = "dashed", color = "black")
+
+# Purple vs. orange intersection: 9 and 31
+plot.cluster[[7]] +
+  geom_vline(xintercept = 9, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 31, linetype = "dashed", color = "black")
+
+# Light blue vs. pink intersection: 10 and 38
+plot.cluster[[7]] +
+  geom_vline(xintercept = 10, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 38, linetype = "dashed", color = "black")
+
+
+# Blue vs. Red intersection: 10 and 34
+# Green vs. yellow intersection: 8 and 27
+# Purple vs. orange intersection: 9 and 31
+# Light blue vs. pink intersection: 10 and 38
+
+plot.cluster[[7]] +
+  geom_vline(xintercept = 8, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 20, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 34, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 47, linetype = "dotted", color = "red") +
+  geom_vline(xintercept = 39, linetype = "dotted", color = "blue")
+
+```
+
+#### Output T21 and D21 cluster trajectories on the same plot:
+```{r}
+for ( i in 1:15 ){
+  out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "T21andD21_v0.4_JRS", sep = "")
+  
+  # Output as PNG:
+  setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+  png(file = paste(out_filename, ".png", sep=""), width = 8, height = 5, units = "in", res = 750)
+  print( plot.cluster[[i]] )
+  dev.off()
+  
+  # Output as PDF:
+  theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+              theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                    plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                    axis.text = element_text(color="black", size = 14),
+                    axis.text.x = element_text(angle = 0, hjust = NULL),
+                    strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                    panel.background = element_blank(),
+                    panel.grid = element_blank()
+                    ))
+  setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+  pdf(file = paste(out_filename, ".pdf", sep=""), width = 8, height = 5)
+  print( plot.cluster[[i]] )
+  dev.off()
+}
+```
+
+#### Plot the immuno-aging clusters among D21 and T21
+```{r}
+cluster_yaxis_limits <- rbind( predicted.D21.LiveCells.k15_df01, predicted.T21.LiveCells.D21k15_df01)  %>%
+  group_by(D21_cluster) %>%
+  summarise(min_yaxis = 1.05*min(predicted_scaled_log2_percent),
+            max_yaxis = 1.05*max(predicted_scaled_log2_percent))
+#cluster_yaxis_limits
+
+predicted.D21.LiveCells.k15_df02 <- predicted.D21.LiveCells.k15_df01 %>%
+  full_join(cluster_yaxis_limits, by = "D21_cluster")
+
+predicted.T21.LiveCells.D21k15_df02 <- predicted.T21.LiveCells.D21k15_df01 %>%
+  full_join(cluster_yaxis_limits, by = "D21_cluster")
+
+plot_tall.cluster_D21s <- list()
+plot_tall.cluster_T21s <- list()
+for ( i in 1:15 ){
+  cluster_number <- i
+  ncolors <- predicted.D21.LiveCells.k15_df02 %>% filter(D21_cluster == cluster_number) %>% select(Frequency) %>% unique() %>% nrow()
+  
+  df.D21 <- predicted.D21.LiveCells.k15_df02 %>% filter(D21_cluster == cluster_number)
+  df.T21 <- predicted.T21.LiveCells.D21k15_df02 %>% filter(D21_cluster == cluster_number)
+  
+  ylim.min <- (cluster_yaxis_limits %>% filter(D21_cluster == cluster_number))$min_yaxis
+  ylim.max <- (cluster_yaxis_limits %>% filter(D21_cluster == cluster_number))$max_yaxis
+  
+  plot_tall.cluster_D21s[[i]] <- ggplot(mapping = aes(x = Age, y = predicted_scaled_log2_percent)) +
+    geom_point(data = df.D21, aes(color = Frequency), alpha = 0.5, size = 0.75) +
+    geom_line(data = df.D21, aes(color = Frequency), lwd = 1) +
+    ylim(ylim.min, ylim.max) +
+    scale_colour_manual(values = pal.D21[1:ncolors]) +
+    scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+    ggtitle(paste("D21 immuno-aging cluster ", cluster_number, " in D21s", sep = "")) +
+    theme(aspect.ratio = 0.75,
+          legend.title = element_blank()) +
+    ylab("% of live cells (Z score)")
+  
+  plot_tall.cluster_T21s[[i]] <- ggplot(mapping = aes(x = Age, y = predicted_scaled_log2_percent)) +
+    geom_point(data = df.T21, aes(color = Frequency), alpha = 0.5, size = 0.75) +
+    geom_line(data = df.T21, aes(color = Frequency), lwd = 1) +
+    ylim(ylim.min, ylim.max) +
+    scale_colour_manual(values = pal.T21[1:ncolors]) +
+    scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+    ggtitle(paste("D21 immuno-aging cluster ", cluster_number, " in T21s", sep = "")) +
+    theme(aspect.ratio = 0.75,
+          legend.title = element_blank()) +
+    ylab("% of live cells (Z score)")
+}
+
+##### Set theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14),
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+                  ))
+
+plot_wide.cluster_D21s <- list()
+plot_wide.cluster_T21s <- list()
+for ( i in 1:15 ){
+  cluster_number <- i
+  ncolors <- predicted.D21.LiveCells.k15_df02 %>% filter(D21_cluster == cluster_number) %>% select(Frequency) %>% unique() %>% nrow()
+  
+  df.D21 <- predicted.D21.LiveCells.k15_df02 %>% filter(D21_cluster == cluster_number)
+  df.T21 <- predicted.T21.LiveCells.D21k15_df02 %>% filter(D21_cluster == cluster_number)
+  
+  ylim.min <- (cluster_yaxis_limits %>% filter(D21_cluster == cluster_number))$min_yaxis
+  ylim.max <- (cluster_yaxis_limits %>% filter(D21_cluster == cluster_number))$max_yaxis
+
+  ncolors <- predicted.D21.LiveCells.k15_df02 %>% filter(D21_cluster == i) %>% select(Frequency) %>% unique() %>% nrow()
+
+  df.D21 <- predicted.D21.LiveCells.k15_df02 %>% filter(D21_cluster == cluster_number)
+  plot_wide.cluster_D21s[[i]] <- df.D21 %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    #geom_point(alpha = 0.5, size = 0.75) +
+    geom_line(lwd = 1) +
+    ylim(ylim.min, ylim.max) +
+    scale_colour_manual(values = pal.D21[1:ncolors]) +
+    scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+    ggtitle(paste("D21 immuno-aging cluster ", i, " in D21s", sep = "")) +
+    theme(aspect.ratio = 0.75,
+          legend.title = element_blank(),
+          legend.position = "top") +
+    guides(color = guide_legend(ncol=2)) +
+    ylab("% of live cells (Z score)")
+
+  df.T21 <- predicted.T21.LiveCells.D21k15_df02 %>% filter(D21_cluster == i)
+  plot_wide.cluster_T21s[[i]] <- df.T21 %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log2_percent, color = Frequency)) +
+    #geom_point(alpha = 0.5, size = 0.75) +
+    geom_line(lwd = 1) +
+    ylim(ylim.min, ylim.max) +
+    scale_colour_manual(values = pal.T21[1:ncolors]) +
+    scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+    ggtitle(paste("D21 immuno-aging cluster ", i, " in T21s", sep = "")) +
+    theme(aspect.ratio = 0.75,
+          legend.title = element_blank(),
+          legend.position = "top") +
+    guides(color = guide_legend(ncol=2)) +
+    ylab("% of live cells (Z score)")
+}
+
+plot_tall.cluster_D21s[[1]]; plot_tall.cluster_T21s[[1]]
+plot_wide.cluster_D21s[[1]]; plot_wide.cluster_T21s[[1]]
+```
+
+#### Output grid-arranged trajectory plots to PNG and PDF files
+```{r}
+# Output stacked cluster trajectory plots:
+for ( i in 1:15 ){
+  out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_tall", i, "_v0.4_JRS", sep = "")
+  
+  # Output as PNG:
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+  # png(file = paste(out_filename, ".png", sep=""), width = 8, height = 10, units = "in", res = 750)
+  # print( grid.arrange(plot_tall.cluster_D21s[[i]], plot_tall.cluster_T21s[[i]], nrow = 2, ncol = 1) )
+  # dev.off()
+  
+  # Output as PDF:
+  theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+              theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                    plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                    axis.text = element_text(color="black", size = 14),
+                    axis.text.x = element_text(angle = 0, hjust = NULL),
+                    strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                    panel.background = element_blank(),
+                    panel.grid = element_blank()
+                    ))
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+  # pdf(file = paste(out_filename, ".pdf", sep=""), width = 8, height = 10)
+  # print( grid.arrange(plot_tall.cluster_D21s[[i]], plot_tall.cluster_T21s[[i]], nrow = 2, ncol = 1) )
+  # dev.off()
+}
+
+# Output side-by-side cluster trajectory plots:
+for ( i in 1:15 ){
+  out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "_wide_v0.4_JRS", sep = "")
+  
+  # Output as PNG:
+  theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+              theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                    plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                    axis.text = element_text(color="black", size = 14),
+                    axis.text.x = element_text(angle = 0, hjust = NULL),
+                    strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                    panel.background = element_blank(),
+                    panel.grid = element_blank()
+                    ))
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+  # png(file = paste(out_filename, ".png", sep=""), width = 10.5, height = 5, units = "in", res = 750)
+  # print( grid.arrange(plot_wide.cluster_D21s[[i]], plot_wide.cluster_T21s[[i]], nrow = 1, ncol = 2) )
+  # dev.off()
+
+  out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "_wide_v0.3_JRS", sep = "")
+  # Output as PDF:
+  theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+              theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                    plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                    axis.text = element_text(color="black", size = 14),
+                    axis.text.x = element_text(angle = 0, hjust = NULL),
+                    strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                    panel.background = element_blank(),
+                    panel.grid = element_blank()
+                    ))
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+  # pdf(file = paste(out_filename, ".pdf", sep=""), width = 10.5, height = 5)
+  # print( grid.arrange(plot_wide.cluster_D21s[[i]], plot_wide.cluster_T21s[[i]], nrow = 1, ncol = 2) )
+  # dev.off()
+}
+```
+
+```{r}
+Eosinophils_byKaryotypeSex <- rbind(predicted.D21.LiveCells.k15_df01 %>% filter(Frequency == "D21 Eosinophils / Live"),
+                                    predicted.T21.LiveCells.D21k15_df01 %>% filter(Frequency == "T21 Eosinophils / Live")) %>%
+  mutate(Karyotype_Sex = paste(Karyotype, Sex, sep = " "),
+         Karyotype_Sex = factor(Karyotype_Sex, levels = c("D21 Male", "D21 Female", "T21 Male", "T21 Female"))) %>%
+  ggplot(mapping = aes(x = Age, y = predicted_scaled_log2_percent, color = Karyotype_Sex)) +
+  geom_line(lwd = 1) +
+  scale_colour_manual(values = c(pal.D21[1:2], pal.T21[1:2])) +
+  scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+  ggtitle(paste("D21 immuno-aging cluster ", cluster_number, sep = "")) +
+  theme(aspect.ratio = 1.2,
+        legend.title = element_blank()) +
+  ylab("% of live cells (Z score)")
+
+out_filename <- "CyTOF_P4C_021821_Age_Trajectory_Eosinophils_byKaryotypeSex_v0.4_JRS"
+# Output as PNG:
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14),
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+                  ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+# png(file = paste(out_filename, ".png", sep=""), width = 10.5, height = 5, units = "in", res = 750)
+# print( Eosinophils_byKaryotypeSex )
+# dev.off()
+
+out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "_wide_v0.3_JRS", sep = "")
+# Output as PDF:
+theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14),
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+                  ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+# pdf(file = paste(out_filename, ".pdf", sep=""), width = 10.5, height = 5)
+# print( Eosinophils_byKaryotypeSex )
+# dev.off()
+```
+
+```{r}
+sig_lmPerm_T21byAgeBySex <-read.xlsx("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Results/CyTOF_P4C_021821_RESULTS_SigQ05_PopFreq_Models1234_v1.0_JRS.xlsx",
+                                     sheet = "SigQ05 T21-by-age-by-sex") %>%
+  rename(`Frequency (uniquePopulationName/percentOf)` = `Frequency.(uniquePopulationName/percentOf)`)
+sig_lmPerm_T21byAgeBySex
+
+sigT21byAgeBySex_predicted.D21.LiveCells.k15_df01 <- predicted.D21.LiveCells.k15_df01 %>%
+  separate(Frequency, into = c("Karyotype", "Frequency (uniquePopulationName/percentOf)"), sep = " ", extra = "merge", remove = FALSE) %>%
+  filter(`Frequency (uniquePopulationName/percentOf)` %in% sig_lmPerm_T21byAgeBySex$`Frequency (uniquePopulationName/percentOf)`)
+sigT21byAgeBySex_predicted.T21.LiveCells.k15_df01 <- predicted.T21.LiveCells.D21k15_df01 %>%
+  separate(Frequency, into = c("Karyotype", "Frequency (uniquePopulationName/percentOf)"), sep = " ", extra = "merge", remove = FALSE) %>%
+  filter(`Frequency (uniquePopulationName/percentOf)` %in% sig_lmPerm_T21byAgeBySex$`Frequency (uniquePopulationName/percentOf)`)
+#sigT21byAgeBySex_predicted.D21.LiveCells.k15_df01
+#sigT21byAgeBySex_predicted.T21.LiveCells.k15_df01
+
+sigT21byAgeBySex_predicted <- rbind(sigT21byAgeBySex_predicted.D21.LiveCells.k15_df01, sigT21byAgeBySex_predicted.T21.LiveCells.k15_df01) %>%
+  mutate(Karyotype_Sex = paste(Karyotype, Sex, sep = "_"))
+sigT21byAgeBySex_predicted$`Frequency (uniquePopulationName/percentOf)` %>% unique()
+# Only one significant T21-by-age-by-sex interaction among Live cells: $`Myeloid DCs CD1c+ / Live`
+
+#sigT21byAgeBySex_predicted.split <- split(sigT21byAgeBySex_predicted, sigT21byAgeBySex_predicted$`Frequency (uniquePopulationName/percentOf)`)
+#sigT21byAgeBySex_predicted.split
+temp <- rbind(freq_among_D21.LiveCells %>% filter(`Frequency (uniquePopulationName/percentOf)` == "Myeloid DCs CD1c+ / Live"),
+              freq_among_T21.LiveCells %>% filter(`Frequency (uniquePopulationName/percentOf)` == "Myeloid DCs CD1c+ / Live")) %>%
+  mutate(Karyotype_Sex = paste(Karyotype, Sex, sep = " ")) %>%
+  mutate(Karyotype_Sex = factor(Karyotype_Sex, levels = c("D21 Male", "D21 Female", "T21 Male", "T21 Female")))
+MyeloidDCsCD1cPos_byKaryotypeSex.linear <- temp %>%
+  ggplot(aes(x = Age, y = percent, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(size = 0.75, alpha = 0.5) +
+  scale_colour_manual(values = c(pal.D21[1:2], pal.T21[1:2])) +
+  scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+  #ggtitle(paste("D21 immuno-aging cluster ", cluster_number, sep = "")) +
+  ggtitle("Myeloid DCs CD1c+ / Live") +
+  theme(aspect.ratio = 1.2,
+        legend.title = element_blank()) +
+  ylab("% of live cells (Z score)")
+MyeloidDCsCD1cPos_byKaryotypeSex.loess <- temp %>%
+  ggplot(aes(x = Age, y = percent, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_point(size = 0.75, alpha = 0.5) +
+  scale_colour_manual(values = c(pal.D21[1:2], pal.T21[1:2])) +
+  scale_x_continuous(breaks = seq(from = 0, to = 65, by = 10)) +
+  #ggtitle(paste("D21 immuno-aging cluster ", cluster_number, sep = "")) +
+  ggtitle("Myeloid DCs CD1c+ / Live") +
+  theme(aspect.ratio = 1.2,
+        legend.title = element_blank()) +
+  ylab("% of live cells (Z score)")
+
+MyeloidDCsCD1cPos_byKaryotypeSex.linear
+MyeloidDCsCD1cPos_byKaryotypeSex.loess
+
+# out_filename <- "CyTOF_P4C_021821_Age_Trajectory_Eosinophils_byKaryotypeSex_v0.4_JRS"
+# # Output as PNG:
+# theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+#             theme(panel.border = element_rect(colour="black", fill = "transparent"),
+#                   plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+#                   axis.text = element_text(color="black", size = 14),
+#                   axis.text.x = element_text(angle = 0, hjust = NULL),
+#                   strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+#                   panel.background = element_blank(),
+#                   panel.grid = element_blank()
+#                   ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+# png(file = paste(out_filename, ".png", sep=""), width = 10.5, height = 5, units = "in", res = 750)
+# print( Eosinophils_byKaryotypeSex )
+# dev.off()
+# 
+# out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "_wide_v0.3_JRS", sep = "")
+# # Output as PDF:
+# theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+#             theme(panel.border = element_rect(colour="black", fill = "transparent"),
+#                   plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+#                   axis.text = element_text(color="black", size = 14),
+#                   axis.text.x = element_text(angle = 0, hjust = NULL),
+#                   strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+#                   panel.background = element_blank(),
+#                   panel.grid = element_blank()
+#                   ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+# pdf(file = paste(out_filename, ".pdf", sep=""), width = 10.5, height = 5)
+# print( Eosinophils_byKaryotypeSex )
+# dev.off()
+```
+
+
+```{r}
+# out_filename <-"CyTOF_P4C_021821_Age_Trajectory_Clusters1through15_wide_v0.4_JRS"
+#   
+# # Output as PNG:
+# theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+#             theme(panel.border = element_rect(colour="black", fill = "transparent"),
+#                   plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+#                   axis.text = element_text(color="black", size = 14),
+#                   axis.text.x = element_text(angle = 0, hjust = NULL),
+#                   strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+#                   panel.background = element_blank(),
+#                   panel.grid = element_blank()
+#                   ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+# png(file = paste(out_filename, ".png", sep=""), width = 10.75, height = 8.25, units = "in", res = 750)
+# print( grid.arrange(
+#   plot_wide.cluster_D21s[[1]], plot_wide.cluster_T21s[[1]], plot_wide.cluster_D21s[[2]], plot_wide.cluster_T21s[[2]], plot_wide.cluster_D21s[[3]], plot_wide.cluster_T21s[[3]], plot_wide.cluster_D21s[[4]], plot_wide.cluster_T21s[[4]],
+#   plot_wide.cluster_D21s[[5]], plot_wide.cluster_T21s[[5]], plot_wide.cluster_D21s[[6]], plot_wide.cluster_T21s[[6]], plot_wide.cluster_D21s[[7]], plot_wide.cluster_T21s[[7]], plot_wide.cluster_D21s[[8]], plot_wide.cluster_T21s[[8]],
+#   plot_wide.cluster_D21s[[9]], plot_wide.cluster_T21s[[9]], plot_wide.cluster_D21s[[10]], plot_wide.cluster_T21s[[10]], plot_wide.cluster_D21s[[11]], plot_wide.cluster_T21s[[11]], plot_wide.cluster_D21s[[12]], plot_wide.cluster_T21s[[12]],
+#   plot_wide.cluster_D21s[[13]], plot_wide.cluster_T21s[[13]], plot_wide.cluster_D21s[[14]], plot_wide.cluster_T21s[[14]], plot_wide.cluster_D21s[[15]], plot_wide.cluster_T21s[[15]],
+#   nrow = 4, ncol = 8
+# ) )
+# dev.off()
+# 
+# # Output as PDF:
+# theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+#             theme(panel.border = element_rect(colour="black", fill = "transparent"),
+#                   plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+#                   axis.text = element_text(color="black", size = 14),
+#                   axis.text.x = element_text(angle = 0, hjust = NULL),
+#                   strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+#                   panel.background = element_blank(),
+#                   panel.grid = element_blank()
+#                   ))
+# setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+# pdf(file = paste(out_filename, ".pdf", sep=""), width = 10.75, height = 8.25)
+# print( grid.arrange(
+#   plot_wide.cluster_D21s[[1]], plot_wide.cluster_T21s[[1]], plot_wide.cluster_D21s[[2]], plot_wide.cluster_T21s[[2]], plot_wide.cluster_D21s[[3]], plot_wide.cluster_T21s[[3]], plot_wide.cluster_D21s[[4]], plot_wide.cluster_T21s[[4]],
+#   plot_wide.cluster_D21s[[5]], plot_wide.cluster_T21s[[5]], plot_wide.cluster_D21s[[6]], plot_wide.cluster_T21s[[6]], plot_wide.cluster_D21s[[7]], plot_wide.cluster_T21s[[7]], plot_wide.cluster_D21s[[8]], plot_wide.cluster_T21s[[8]],
+#   plot_wide.cluster_D21s[[9]], plot_wide.cluster_T21s[[9]], plot_wide.cluster_D21s[[10]], plot_wide.cluster_T21s[[10]], plot_wide.cluster_D21s[[11]], plot_wide.cluster_T21s[[11]], plot_wide.cluster_D21s[[12]], plot_wide.cluster_T21s[[12]],
+#   plot_wide.cluster_D21s[[13]], plot_wide.cluster_T21s[[13]], plot_wide.cluster_D21s[[14]], plot_wide.cluster_T21s[[14]], plot_wide.cluster_D21s[[15]], plot_wide.cluster_T21s[[15]],
+#   nrow = 4, ncol = 8
+# ) )
+# dev.off()
+```
+
+```{r}
+# Output side-by-side cluster trajectory plots:
+for ( i in 1:15 ){
+  out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "_wide_v0.4_JRS", sep = "")
+  
+  # Output as PNG:
+  theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+              theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                    plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                    axis.text = element_text(color="black", size = 14),
+                    axis.text.x = element_text(angle = 0, hjust = NULL),
+                    strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                    panel.background = element_blank(),
+                    panel.grid = element_blank()
+                    ))
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PNG")
+  # png(file = paste(out_filename, ".png", sep=""), width = 10.5, height = 5, units = "in", res = 750)
+  # print( grid.arrange(plot_wide.cluster_D21s[[i]], plot_wide.cluster_T21s[[i]], nrow = 1, ncol = 2) )
+  # dev.off()
+
+  out_filename <- paste("CyTOF_P4C_021821_Age_Trajectory_Cluster_", i, "_wide_v0.3_JRS", sep = "")
+  # Output as PDF:
+  theme_set(theme_gray(base_size = 12) + #, base_family = "Arial") +
+              theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                    plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                    axis.text = element_text(color="black", size = 14),
+                    axis.text.x = element_text(angle = 0, hjust = NULL),
+                    strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                    panel.background = element_blank(),
+                    panel.grid = element_blank()
+                    ))
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/CyTOF/P4C/Supervised_Analysis/Age_Trajectory_Clustering/Plots/PDF")
+  # pdf(file = paste(out_filename, ".pdf", sep=""), width = 10.5, height = 5)
+  # print( grid.arrange(plot_wide.cluster_D21s[[i]], plot_wide.cluster_T21s[[i]], nrow = 1, ncol = 2) )
+  # dev.off()
+}
+```
+
+```{r}
+plot_wide.cluster_D21s[[6]]
+plot_wide.cluster_D21s[[7]]
+plot_wide.cluster_D21s[[15]]
+
+```
+

@@ -1,0 +1,7 @@
+Q92743|HTRA1.15594.47 (Chr10, Cluster Other)
+Q12907|LMAN2.9468.8 (Chr5, Cluster 6)
+Q8NBS9|TXNDC5.11212.7 (Chr6, Cluster 6)
+O14786|NRP1.5542.22 (Chr10, Cluster Other)
+P55291|CDH15.11215.6 (Chr16, Cluster 2)
+Q12805|EFEMP1.8480.29 (Chr2, Cluster Other)
+P80188|LCN2.2836.68 (Chr9, Cluster 6)

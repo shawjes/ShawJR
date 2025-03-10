@@ -1,0 +1,2248 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Overview of fitted models
+##### Model A: Zlog10_relative_abundance ~ T21 + Age + Female
+###### Hypotheses tested by model:
+- Difference in the group mean of Zlog10_relative_abundance for T21 as compared to D21
+- Difference in the mean value of Zlog10_relative_abundance for each 1 year increase in age at blood draw (i.e., the slope for age)
+- Difference in the group mean of Zlog10_relative_abundance for females as compared to males
+
+##### Model B :Zlog10_relative_abundance ~ T21 + Age + Female + T21*Age
+###### Hypotheses tested by model:
+- Difference in the group mean of Zlog10_relative_abundance for T21 as compared to D21
+- Difference in the mean value of Zlog10_relative_abundance for each 1 year increase in age at blood draw (i.e., the slope for age)
+- Difference in the group mean of Zlog10_relative_abundance for females as compared to males
+- Difference in the slope for age among T21s, as compared to the slope for age among D21s
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1) %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)))
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata.split <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  filter(Aptamer_in_P4C == 1) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+# Note: the above two lines of code should be the only revision to ardata before modeling.
+
+ardata.split %>% rbindlist()
+```
+
+#### Vectorize and name the model formulas to be fit later in this script
+modelA: Zlog10_relative_abundance ~ T21 + Age + Female                                                   
+modelB: Zlog10_relative_abundance ~ T21 + Age + Female + T21*Age
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL) %>%
+  mutate(model_name = gsub("1", "A", model_name),
+         model_name = gsub("2", "B", model_name));
+model_formulas <- tmp$model_formula;
+names(model_formulas) <- tmp$model_name;
+
+#names(model_formulas)[[1]]
+#model_formulas[[1]]
+#names(model_formulas)[[2]]
+#model_formulas[[2]]
+#names(model_formulas)[[3]]
+#model_formulas[[3]]
+
+model_formulas
+```
+
+#### Evaluate cores available for performing analysis
+```{r}
+# https://future.futureverse.org/reference/plan.html
+# https://stackoverflow.com/questions/77244972/limit-of-workers-in-futureplan-function-higher-than-available-cpus-cores
+
+parallelly::availableCores()
+```
+
+#### Run linear models pre-specified in '/docs/AnalysisTracker.xlsx'
+```{r, echo = F, results = F}
+options(future.globals.maxSize = 5e10);
+
+tdiff <- list()
+lm_tidy <-list()
+for ( i in 1:length(model_formulas) ) {
+  model_formula.now <- model_formulas[[i]]
+  t0 <- Sys.time()
+  set.seed(1234)
+  lm_tidy[[i]] <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  t1 <- Sys.time();
+  tdiff<- t1 - t0
+}
+
+t_p4c_soma_lm_singleaptamer_tidy <- lm_tidy %>%
+  rbindlist() %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_tidy
+```
+
+#### ai_proportion_tot_aptamers_encby_chr
+```{r}
+###########################################################################
+##  Proportion of Total Aptamers encoded by each Chromosome:       ##
+##      `Proportion of Total Aptamers encoded by Chromosome`=      ## 
+##          `Aptamers encoded by Chromosome (N)`/            ##
+##          `Aptamers Total (N)`                             ##
+###########################################################################
+ai_proportion_tot_aptamers_encby_chr <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  dplyr::select(Aptamer, Chromosome) %>%
+  unique() %>%
+  group_by(Chromosome) %>%
+  summarise(`Aptamers encoded by Chromosome (N)` = n()) %>%
+  ungroup() %>%
+  mutate(`Aptamers Total (N)` = sum(`Aptamers encoded by Chromosome (N)`),
+         `Proportion of Total Aptamers encoded by Chromosome` = `Aptamers encoded by Chromosome (N)`/`Aptamers Total (N)`);
+
+ai_proportion_tot_aptamers_encby_chr
+```
+
+#### ai_proportion_sig_aptamers_encby_chr
+```{r}
+###########################################################################
+##  Proportion of Significant Aptamers encoded by each Chromosome:       ##
+##      `Proportion of Significant Aptamers encoded by Chromosome`=      ## 
+##          `Significant Aptamers encoded by Chromosome (N)`/            ##
+##          `Significant Aptamers Total (N)`                             ##
+###########################################################################
+ai_proportion_sig_aptamers_encby_chr <- t_p4c_soma_lm_singleaptamer_tidy %>%
+   mutate(#Zlog10FC_direction = case_when(Zlog10FC<0 ~ "down", Zlog10FC>0 ~ "up", .default = NA),
+          sig_PadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0)) %>%
+   dplyr::select(Aptamer, Chromosome, term, Zlog10FC,
+                 #Zlog10FC_direction,
+                 PadjBH, sig_PadjBH10) %>%
+   unique() %>%
+   `rownames<-`(NULL) %>%
+   dplyr::select(Aptamer, Chromosome, term,
+                 #Zlog10FC_direction, 
+                 sig_PadjBH10) %>%
+   unique() %>%
+   filter(sig_PadjBH10 == 1) %>%
+   group_by(Chromosome, term, 
+            #Zlog10FC_direction, 
+            sig_PadjBH10) %>%
+   summarise(`Significant Aptamers encoded by Chromosome (N)` = n()) %>%
+   ungroup() %>%
+   group_by(term
+            #, Zlog10FC_direction
+            ) %>%
+   mutate(`Significant Aptamers Total (N)` = sum(`Significant Aptamers encoded by Chromosome (N)`),
+          `Proportion of Significant Aptamers encoded by Chromosome` = 
+            `Significant Aptamers encoded by Chromosome (N)`/`Significant Aptamers Total (N)`) %>%
+   ungroup();
+
+ai_proportion_sig_aptamers_encby_chr
+
+ai_proportion_sig_aptamers_encby_chr_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+   mutate(Zlog10FC_direction = case_when(Zlog10FC<0 ~ "down", Zlog10FC>0 ~ "up", .default = NA),
+          sig_PadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0)) %>%
+   dplyr::select(Aptamer, Chromosome, term, Zlog10FC,
+                 Zlog10FC_direction,
+                 PadjBH, sig_PadjBH10) %>%
+   unique() %>%
+   `rownames<-`(NULL) %>%
+   dplyr::select(Aptamer, Chromosome, term,
+                 Zlog10FC_direction, 
+                 sig_PadjBH10) %>%
+   unique() %>%
+   filter(Zlog10FC_direction == "up" & sig_PadjBH10 == 1) %>%
+   group_by(Chromosome, term, 
+            Zlog10FC_direction, 
+            sig_PadjBH10) %>%
+   summarise(`Significant Aptamers encoded by Chromosome (N)` = n()) %>%
+   ungroup() %>%
+   group_by(term,
+            Zlog10FC_direction,
+            ) %>%
+   mutate(`Significant Aptamers Total (N)` = sum(`Significant Aptamers encoded by Chromosome (N)`),
+          `Proportion of Significant Aptamers encoded by Chromosome` = 
+            `Significant Aptamers encoded by Chromosome (N)`/`Significant Aptamers Total (N)`) %>%
+   ungroup();
+
+ai_proportion_sig_aptamers_encby_chr_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+   mutate(Zlog10FC_direction = case_when(Zlog10FC<0 ~ "down", Zlog10FC>0 ~ "up", .default = NA),
+          sig_PadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0)) %>%
+   dplyr::select(Aptamer, Chromosome, term, Zlog10FC,
+                 Zlog10FC_direction,
+                 PadjBH, sig_PadjBH10) %>%
+   unique() %>%
+   `rownames<-`(NULL) %>%
+   dplyr::select(Aptamer, Chromosome, term,
+                 Zlog10FC_direction, 
+                 sig_PadjBH10) %>%
+   unique() %>%
+   filter(Zlog10FC_direction == "down" & sig_PadjBH10 == 1) %>%
+   group_by(Chromosome, term, 
+            Zlog10FC_direction, 
+            sig_PadjBH10) %>%
+   summarise(`Significant Aptamers encoded by Chromosome (N)` = n()) %>%
+   ungroup() %>%
+   group_by(term,
+            Zlog10FC_direction,
+            ) %>%
+   mutate(`Significant Aptamers Total (N)` = sum(`Significant Aptamers encoded by Chromosome (N)`),
+          `Proportion of Significant Aptamers encoded by Chromosome` = 
+            `Significant Aptamers encoded by Chromosome (N)`/`Significant Aptamers Total (N)`) %>%
+   ungroup();
+
+ai_proportion_sig_aptamers_encby_chr
+ai_proportion_sig_aptamers_encby_chr_up
+ai_proportion_sig_aptamers_encby_chr_down
+```
+
+# KEEP!!
+#### f_delta_proportion
+```{r}
+term_list <- c("T21", "Age", "Female", "T21:Age")
+tmp.f_delta_proportion_sig <- list()
+tmp.f_delta_proportion_sig_up <- list()
+tmp.f_delta_proportion_sig_down <- list()
+gg_delta_proportion <- list()
+for (i in 1:length(term_list) ) {
+  tmp.f_delta_proportion_sig[[i]] <- ai_proportion_tot_aptamers_encby_chr %>%
+    full_join((ai_proportion_sig_aptamers_encby_chr %>%
+                filter(term == term_list[[i]] & !is.na(term) & term!="" )),
+              by = "Chromosome") %>%
+    dplyr::select(Chromosome,
+                  `Aptamers encoded by Chromosome (N)`,
+                  `Aptamers Total (N)`,
+                  term, `Significant Aptamers encoded by Chromosome (N)`, `Significant Aptamers Total (N)`,
+                  contains("(N)"), everything()) %>%
+    filter(term == term_list[[i]] & !is.na(term) & term!="" ) %>%
+    dplyr::select(term, everything()) %>%
+    dplyr::select(-c(sig_PadjBH10)) %>%
+    dplyr::rename(aptamers_encodedbychr_n = `Aptamers encoded by Chromosome (N)`,
+                  sig_aptamers_encodedbychr_n = `Significant Aptamers encoded by Chromosome (N)`,
+                  aptamers_total_n = `Aptamers Total (N)`,
+                  sig_aptamers_total_n = `Significant Aptamers Total (N)`) %>%
+    mutate(aptamers_encodedbychr_prop = aptamers_encodedbychr_n/aptamers_total_n,
+           sig_aptamers_encodedbychr_prop = sig_aptamers_encodedbychr_n/sig_aptamers_total_n) %>%
+    dplyr::select(Chromosome, term, aptamers_encodedbychr_prop, sig_aptamers_encodedbychr_prop) %>%
+    unique() %>%
+    mutate(delta_proportion = sig_aptamers_encodedbychr_prop - aptamers_encodedbychr_prop) %>%
+    dplyr::select(-c(sig_aptamers_encodedbychr_prop, aptamers_encodedbychr_prop));
+};
+f_delta_proportion_sig <- rbindlist(tmp.f_delta_proportion_sig);
+
+for (i in 1:length(term_list) ) {
+  tmp.f_delta_proportion_sig_up[[i]] <- ai_proportion_tot_aptamers_encby_chr %>%
+    full_join((ai_proportion_sig_aptamers_encby_chr_up %>%
+                filter(term == term_list[[i]] & !is.na(term) & term!="" )),
+              by = "Chromosome") %>%
+    dplyr::select(Chromosome,
+                  `Aptamers encoded by Chromosome (N)`,
+                  `Aptamers Total (N)`,
+                  term, `Significant Aptamers encoded by Chromosome (N)`, `Significant Aptamers Total (N)`,
+                  contains("(N)"), everything()) %>%
+    filter(term == term_list[[i]] & !is.na(term) & term!="" ) %>%
+    dplyr::select(term, everything()) %>%
+    dplyr::select(-c(sig_PadjBH10)) %>%
+    dplyr::rename(aptamers_encodedbychr_n = `Aptamers encoded by Chromosome (N)`,
+                  sig_aptamers_encodedbychr_n = `Significant Aptamers encoded by Chromosome (N)`,
+                  aptamers_total_n = `Aptamers Total (N)`,
+                  sig_aptamers_total_n = `Significant Aptamers Total (N)`) %>%
+    mutate(aptamers_encodedbychr_prop = aptamers_encodedbychr_n/aptamers_total_n,
+           sig_aptamers_encodedbychr_prop = sig_aptamers_encodedbychr_n/sig_aptamers_total_n) %>%
+    dplyr::select(Chromosome, term, aptamers_encodedbychr_prop, sig_aptamers_encodedbychr_prop) %>%
+    unique() %>%
+    mutate(delta_proportion = sig_aptamers_encodedbychr_prop - aptamers_encodedbychr_prop) %>%
+    mutate(direction = "Up") %>%
+    dplyr::select(-c(sig_aptamers_encodedbychr_prop, aptamers_encodedbychr_prop))
+};
+f_delta_proportion_sig_up <- rbindlist(tmp.f_delta_proportion_sig_up);
+
+for (i in 1:length(term_list) ) {
+  tmp.f_delta_proportion_sig_down[[i]] <- ai_proportion_tot_aptamers_encby_chr %>%
+    full_join((ai_proportion_sig_aptamers_encby_chr_down %>%
+                filter(term == term_list[[i]] & !is.na(term) & term!="" )),
+              by = "Chromosome") %>%
+    dplyr::select(Chromosome,
+                  `Aptamers encoded by Chromosome (N)`,
+                  `Aptamers Total (N)`,
+                  term, `Significant Aptamers encoded by Chromosome (N)`, `Significant Aptamers Total (N)`,
+                  contains("(N)"), everything()) %>%
+    filter(term == term_list[[i]] & !is.na(term) & term!="" ) %>%
+    dplyr::select(term, everything()) %>%
+    dplyr::select(-c(sig_PadjBH10)) %>%
+    dplyr::rename(aptamers_encodedbychr_n = `Aptamers encoded by Chromosome (N)`,
+                  sig_aptamers_encodedbychr_n = `Significant Aptamers encoded by Chromosome (N)`,
+                  aptamers_total_n = `Aptamers Total (N)`,
+                  sig_aptamers_total_n = `Significant Aptamers Total (N)`) %>%
+    mutate(aptamers_encodedbychr_prop = aptamers_encodedbychr_n/aptamers_total_n,
+           sig_aptamers_encodedbychr_prop = sig_aptamers_encodedbychr_n/sig_aptamers_total_n) %>%
+    dplyr::select(Chromosome, term, aptamers_encodedbychr_prop, sig_aptamers_encodedbychr_prop) %>%
+    unique() %>%
+    mutate(delta_proportion = sig_aptamers_encodedbychr_prop - aptamers_encodedbychr_prop) %>%
+    mutate(direction = "Down") %>%
+    dplyr::select(-c(sig_aptamers_encodedbychr_prop, aptamers_encodedbychr_prop))
+};
+f_delta_proportion_sig_down <- rbindlist(tmp.f_delta_proportion_sig_down);
+
+f_delta_proportion_sig
+f_delta_proportion_sig_up
+f_delta_proportion_sig_down
+
+setwd(dir.ddata)
+fwrite(f_delta_proportion_sig, "f_delta_proportion_sig.csv")
+fwrite(f_delta_proportion_sig_down, "f_delta_proportion_sig_down.csv")
+fwrite(f_delta_proportion_sig_up, "f_delta_proportion_sig_up.csv")
+```
+
+```{r}
+# for (i in 1:length(term_list) ) {
+#   tmp.f_delta_proportion_sig_down[[i]] <- ai_proportion_tot_aptamers_encby_chr %>%
+#     full_join((ai_proportion_sig_aptamers_encby_chr_down %>%
+#                 filter(term == term_list[[i]] & !is.na(term) & term!="" )),
+#               by = "Chromosome") %>%
+#     dplyr::select(Chromosome,
+#                   `Aptamers encoded by Chromosome (N)`,
+#                   `Aptamers Total (N)`,
+#                   term, `Significant Aptamers encoded by Chromosome (N)`, `Significant Aptamers Total (N)`,
+#                   contains("(N)"), everything()) %>%
+#     filter(term == term_list[[i]] & !is.na(term) & term!="" ) %>%
+#     dplyr::select(term, everything()) %>%
+#     dplyr::select(-c(sig_PadjBH10)) %>%
+#     dplyr::rename(aptamers_encodedbychr_n = `Aptamers encoded by Chromosome (N)`,
+#                   sig_aptamers_encodedbychr_n = `Significant Aptamers encoded by Chromosome (N)`,
+#                   aptamers_total_n = `Aptamers Total (N)`,
+#                   sig_aptamers_total_n = `Significant Aptamers Total (N)`) %>%
+#     mutate(aptamers_encodedbychr_prop = aptamers_encodedbychr_n/aptamers_total_n,
+#            sig_aptamers_encodedbychr_prop = sig_aptamers_encodedbychr_n/sig_aptamers_total_n) %>%
+#     dplyr::select(Chromosome, term, aptamers_encodedbychr_prop, sig_aptamers_encodedbychr_prop) %>%
+#     unique() %>%
+#     mutate(delta_proportion = sig_aptamers_encodedbychr_prop - aptamers_encodedbychr_prop) %>%
+#     mutate(direction = "Down") %>%
+#     dplyr::select(-c(sig_aptamers_encodedbychr_prop, aptamers_encodedbychr_prop))
+# };
+# f_delta_proportion_sig_down <- rbindlist(tmp.f_delta_proportion_sig_down);
+# for (i in 1:length(term_list) ) {
+#   tmp.f_delta_proportion_sig_down[[i]] <- ai_proportion_tot_aptamers_encby_chr %>%
+#     full_join((ai_proportion_sig_aptamers_encby_chr %>%
+#                 filter(term == term_list[[i]] & !is.na(term) & term!="" )),
+#               by = "Chromosome") %>%
+#     dplyr::select(Chromosome,
+#                   `Aptamers encoded by Chromosome (N)`,
+#                   `Aptamers Total (N)`,
+#                   term, `Significant Aptamers encoded by Chromosome (N)`, `Significant Aptamers Total (N)`,
+#                   contains("(N)"), everything()) %>%
+#     filter(term == term_list[[i]] & !is.na(term) & term!="" ) %>%
+#     dplyr::select(term, everything()) %>%
+#     dplyr::select(-c(sig_PadjBH10)) %>%
+#     dplyr::rename(aptamers_encodedbychr_n = `Aptamers encoded by Chromosome (N)`,
+#                   sig_aptamers_encodedbychr_n = `Significant Aptamers encoded by Chromosome (N)`,
+#                   aptamers_total_n = `Aptamers Total (N)`,
+#                   sig_aptamers_total_n = `Significant Aptamers Total (N)`) %>%
+#     mutate(aptamers_encodedbychr_prop = aptamers_encodedbychr_n/aptamers_total_n,
+#            sig_aptamers_encodedbychr_prop = sig_aptamers_encodedbychr_n/sig_aptamers_total_n) %>%
+#     dplyr::select(Chromosome, term, aptamers_encodedbychr_prop, sig_aptamers_encodedbychr_prop) %>%
+#     unique() %>%
+#     mutate(delta_proportion = sig_aptamers_encodedbychr_prop - aptamers_encodedbychr_prop) %>%
+#     dplyr::select(-c(sig_aptamers_encodedbychr_prop, aptamers_encodedbychr_prop))
+# };
+# f_delta_proportion <- tmp.f_delta_proportion %>% rbindlist();
+# f_delta_proportion
+# 
+# 
+# ai_proportion_tot_aptamers_encby_chr_up %>%
+#     full_join((ai_proportion_sig_aptamers_encby_chr %>%
+#                 filter(term == term_list[[i]] & !is.na(term) & term!="" )),
+#               by = "Chromosome") %>%
+#     dplyr::select(Chromosome,
+#                   `Aptamers encoded by Chromosome (N)`,
+#                   `Aptamers Total (N)`,
+#                   term, `Significant Aptamers encoded by Chromosome (N)`, `Significant Aptamers Total (N)`,
+#                   contains("(N)"), everything()) %>%
+#     filter(term == term_list[[i]] & !is.na(term) & term!="" ) %>%
+#     dplyr::select(term, everything()) %>%
+#     dplyr::select(-c(sig_PadjBH10)) %>%
+#     dplyr::rename(aptamers_encodedbychr_n = `Aptamers encoded by Chromosome (N)`,
+#                   sig_aptamers_encodedbychr_n = `Significant Aptamers encoded by Chromosome (N)`,
+#                   aptamers_total_n = `Aptamers Total (N)`,
+#                   sig_aptamers_total_n = `Significant Aptamers Total (N)`) %>%
+#     mutate(aptamers_encodedbychr_prop = aptamers_encodedbychr_n/aptamers_total_n,
+#            sig_aptamers_encodedbychr_prop = sig_aptamers_encodedbychr_n/sig_aptamers_total_n) %>%
+#     dplyr::select(Chromosome, term, aptamers_encodedbychr_prop, sig_aptamers_encodedbychr_prop) %>%
+#     unique() %>%
+#     mutate(delta_proportion = sig_aptamers_encodedbychr_prop - aptamers_encodedbychr_prop) %>%
+#     dplyr::select(-c(sig_aptamers_encodedbychr_prop, aptamers_encodedbychr_prop))
+```
+
+#### gg1_delta_proportion_sig
+#### gg2_delta_proportion_sig
+```{r}
+# DEFINITELY KEEP - BEST YET
+gg1_delta_proportion_sig <- f_delta_proportion_sig %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+    dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion\n(Observed - Expected)`,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, nrow = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0))+
+    #ggtitle("Observed vs. Expected Proportion of Significant Aptamers encoded\nby each Chromosome") +
+  ggtitle("Observed vs. expected proportion of significant proteins encoded by each chromosome") +
+  #ylab("Delta Proportion\n(Observed - Expected)") +
+  scale_fill_gradient2(name = waiver(),
+                         low = RedBlue[[2]],
+                         mid = "white",
+                         high = RedBlue[[1]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill") +
+  ylim(-0.015, 0.015);
+
+gg2_delta_proportion_sig <- f_delta_proportion_sig %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+  #filter(term != "Female") %>%
+  filter(grepl("T21", term)==TRUE) %>%
+    dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion\n(Observed - Expected)`,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, ncol = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0)) +
+    ggtitle("Observed vs. expected proportion of significant proteins encoded by each chromosome") +
+    #ylab("Delta Proportion\n(Observed - Expected)") +
+    scale_fill_gradient2(name = waiver(),
+                         low = RedBlue[[2]],
+                         mid = "white",
+                         high = RedBlue[[1]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill",
+                         limits = c(-0.015, 0.015)) +
+  ylim(-0.015, 0.015);
+
+gg1_delta_proportion_sig
+gg2_delta_proportion_sig
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg1_delta_proportion_sig,
+         filename = "f1_delta_proportion_sig.png",
+         width = 11, height = 4.5, units = "in")
+setwd(paste0(dir.project, "/output"))
+ggsave(gg2_delta_proportion_sig,
+         filename = "f2_delta_proportion_sig.png",
+         width = 11, height = 4.5, units = "in")
+```
+
+#### gg1_delta_proportion_sig_up
+#### gg2_delta_proportion_sig_up
+```{r}
+# DEFINITELY KEEP - BEST YET
+gg1_delta_proportion_sig_up <- f_delta_proportion_sig_up %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+    dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion\n(Observed - Expected)`,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, nrow = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0)) +
+    ggtitle("Observed vs. expected proportion of upregulated proteins encoded by each chromosome") +
+    #ylab("Delta Proportion\n(Observed - Expected)") +
+    scale_fill_gradient2(name = waiver(),
+                         #low = RedBlue[[2]],
+                         low = RedBlue[[1]],
+                         mid = "white",
+                         high = RedBlue[[1]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill") +
+  ylim(-0.015, 0.015);
+
+gg2_delta_proportion_sig_up <- f_delta_proportion_sig_up %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+  #filter(term != "Female") %>%
+  filter(grepl("T21", term)==TRUE) %>%
+    dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion\n(Observed - Expected)`,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, ncol = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0)) +
+    #ggtitle("Observed vs. Expected Proportion of Significant Aptamers encoded by each Chromosome") +
+  ggtitle("Observed vs. expected proportion of upregulated proteins encoded by each chromosome") +
+  #ylab("Delta Proportion\n(Observed - Expected)") +
+    scale_fill_gradient2(name = waiver(),
+                         #low = RedBlue[[2]],
+                         low = RedBlue[[1]],
+                         mid = "white",
+                         high = RedBlue[[1]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill",
+                         limits = c(-0.015, 0.015)) +
+  ylim(-0.015, 0.015);
+
+gg1_delta_proportion_sig_up
+gg2_delta_proportion_sig_up
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg1_delta_proportion_sig_up,
+         filename = "f1_delta_proportion_sig_up.png",
+         width = 11, height = 4.5, units = "in")
+setwd(paste0(dir.project, "/output"))
+ggsave(gg2_delta_proportion_sig_up,
+         filename = "f2_delta_proportion_sig_up.png",
+         width = 11, height = 4.5, units = "in")
+```
+
+#### gg1_delta_proportion_sig_down
+#### gg2_delta_proportion_sig_down
+```{r}
+# DEFINITELY KEEP - BEST YET
+gg1_delta_proportion_sig_down <- f_delta_proportion_sig_down %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+    dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion\n(Observed - Expected)`,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, nrow = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0))+
+    ggtitle("Observed vs. expected proportion of downregulated proteins encoded by each chromosome") +
+    #ylab("Delta Proportion\n(Observed - Expected)") +
+    scale_fill_gradient2(name = waiver(),
+                         low = RedBlue[[2]],
+                         mid = "white",
+                         #high = RedBlue[[1]],
+                         high = RedBlue[[2]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill") +
+  ylim(-0.015, 0.015);
+
+gg2_delta_proportion_sig_down <- f_delta_proportion_sig_down %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+  #filter(term != "Female") %>%
+  filter(grepl("T21", term)==TRUE) %>%
+    dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion\n(Observed - Expected)`,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, ncol = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0)) +
+    ggtitle("Observed vs. expected proportion of downregulated proteins encoded by each chromosome") +
+    #ylab("Delta Proportion\n(Observed - Expected)") +
+    scale_fill_gradient2(name = waiver(),
+                         low = RedBlue[[2]],
+                         mid = "white",
+                         #high = RedBlue[[1]],
+                         high = RedBlue[[2]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill",
+                         limits = c(-0.015, 0.015)) +
+  ylim(-0.015, 0.015);
+
+gg1_delta_proportion_sig_down
+gg2_delta_proportion_sig_down
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg1_delta_proportion_sig_down,
+         filename = "f1_delta_proportion_sig_down.png",
+         width = 11, height = 4.5, units = "in")
+setwd(paste0(dir.project, "/output"))
+ggsave(gg2_delta_proportion_sig_down,
+         filename = "f2_delta_proportion_sig_down.png",
+         width = 11, height = 4.5, units = "in")
+```
+
+#### f_delta_proportion_sig_up_down
+```{r}
+f1_delta_proportion_sig_up_down <- list(f_delta_proportion_sig_up, f_delta_proportion_sig_down) %>%
+  rbindlist() %>%
+  group_by(Chromosome, term) %>%
+  #dplyr::select(direction) %>% unique() %>%
+  mutate(gg_direction = case_when(direction == "Up" ~ "\nUpregulated proteins\n(Zlog10FC>0, PadjBH<0.10)\n",
+                               direction == "Down" ~ "\nDownregulated proteins\n(Zlog10FC<0, PadjBH<0.10)\n",
+                               .default = direction)) %>%
+  #mutate(direction = factor(direction,
+  #                          levels = c("Up", "Down"))) %>%
+  mutate(gg_direction = factor(gg_direction,
+                            levels = c( "\nUpregulated proteins\n(Zlog10FC>0, PadjBH<0.10)\n",  "\nDownregulated proteins\n(Zlog10FC<0, PadjBH<0.10)\n"))) %>%
+  arrange(gg_direction) %>%
+  ungroup() %>%
+  filter(!is.na(Chromosome)) %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+  dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion);
+
+f2_delta_proportion_sig_up_down <- list(f_delta_proportion_sig_up, f_delta_proportion_sig_down) %>%
+  rbindlist() %>%
+  group_by(Chromosome, term) %>%
+  #dplyr::select(direction) %>% unique() %>%
+  mutate(gg_direction = case_when(direction == "Up" ~ "\nUpregulated proteins\n(Zlog10FC>0, PadjBH<0.10)\n",
+                               direction == "Down" ~ "\nDownregulated proteins\n(Zlog10FC<0, PadjBH<0.10)\n",
+                               .default = direction)) %>%
+  #mutate(direction = factor(direction,
+  #                          levels = c("Up", "Down"))) %>%
+  mutate(gg_direction = factor(gg_direction,
+                            levels = c( "\nUpregulated proteins\n(Zlog10FC>0, PadjBH<0.10)\n",  "\nDownregulated proteins\n(Zlog10FC<0, PadjBH<0.10)\n"))) %>%
+  arrange(gg_direction) %>%
+  ungroup() %>%
+  filter(!is.na(Chromosome)) %>%
+  mutate(term = factor(term, levels = c("T21", "Age", "Female", "T21:Age"))) %>%
+  arrange(term) %>%
+  #filter(term != "Female") %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  dplyr::rename(`Delta Proportion\n(Observed - Expected)` = delta_proportion);
+
+f1_delta_proportion_sig_up_down %>% dplyr::select(direction) %>% unique()
+f2_delta_proportion_sig_up_down %>% dplyr::select(direction) %>% unique()
+
+f1_delta_proportion_sig_up_down
+f2_delta_proportion_sig_up_down
+
+setwd(dir.ddata)
+fwrite(f1_delta_proportion_sig_up_down, "f1_delta_proportion_sig_up_down.csv")
+fwrite(f2_delta_proportion_sig_up_down, "f2_delta_proportion_sig_up_down.csv")
+```
+
+#### gg1_delta_proportion_sig_up_down
+```{r}
+gg1_delta_proportion_sig_up_down <- f1_delta_proportion_sig_up_down %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               #fill = `Delta Proportion\n(Observed - Expected)`,
+               fill = gg_direction,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, nrow = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5,
+          legend.title = element_blank()) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0)) +
+    ggtitle("Observed vs. expected proportion of differentially abundant\nproteins encoded by each chromosome") +
+  scale_fill_manual(values = RedBlue) +
+    #ylab("Delta Proportion\n(Observed - Expected)") +
+    # scale_fill_gradient2(name = waiver(),
+    #                      low = RedBlue[[2]],
+    #                      mid = "white",
+    #                      #high = RedBlue[[1]],
+    #                      high = RedBlue[[2]],
+    #                      midpoint = 0,
+    #                      space = "Lab",
+    #                      na.value = "grey50",
+    #                      transform = "identity",
+    #                      guide = "colourbar",
+    #                      aesthetics = "fill") +
+  ylim(-0.015, 0.015);
+
+gg2_delta_proportion_sig_up_down <- f2_delta_proportion_sig_up_down %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion\n(Observed - Expected)`,
+               #color = `Delta Proportion`,
+               #fill = `Delta Proportion\n(Observed - Expected)`,
+               fill = gg_direction,
+               width = 0.5)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, ncol = 2) +
+    theme(legend.position = "right",
+          aspect.ratio = 0.5,
+          legend.title = element_blank()) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    scale_y_continuous("Delta Proportion\n(Observed - Expected)",
+                       labels = c(as.character(seq(-0.015, 0.015, by=0.001))),
+                       breaks = seq(from = -0.015, to = 0.015, by = 0.001), 
+                       expand=c(0,0)) +
+    ggtitle("Observed vs. expected proportion of differentially abundant\nproteins encoded by each chromosome") +
+    #ylab("Delta Proportion\n(Observed - Expected)") +
+    # scale_fill_gradient2(name = waiver(),
+    #                      low = RedBlue[[2]],
+    #                      mid = "white",
+    #                      high = RedBlue[[2]],
+    #                      midpoint = 0,
+    #                      space = "Lab",
+    #                      na.value = "grey50",
+    #                      transform = "identity",
+    #                      guide = "colourbar",
+    #                      aesthetics = "fill",
+    #                      limits = c(-0.015, 0.015)) +
+  scale_fill_manual(values = RedBlue) +
+  ylim(-0.015, 0.015);
+
+gg1_delta_proportion_sig_up_down
+gg2_delta_proportion_sig_up_down
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg1_delta_proportion_sig_up_down,
+         filename = "f1_delta_proportion_sig_up_down.png",
+         width = 11, height = 4.5, units = "in")
+setwd(paste0(dir.project, "/output"))
+ggsave(gg2_delta_proportion_sig_up_down,
+         filename = "f2_delta_proportion_sig_up_down.png",
+         width = 11, height = 4.5, units = "in")
+```
+
+#### ar_proptest_sig_aptamers_encby_chr
+```{r}
+ar_proptest_sig_aptamers_encby_chr <- rbind( (ai_proportion_tot_aptamers_encby_chr %>%
+          dplyr::select(Chromosome, `Aptamers encoded by Chromosome (N)`, `Proportion of Total Aptamers encoded by Chromosome`) %>%
+          full_join( (ai_proportion_sig_aptamers_encby_chr_up %>%
+                        dplyr::select(Zlog10FC_direction, Chromosome, term, 
+                                      `Significant Aptamers encoded by Chromosome (N)`,
+                                      `Significant Aptamers Total (N)`)),
+                     by = "Chromosome")),
+        (ai_proportion_tot_aptamers_encby_chr %>%
+          dplyr::select(Chromosome, `Aptamers encoded by Chromosome (N)`, `Proportion of Total Aptamers encoded by Chromosome`) %>%
+          full_join( (ai_proportion_sig_aptamers_encby_chr_down %>%
+                        dplyr::select(Zlog10FC_direction, Chromosome, term, 
+                                      `Significant Aptamers encoded by Chromosome (N)`,
+                                      `Significant Aptamers Total (N)`)),
+                     by = "Chromosome")) ) %>%
+  mutate(proptest_id = paste0("Chr", Chromosome, "_", Zlog10FC_direction, "_", term)) %>%
+  dplyr::select(proptest_id, everything()) %>%
+  filter(grepl("T21", term)==TRUE);
+
+ar_proptest_sig_aptamers_encby_chr %>% split(., .$proptest_id) %>% length()
+ar_proptest_sig_aptamers_encby_chr %>% split(., .$proptest_id) %>% head()
+
+setwd(dir.ardata)
+fwrite(ar_proptest_sig_aptamers_encby_chr, "ar_proptest_sig_aptamers_encby_chr.csv")
+```
+
+```{r}
+# binom.test(): compute exact binomial test. Recommended when sample size is small
+# prop.test(): can be used when sample size is large ( N > 30). It uses a normal approximation to binomial
+
+# x: a vector of counts of successes, a one-dimensional table with two entries, or a two-dimensional table (or matrix) with 2 columns, giving the counts of successes and failures, respectively.
+# n: a vector of counts of trials; ignored if x is a matrix or a table.
+# p: a vector of probabilities of success. The length of p must be the same as the number of groups specified by x, and its elements must be greater than 0 and less than 1.
+
+ar_proptest_sig_aptamers_encby_chr.split <- ar_proptest_sig_aptamers_encby_chr %>%
+  filter(grepl("NA", proptest_id)==FALSE) %>%
+  split(., .$proptest_id);
+
+prop_test_sig_chr_res <- list()  
+prop_test_sig_chr <- list()
+prop_test_sig_chr_h1 <- list()
+for ( i in 1:length(ar_proptest_sig_aptamers_encby_chr.split) ) {
+  set.seed(1234)
+  prop_test_sig_chr[[i]] <- binom.test(# Counts of successes = `Significant Aptamers encoded by Chromosome (N)`
+                                      x = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Significant Aptamers encoded by Chromosome (N)`,
+                                      # Counts of trials = `Aptamers encoded by Chromosome (N)`
+                                      # n = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Aptamers encoded by Chromosome (N)`, 
+                                      
+                                      # Counts of trials = `Significant Aptamers Total (N)`
+                                      n = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Significant Aptamers Total (N)`,
+                                      
+                                      # Probabilities of success = `Proportion of Total Aptamers encoded by Chromosome`
+                                      p = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Proportion of Total Aptamers encoded by Chromosome`, 
+                                      alternative = "two.sided" #,
+                                      #correct = TRUE
+                                      );
+
+  prop_test_sig_chr_h1[[i]] <- try( prop_test_sig_chr[[i]] %>%
+                                  as.character()[[5]] %>%
+    gsub("c[(]p [=] ", "", .) %>%
+    gsub("[)]", "", .) %>%
+    as.numeric() %>%
+    round(digits = 8) %>%
+    as.character() %>%
+    paste0("alternative hypothesis: true p is not equal to ", .) );
+  
+  prop_test_sig_chr_res[[i]] <- try(prop_test_sig_chr[[i]] %>%
+    tidy() %>%
+    mutate(prop_test_sig_chr_h1 = prop_test_sig_chr_h1[[i]]) %>%
+    #cbind(ar_proptest_sig_aptamers_encby_chr.split[[i]], .)) %>%
+    cbind(., ar_proptest_sig_aptamers_encby_chr.split[[i]])) %>%
+    dplyr::select(proptest_id, Chromosome, term, Zlog10FC_direction, everything());
+}
+
+# IMPORTANT FOR LATER/NEXT TIME: Awh man... gonna have to double back above and add a count of 0 where no aptamers were significant from a given chromosome...
+
+prop_test_sig_chr_res %>%
+  rbindlist() %>%
+  arrange(p.value) %>%
+  group_by(Chromosome, Zlog10FC_direction, term) %>% # Chr23_down_T21 Chr15_up_T21 Chr13_down_T21 Chr21_up_T21 Chr3_down_T21 Chr6_up_T21:Age	Chr16_up_T21:Age
+  summarise(N=n())
+
+prop_test_sig_chr_res %>%
+  rbindlist() %>%
+  arrange(p.value) %>%
+  group_by(Zlog10FC_direction, term) %>% # Chr23_down_T21 Chr15_up_T21 Chr13_down_T21 Chr21_up_T21 Chr3_down_T21 Chr6_up_T21:Age	Chr16_up_T21:Age
+  summarise(N=n())
+
+#######################
+##  KEEP THIS!!!!!!  ##
+#######################
+t_prop_test_sig_chr_res <- prop_test_sig_chr_res %>%
+  rbindlist() %>%
+  arrange(p.value) %>%
+  # group_by(Chromosome, Zlog10FC_direction, term) %>% # Chr23_down_T21 Chr15_up_T21 Chr13_down_T21 Chr21_up_T21 Chr3_down_T21 Chr6_up_T21:Age	Chr16_up_T21:Age
+  # group_by(Zlog10FC_direction, term) %>% # only Chr21_up_T21
+  # group_by(Chromosome, term) %>% # Chr13_down_T21 Chr21_up_T21 Chr6_up_T21:Age
+  # group_by(term) %>% # Chr21_up_T21
+  # group_by(Zlog10FC_direction, term) %>% # Chr21_up_T21
+  #group_by(Zlog10FC_direction) %>%
+  #group_by(Chromosome, Zlog10FC_direction) %>% # like it...
+  group_by(Chromosome) %>% # like it... This makes the most sense because effects of T21 and T22*Age are definitely not independent or mutually exclusive.
+  #group_by(Chromosome, term) %>% # like it...
+  #group_by(Zlog10FC_direction) %>%
+  mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+  ungroup() %>%
+  mutate(Sig_PadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0)) %>%
+  dplyr::select(proptest_id, Chromosome, term,
+                #Zlog10FC_direction, 
+                estimate, p.value, PadjBH, Sig_PadjBH10,
+                prop_test_sig_chr_h1, everything()) %>%
+  arrange(p.value) %>%
+  #filter(PadjBH<0.10) %>%
+  #arrange(estimate) %>%
+  arrange(p.value) #%>%
+  #split(., .$term)
+
+t_prop_test_sig_chr_res
+
+setwd(dir.ddata)
+fwrite(t_prop_test_sig_chr_res, "t_prop_test_sig_chr_res.csv")
+```
+
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz");
+
+query_aptamers <- (t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter( # Chr21_up_T21:
+          (Chromosome == 21 & term == "T21" & PadjBH<0.10 & Zlog10FC > 0) |
+          # Chr6_up_T21:Age	
+          (Chromosome == 6 & term == "T21:Age" & PadjBH<0.10 & Zlog10FC > 0) |
+          # Chr13_down_T21
+          (Chromosome == 13 & term == "T21" & PadjBH<0.10 & Zlog10FC < 0)) %>%
+  arrange(Chromosome) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster) %>%
+  unique())$UniProt_Aptamer_Chr_Cluster;
+
+
+ar_p4c_soma %>%
+  filter(UniProt_Aptamer_Chr_Cluster %in% query_aptamers) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                #Platform, 
+                #Aptamer,
+                #GeneSymbol,
+                #UniProt, Target,
+                TargetFullName,
+                Mitochondrial_ribosome,
+                `Chromosome(s)`,
+                #Lehallier2019_Cluster, Aptamer_in_P4C,
+                #Aptamer_in_Lehallier2019
+                ) %>%
+  unique() %>%
+  left_join( ( t_p4c_soma_lm_singleaptamer_tidy %>%
+                 filter( # Chr21_up_T21:
+                        (Chromosome == 21 & term == "T21" & PadjBH<0.10 & Zlog10FC > 0) |
+                        # Chr6_up_T21:Age	
+                        (Chromosome == 6 & term == "T21:Age" & PadjBH<0.10 & Zlog10FC > 0) |
+                        # Chr13_down_T21
+                        (Chromosome == 13 & term == "T21" & PadjBH<0.10 & Zlog10FC < 0) ) %>%
+                 dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, PadjBH) ),
+             by = "UniProt_Aptamer_Chr_Cluster") %>%
+  dplyr::select(`Chromosome(s)`, everything()) %>%
+  mutate(rank = -1*log10(PadjBH)*Zlog10FC) %>%
+  arrange(desc(abs(rank))) %>%
+  split(., .$`Chromosome(s)`)
+
+t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(UniProt_Aptamer_Chr_Cluster == "Q9HC56|PCDH9.10558.26 (Chr13, Cluster 1)")
+ar_p4c_soma %>%
+  filter(UniProt_Aptamer_Chr_Cluster == "Q9HC56|PCDH9.10558.26 (Chr13, Cluster 1)") %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+  geom_smooth(method = "loess", se = TRUE)
+
+t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(term == "T21:Age") %>%
+  mutate(rank = -log10(PadjBH)*Zlog10FC,
+         sigPadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0),
+         direction = case_when(Zlog10FC<0 ~ "down",
+                               Zlog10FC>0 ~ "up",
+                               .default = NA)) %>%
+  arrange(desc(abs(rank))) %>%
+  group_by(sigPadjBH10, direction, Cluster) %>%
+  summarise(N_sig_within_direction_Cluster = n()) %>%
+  ungroup() %>%
+  filter(sigPadjBH10 == 1)%>%
+  dplyr::select(sigPadjBH10, Cluster, direction, N_sig_within_direction_Cluster) %>%
+  group_by(direction) %>%
+  mutate(N_total_sig_within_direction = sum(N_sig_within_direction_Cluster)) %>%
+  ungroup() %>%
+  mutate(Cluster_Proportion_of_sig_direction = N_sig_within_direction_Cluster/N_total_sig_within_direction) %>%
+  arrange(desc(Cluster_Proportion_of_sig_direction)) %>%
+  #split(., .$direction) %>%
+  mutate(direction = factor(direction, levels = c("down", "up"))) %>%
+  arrange(direction) %>%
+  mutate(Cluster = gsub("Cluster", "", Cluster) %>% as.numeric()) %>%
+  ggplot(aes(x = Cluster, y = Cluster_Proportion_of_sig_direction, color = direction, fill = direction)) +
+  geom_bar(stat = "identity", position = "stack"); #+
+  #facet_wrap(~factor(direction))
+
+# below contains a calculation error, correct before interpreting obviously wrong plot...
+t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(term == "T21:Age") %>%
+  mutate(rank = -log10(PadjBH)*Zlog10FC,
+         sigPadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0),
+         direction = case_when(Zlog10FC<0 ~ "down",
+                               Zlog10FC>0 ~ "up",
+                               .default = NA)) %>%
+  arrange(desc(abs(rank))) %>%
+  group_by(sigPadjBH10, Cluster) %>%
+  summarise(N_sig_from_Cluster = n()) %>%
+  ungroup() %>%
+  #filter(sigPadjBH10 == 1)%>%
+  dplyr::select(sigPadjBH10, Cluster, N_sig_from_Cluster) %>%
+  group_by(sigPadjBH10) %>%
+  mutate(N_sig_total = sum(N_sig_from_Cluster)) %>%
+  ungroup() %>%
+  mutate(proportion_sig_from_cluster = N_sig_from_Cluster/N_sig_total) %>%
+  arrange(desc(proportion_sig_from_cluster)) %>%
+  mutate(Cluster = gsub("Cluster", "", Cluster) %>% as.numeric()) %>%
+  ggplot(aes(x = factor(sigPadjBH10),
+             y = proportion_sig_from_cluster, color = factor(Cluster), fill = factor(Cluster))) +
+  geom_bar(stat = "identity", position = "stack")
+```
+
+```{r}
+# "alternative hypothesis: true p is not equal to 0.01144214"
+
+prop.test(x = ar_proptest_sig_aptamers_encby_chr.split[[i_for_dev]]$`Significant Aptamers encoded by Chromosome (N)`, # Counts of successes = `Significant Aptamers encoded by Chromosome (N)`
+          n = ar_proptest_sig_aptamers_encby_chr.split[[i_for_dev]]$`Aptamers encoded by Chromosome (N)`, # Counts of trials = `Aptamers encoded by Chromosome (N)`
+          p = ar_proptest_sig_aptamers_encby_chr.split[[i_for_dev]]$`Proportion of Total Aptamers encoded by Chromosome`, # Probabilities of success = `Proportion of Total Aptamers encoded by Chromosome`
+          alternative = "two.sided",
+          correct = TRUE) %>%
+  tidy()
+
+
+prop.test(x = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Significant Aptamers encoded by Chromosome (N)`, # Counts of successes = `Significant Aptamers encoded by Chromosome (N)`
+          n = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Aptamers encoded by Chromosome (N)`, # Counts of trials = `Aptamers encoded by Chromosome (N)`
+          p = ar_proptest_sig_aptamers_encby_chr.split[[i]]$`Proportion of Total Aptamers encoded by Chromosome`, # Probabilities of success = `Proportion of Total Aptamers encoded by Chromosome`
+          alternative = "two.sided",
+          correct = TRUE)
+
+
+prop.test(x, # Counts of successes = `Significant Aptamers encoded by Chromosome (N)`
+          n, # Counts of trials = `Aptamers encoded by Chromosome (N)`
+          p = NULL, # Probabilities of success = `Proportion of Total Aptamers encoded by Chromosome`
+          alternative = "two.sided",
+          correct = TRUE)
+
+
+
+
+
+
+ai_proportion_tot_aptamers_encby_chr
+# `Aptamers encoded by Chromosome (N)`
+# `Aptamers Total (N)`
+# `Proportion of Total Aptamers encoded by Chromosome`
+
+ai_proportion_sig_aptamers_encby_chr_up
+ai_proportion_sig_aptamers_encby_chr_down
+
+# Significant Aptamers encoded by Chromosome (N) # Counts of successes
+# Significant Aptamers Total (N)
+# Proportion of Significant Aptamers encoded by Chromosome
+
+Significant Aptamers encoded by Chromosome (N)
+
+#[1] "statistic"   "parameter"   "p.value"     "estimate"    "null.value"  "conf.int"    "alternative" "method"      "data.name"  
+
+```
+
+```{r}
+binom.test(x, n, p = 0.5, alternative = "two.sided")
+prop.test(x, n, p = NULL, alternative = "two.sided",
+          correct = TRUE)
+help(prop.test)
+
+res <- prop.test(x = 95,
+                 n = 160,
+                 p = 0.5, 
+                 correct = FALSE)
+
+
+f1_delta_proportion_sig_up_down %>%
+  filter(term == "T21")
+help(prop.test)
+
+smokers  <- c( 83, 90, 129, 70 )
+patients <- c( 86, 93, 136, 82 )
+prop.test(smokers, patients)
+
+
+prop.test(x, n, p = NULL, alternative = "two.sided",
+          correct = TRUE)
+```
+
+
+
+```{r}
+for ( i in 1:length(f_delta_proportion) ) {
+  gg_delta_proportion[[i]] <- f_delta_proportion[[i]] %>%
+    dplyr::rename(`Delta Proportion` = delta_proportion) %>%
+    ggplot(aes(x = Chromosome, y = `Delta Proportion`,
+               #color = `Delta Proportion`,
+               fill = `Delta Proportion`,
+               width = 0.6)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~term, nrow = 1) +
+    theme(legend.position = "bottom",
+          aspect.ratio = 0.5) + 
+    scale_x_continuous("Encoding chromosome", 
+                         labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                         breaks = seq(1, 25, by = 1), 
+                         expand=c(0,0)) + 
+    #scale_y_continuous("Delta Proportion*",
+                       #labels = c(as.character(seq(0.0, 1.0, by=0.10))),
+    #                   breaks = seq(from = 0, to = 1, by = 0.10), 
+    #                   expand=c(0,0)) +
+    ggtitle("Observed vs. Expected Proportion of Significant Aptamers encoded\nby each Chromosome") +
+    ylab("Delta Proportion (Observed - Expected)") +
+    #scale_fill_viridis_c() +
+    scale_fill_gradient2(name = waiver(),
+                         low = RedBlue[[2]],
+                         mid = "white",
+                         high = RedBlue[[1]],
+                         midpoint = 0,
+                         space = "Lab",
+                         na.value = "grey50",
+                         transform = "identity",
+                         guide = "colourbar",
+                         aesthetics = "fill")
+}
+
+gg_delta_proportion
+```
+
+#### f_proportion_sig_aptamers_encby_chr
+```{r}
+# Working on preparing data to compare the expected proportion of significant results mapping to each chromosome, vs. the observed proportion of significant results mapping to each chromosome, and then perform test for difference in binomial proportions for each model term.
+
+# Proportion of total aptamers encoded by each chromosome:
+## (N Aptamers encoded by Chromosome) / (N Aptamers Total)
+# vs.
+# Proportion of significant aptamers encoded by each chromosome:
+# (N SigPadjBH10 Aptamers encoded by Chromosome) / (N SigPadjBH10 Aptamers Total)
+
+f_proportion_sig_aptamers_encby_chr <- proportion_sig_aptamers_encby_chr %>%
+  dplyr::select(Chromosome, term, contains("Proportion")) %>%
+  #mutate(term = paste0("Proportion of Significant ", term, "-associated Aptamers encoded by Chromosome")) %>%
+  mutate(term = paste0(term, " (PadjBH<0.10)"),
+         term = gsub("[:]", "-by-", term)) %>%
+  full_join( (proportion_tot_aptamers_encby_chr %>% dplyr::select(Chromosome, contains("Proportion")) %>% unique()),
+             by = "Chromosome" ) %>%
+  group_by(Chromosome, term) %>%
+  mutate( Delta = `Proportion of Significant Aptamers encoded by Chromosome` - 
+           `Proportion of Total Aptamers encoded by Chromosome`) %>%
+  arrange(desc(abs(Delta))) %>%
+  mutate(`Proportion of Significant Aptamers encoded by Chromosome` = round(`Proportion of Significant Aptamers encoded by Chromosome`, digits = 4),
+         `Proportion of Total Aptamers encoded by Chromosome` = round(`Proportion of Total Aptamers encoded by Chromosome`, digits = 4),
+         Delta = round(Delta, digits = 4)) %>%
+  mutate(ggtitle = "Proportion of Significant Aptamers encoded by each Chromosome");
+
+f_proportion_sig_aptamers_encby_chr
+
+gg_proportion_total_aptamers_encby_chr <- f_proportion_sig_aptamers_encby_chr %>%
+  ggplot(aes(x = Chromosome, y = `Proportion of Total Aptamers encoded by Chromosome`, 
+           color = `Proportion of Total Aptamers encoded by Chromosome`,
+           fill = `Proportion of Total Aptamers encoded by Chromosome`,
+           width = 0.60)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~term) + 
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(legend.position = "none",
+        aspect.ratio = 0.2) + 
+  scale_y_continuous(labels = c(as.character(seq(0.0, 1.0, by=0.10))),
+                     breaks = seq(0, 1, by = 0.10), 
+                     expand=c(0,0)) +
+  ggtitle("Proportion of Total Aptamers encoded by each Chromosome");
+
+gg_proportion_sig_aptamers_encby_chr <- f_proportion_sig_aptamers_encby_chr %>%
+  ggplot(aes(x = Chromosome, y = `Proportion of Significant Aptamers encoded by Chromosome`, 
+           color = `Proportion of Significant Aptamers encoded by Chromosome`,
+           fill = `Proportion of Significant Aptamers encoded by Chromosome`,
+           width = 0.60)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~term) + 
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(legend.position = "none",
+        aspect.ratio = 0.2) + 
+  scale_y_continuous(labels = c(as.character(seq(0.0, 1.0, by=0.10))),
+                     breaks = seq(0, 1, by = 0.10), 
+                     expand=c(0,0)) +
+  ggtitle("Proportion of Significant Aptamers encoded by each Chromosome");
+
+f_proportion_sig_aptamers_encby_chr %>%
+  gather(key = "key", value = "Proportion", `Proportion of Significant Aptamers encoded by Chromosome`:`Proportion of Total Aptamers encoded by Chromosome`) %>%
+  ggplot(aes(x = Chromosome, y = Proportion, 
+           color = key,
+           fill = key,
+           width = 0.60)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~term) + 
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(legend.position = "none",
+        aspect.ratio = 0.2) + 
+  scale_y_continuous(labels = c(as.character(seq(0.0, 1.0, by=0.10))),
+                     breaks = seq(0, 1, by = 0.10), 
+                     expand=c(0,0)) +
+  ggtitle("Expected vs. Observed Proportion of Significant\nAptamers encoded by each Chromosome");
+
+
+gg_proportion_total_aptamers_encby_chr
+gg_proportion_sig_aptamers_encby_chr
+```
+
+```{r}
+#install.packages("ggthemes")
+library(ggthemes)
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0, size = 12), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 12), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ));
+
+gg_proportion_sig_aptamers_encby_chr <- f_proportion_sig_aptamers_encby_chr %>%
+  ggplot(aes(x = Chromosome, y = Delta, color = term, fill = term)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.75)+
+  #facet_wrap(~term, nrow = 2) +
+  ggtitle("Observed vs. Expected Proportion of Significant Aptamers encoded by\neach Chromosome") + 
+  ggthemes::theme_tufte(base_family = "Arial") +
+  theme(legend.position = "none",
+        aspect.ratio = 0.25,
+        axis.line.x=element_line(),
+        axis.line.y=element_line(),
+        plot.title = element_text(face="bold", hjust = 0, size = 12),
+        plot.caption = element_text(hjust = 0.05)) + 
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  ylab("Delta Proportion*") +
+  labs(caption = "*Delta Proportion = Observed Proportion - Expected Proportion 
+       = (Proportion of Significant Aptamers encoded by Chromosome) -
+         (Proportion of Total Aptamers encoded by Chromosome)");
+gg_proportion_sig_aptamers_encby_chr
+
+```
+
+```{r}
+# KEEPER
+gg2_proportion_sig_aptamers_encby_chr <- f_proportion_sig_aptamers_encby_chr %>%
+  ggplot(aes(x = Chromosome, y = Delta,
+             #color = factor(Chromosome), fill = factor(Chromosome),
+             color = term, fill = term,
+             width = 0.60)) +
+  #geom_bar(stat = "identity", position = "dodge", alpha = 0.75) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.75) +
+  facet_wrap(~term, nrow = 4, scales="free_x") +
+  ggtitle("Observed vs. Expected Proportion of Significant Aptamers encoded\nby each Chromosome") + 
+  ggthemes::theme_tufte(base_family = "Arial") +
+  theme(legend.position = "none",
+        aspect.ratio = 0.19,
+        axis.line.x=element_line(),
+        axis.line.y=element_line(),
+        plot.title = element_text(face="bold", hjust = 0, size = 12),
+        plot.caption = element_text(hjust = 0.05)) + 
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) + 
+  scale_y_continuous("Delta Proportion*", 
+                     labels = c(as.character(seq(0.0, 1.0, by=0.10))),
+                     breaks = seq(0, 1, by = 0.10), 
+                     expand=c(0,0)) +
+  labs(caption = "*Delta Proportion = Observed Proportion - Expected Proportion 
+       = (Proportion of Significant Aptamers encoded by Chromosome) -
+         (Proportion of Total Aptamers encoded by Chromosome)");
+gg2_proportion_sig_aptamers_encby_chr
+
+f_proportion_sig_aptamers_encby_chr
+#install.packages("lemon")
+library(lemon)
+gg_proportion_sig_aptamers_encby_chr
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg_proportion_sig_aptamers_encby_chr,
+         filename = "f_proportion_sig_aptamers_encby_chr.png",
+         width = 8.5, height = 11, units = "in")
+
+```
+
+
+```{r}
+# KEEP?
+proportion_Chr <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  ungroup() %>%
+  dplyr::select(Aptamer, Chromosome) %>%
+  unique() %>%
+  group_by(Chromosome) %>%
+  mutate(N_ChrAptamers_Total = n()) %>%
+  ungroup() %>%
+  mutate(N_Aptamers_Total = sum(N_ChrAptamers_Total),
+         proportion_ChrAptamers = N_ChrAptamers_Total/N_Aptamers_Total)
+
+proportion_sigPadjBH10_Chr <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  mutate(sig_PadjBH10 = case_when(PadjBH<0.10 ~ 1, .default = 0)) %>%
+  group_by(term, Chromosome, sig_PadjBH10) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  group_by(term, Chromosome) %>%
+  mutate(N_ChrAptamers_Total = sum(N),
+         Proportion_ChrAptamers_sigPadjBH10 = N/N_ChrAptamers_Total) %>%
+  mutate(term = gsub("[:]", "by", term)) %>%
+  ungroup() %>%
+  filter(sig_PadjBH10 == 1) %>%
+  dplyr::rename(N_ChrAptamers_sigPadjBH10 = N)
+  #group_by(term, Chromosome) %>%
+  #spread(key = sig_PadjBH10, value = proportion_Aptamers_map2Chr) %>%
+  #dplyr::rename(proportion_nonsig_PadjBH10 = `0`,
+  #              proportion_sig_PadjBH10 = `1`) %>%
+  #mutate(sum = proportion_nonsig_PadjBH10 + proportion_sig_PadjBH10)
+
+#### PICK UP HERE (2/12/2025 ~930PM MT)
+# Working on preparing data to compare the expected proportion of significant results mapping to each chromosome, vs. the observed proportion of significant results mapping to each chromosome, and then perform test for difference in binomial proportions for each model term.
+
+proportion_Chr
+proportion_sigPadjBH10_Chr
+
+#proportion_sigPadjBH10_Chr %>%
+ # ggplot(aes(x = ))
+```
+
+```{r}
+t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(PadjBH<0.10) %>%
+  dplyr::rename(sigPadjBH10_term = term) %>%
+  group_by(sigPadjBH10_term, Chromosome) %>%
+  summarise(N_sigPadjBH10_Chr = n()) %>%
+  ungroup() %>%
+  group_by(sigPadjBH10_term) %>%
+  mutate(N_sigPadjBH10_Total = sum(N_sigPadjBH10_Chr),
+         d_Pct_sigPadjBH10_Chr = paste0(as.character(round(100*N_sigPadjBH10_Chr/N_sigPadjBH10_Total, digits = 1)), "%"),
+         Pct_sigPadjBH10_Chr = 100*N_sigPadjBH10_Chr/N_sigPadjBH10_Total) %>%
+  dplyr::select(-c(starts_with("N"), d_Pct_sigPadjBH10_Chr)) %>%
+  mutate(sigPadjBH10_term = gsub("[:]", "by", sigPadjBH10_term)) %>%
+  #split(., .$sigPadjBH10_term) %>%
+  ggplot(aes(x = Chromosome, y = Pct_sigPadjBH10_Chr, color = sigPadjBH10_term, fill = sigPadjBH10_term)) +
+  geom_bar(position = "dodge",
+           stat = "identity",
+           alpha = 0.6) +
+  facet_wrap(~sigPadjBH10_term)
+```
+
+
+# PICK UP HERE (2/12/2025 ~720PM)
+
+#### MORE TO RUN LATER / MOVE TO OTHER SCRIPTS
+
+#### Later - generate all diagnostic plots
+```{r}
+# library(ggfortify)
+# 
+# autoplot() %>%
+# ardata.split[[100]] %>%
+#   lm(as.formula(model_formula.now), data = .) %>%
+#   autoplot(.,
+#            label.size = 0.5) +
+#   theme(aspect.ratio = 1.0) +
+#   ggtitle(unique(ardata.split[[100]]$Aptamer))
+
+# https://r4ds.github.io/bookclub-tmwr/inspecting-and-developing-models.html
+# A short recap of the 4 main diagnostic plots produced by plot() of a model object.
+# Residuals vs Fitted - to see if residuals have non-linear patterns. Good sign if you see equally spread residuals around a horizontal line without distinct patterns
+# normal Q-Q plot to see if both sets of residuals are identical, if the line is straight then sets come from normal distributions
+# Scale Location plot to see if residuals are spread evenly along ranges of predictors
+# good to check for assumptions of homoscedasticity (equal variance)
+# Residual vs Leverage plot helps to identify an influential cases (cases that don’t get along with the trend of the majority). these are identified by where residuals are located off the Cook’s distance line.
+```
+
+```{r}
+ardata.split %>%
+  rbindlist() %>%
+  filter(grepl("itochondria", TargetFullName)==TRUE) %>%
+  dplyr::select(Aptamer, `Chromosome(s)`, TargetFullName) %>%
+  unique();
+  
+t_p4c_soma_lm_singleaptamer_res_modelb_wide %>%
+  filter(grepl("ChrX[|]Y", UniProt_Aptamer_Chr_Cluster)==TRUE |
+           grepl("ChrXY", UniProt_Aptamer_Chr_Cluster)==TRUE |
+           grepl("Chr21", UniProt_Aptamer_Chr_Cluster)==TRUE | 
+           grepl("ChrMT", UniProt_Aptamer_Chr_Cluster)==TRUE) %>%
+  filter(PadjBH_T21byAge<0.10) %>%
+  left_join(ardata.split %>% rbindlist(), by = "UniProt_Aptamer_Chr_Cluster") %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+  geom_smooth(method = "loess", se = TRUE) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0) +
+  facet_wrap(~UniProt_Aptamer_Chr_Cluster)
+```
+
+```{r}
+# t_p4c_soma_lm_singleaptamer_tidy %>% filter(term == "T21:Age" & PadjBH < 0.10) %>% nrow() #[1] 850 
+
+#t_p4c_soma_lm_singleaptamer_res_cat <- 
+  t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("Zlog10"), contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21 = case_when(Zlog10FC_T21>0 ~ 1,
+                                  Zlog10FC_T21<0 ~ -1,
+                                  .default = Zlog10FC_T21),
+         
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age) >= 0.10 ~ 0, .default = 1),
+         Zlog10FC_Age = case_when(Zlog10FC_Age > 0 ~ 1,
+                                  Zlog10FC_Age < 0 ~ -1,
+                                  .default = Zlog10FC_Age),
+         
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21byAge = case_when(Zlog10FC_T21byAge > 0 ~ 1,
+                                  Zlog10FC_T21byAge < 0 ~ -1,
+                                  .default = Zlog10FC_T21byAge)) %>%
+  mutate(result_cat_T21 = PadjBH_T21*Zlog10FC_T21,
+         result_cat_Age = PadjBH_Age*Zlog10FC_Age,
+         result_cat_T21byAge = PadjBH_T21byAge*Zlog10FC_T21byAge, sep = " ") %>%
+  dplyr::select(starts_with("UniProt_"), contains("result_cat")) %>%
+  unique() %>%
+  arrange(result_cat_T21, result_cat_Age, result_cat_T21byAge) %>%
+  mutate(result_cat_T21 = case_when(result_cat_T21 == -1 ~ "T21(*-)",
+                                    result_cat_T21 == 1 ~ "T21(*+)",
+                                    .default = ""),
+         result_cat_Age = case_when(result_cat_Age == -1 ~ "Age(*-)",
+                                    result_cat_Age == 1 ~ "Age(*+)",
+                                    .default = ""),
+         result_cat_T21byAge = case_when(result_cat_T21byAge == -1 ~ "T21byAge(*-)",
+                                    result_cat_T21byAge == 1 ~ "T21byAge(*+)",
+                                    .default = "")) %>%
+  mutate(resultCat_T21_Age_T21byAge = paste(result_cat_T21, result_cat_Age, result_cat_T21byAge, sep = " ")) %>%
+  dplyr::select(resultCat_T21_Age_T21byAge) %>%
+  group_by(resultCat_T21_Age_T21byAge) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("Age", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("T21byAge", resultCat_T21_Age_T21byAge)==TRUE) %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub("; ; ", "; ", resultCat_T21_Age_T21byAge)) %>%
+  arrange(desc(N)) %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE)
+```
+
+```{r}
+# t_p4c_soma_lm_singleaptamer_tidy %>% filter(term == "T21:Age" & PadjBH < 0.10) %>% nrow() #[1] 850 
+
+t_p4c_soma_lm_singleaptamer_res_cat <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("Zlog10"), contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21 = case_when(Zlog10FC_T21>0 ~ 1,
+                                  Zlog10FC_T21<0 ~ -1,
+                                  .default = Zlog10FC_T21),
+         
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age) >= 0.10 ~ 0, .default = 1),
+         Zlog10FC_Age = case_when(Zlog10FC_Age > 0 ~ 1,
+                                  Zlog10FC_Age < 0 ~ -1,
+                                  .default = Zlog10FC_Age),
+         
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21byAge = case_when(Zlog10FC_T21byAge > 0 ~ 1,
+                                  Zlog10FC_T21byAge < 0 ~ -1,
+                                  .default = Zlog10FC_T21byAge)) %>%
+  mutate(result_cat_T21 = PadjBH_T21*Zlog10FC_T21,
+         result_cat_Age = PadjBH_Age*Zlog10FC_Age,
+         result_cat_T21byAge = PadjBH_T21byAge*Zlog10FC_T21byAge, sep = " ") %>%
+  #dplyr::select(starts_with("UniProt_"), contains("result_cat")) %>%
+  #unique() %>%
+  arrange(result_cat_T21, result_cat_Age, result_cat_T21byAge) %>%
+  mutate(result_cat_T21 = case_when(result_cat_T21 == -1 ~ "T21(*-)",
+                                    result_cat_T21 == 1 ~ "T21(*+)",
+                                    .default = ""),
+         result_cat_Age = case_when(result_cat_Age == -1 ~ "Age(*-)",
+                                    result_cat_Age == 1 ~ "Age(*+)",
+                                    .default = ""),
+         result_cat_T21byAge = case_when(result_cat_T21byAge == -1 ~ "T21byAge(*-)",
+                                    result_cat_T21byAge == 1 ~ "T21byAge(*+)",
+                                    .default = "")) %>%
+  mutate(resultCat_T21_Age_T21byAge = paste(result_cat_T21, result_cat_Age, result_cat_T21byAge, sep = "_")) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("result_cat"), contains("resultCat")) %>%
+  unique() %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub("__", " ", resultCat_T21_Age_T21byAge),
+         resultCat_T21_Age_T21byAge = gsub("_", " ", resultCat_T21_Age_T21byAge),
+         resultCat_T21_Age_T21byAge = trimws(resultCat_T21_Age_T21byAge))
+
+t_p4c_soma_lm_singleaptamer_res_cat$resultCat_T21_Age_T21byAge %>%
+  unique()
+
+t_p4c_soma_lm_singleaptamer_res_cat
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_cat, "t_p4c_soma_lm_singleaptamer_res_cat.csv.gz")
+```
+
+```{r}
+tmp <- t_p4c_soma_lm_singleaptamer_res_cat %>%
+  left_join(ardata.split %>% rbindlist(),
+            by = "UniProt_Aptamer_Chr_Cluster") %>%
+  dplyr::select(-c(starts_with("result_cat"))) %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("Age", resultCat_T21_Age_T21byAge)==TRUE)
+tmp.split <- tmp %>%
+  split(., .$resultCat_T21_Age_T21byAge)
+
+ggSig_lm <- tmp %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub(" ", "\n", resultCat_T21_Age_T21byAge)) %>%
+    as.data.frame() %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    geom_smooth(method = "lm", linetype = "dashed", se = TRUE,
+                size = 0.75) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "top") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~resultCat_T21_Age_T21byAge, nrow=3) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ggtitle("Age trajectories within result category");
+ggSig_loess <- tmp %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub(" ", "\n", resultCat_T21_Age_T21byAge)) %>%
+    as.data.frame() %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    geom_smooth(method = "loess", linetype = "dashed", se = TRUE,
+                size = 0.75) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "top") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~resultCat_T21_Age_T21byAge, nrow=3) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ggtitle("Age trajectories within result category");
+
+setwd(paste0(dir.project, "/output"))
+ggsave(ggSig_lm,
+         filename = "f_modelb_agetrajectory_by_resultcat_lm.png",
+         width = 11, height = 8.5, units = "in")
+
+setwd(paste0(dir.project, "/output"))
+ggsave(ggSig_loess,
+         filename = "f_modelb_agetrajectory_by_resultcat_loess.png",
+         width = 11, height = 8.5, units = "in")
+
+# ggSig_lm <- list()
+# ggSig_loess <- list()
+# for ( i in 1:length(tmp.split) ) {
+#   ggSig_lm[[i]] <- tmp.split[[i]] %>%
+#     as.data.frame() %>%
+#     ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+#     geom_smooth(method = "lm", linetype = "dashed", se = TRUE) +
+#     ggtitle(unique(tmp[[i]]$resultCat_T21_Age_T21byAge)) +
+#     theme(aspect.ratio = 1.0)
+#   
+#   ggSig_loess[[i]] <- tmp[[i]] %>%
+#     as.data.frame() %>%
+#     ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+#     #geom_point(size = 0.75, alpha = 0.5) +
+#     geom_smooth(method = "loess", se = TRUE) +
+#     ggtitle(unique(tmp[[i]]$resultCat_T21_Age_T21byAge)) +
+#     theme(aspect.ratio = 1.0)
+# }
+# ggSig_lm
+```
+
+```{r}
+t_p4c_soma_lm_singleaptamer_res_cat %>%
+  filter(resultCat_T21_Age_T21byAge != "" & grepl("T21", resultCat_T21_Age_T21byAge)==TRUE) %>%
+  split(., .$resultCat_T21_Age_T21byAge) %>%
+  head(n = 1) %>%
+  ggplot(aes(x = ))
+```
+
+
+```{r}
+
+%>%
+  group_by(resultCat_T21_Age_T21byAge) %>%
+  split(., .$resultCat_T21_Age_T21byAge)
+  summarise(N = n()) %>%
+  ungroup() %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("Age", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("T21byAge", resultCat_T21_Age_T21byAge)==TRUE) %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub("; ; ", "; ", resultCat_T21_Age_T21byAge)) %>%
+  arrange(desc(N)) %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE)
+```
+
+
+```{r}
+#t_p4c_soma_lm_singleaptamer_res_cat <- 
+  t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("Zlog10"), contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21 = case_when(Zlog10FC_T21>0 ~ 1,
+                                  Zlog10FC_T21<0 ~ -1,
+                                  .default = Zlog10FC_T21),
+         
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age) >= 0.10 ~ 0, .default = 1),
+         Zlog10FC_Age = case_when(Zlog10FC_Age > 0 ~ 1,
+                                  Zlog10FC_Age < 0 ~ -1,
+                                  .default = Zlog10FC_Age),
+         
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21byAge = case_when(Zlog10FC_T21byAge > 0 ~ 1,
+                                  Zlog10FC_T21byAge < 0 ~ -1,
+                                  .default = Zlog10FC_T21byAge)) %>%
+  mutate(result_cat_T21 = PadjBH_T21*Zlog10FC_T21,
+         result_cat_Age = PadjBH_Age*Zlog10FC_Age,
+         result_cat_T21byAge = PadjBH_T21byAge*Zlog10FC_T21byAge, sep = " ") %>%
+  dplyr::select(starts_with("UniProt_"), contains("result_cat")) %>%
+  unique() %>%
+  arrange(result_cat_T21, result_cat_Age, result_cat_T21byAge) %>%
+  mutate(resultCat_T21_Age_T21byAge = paste(result_cat_T21, result_cat_Age, result_cat_T21byAge, sep = " ")) %>%
+  dplyr::select(resultCat_T21_Age_T21byAge) %>%
+  group_by(resultCat_T21_Age_T21byAge) %>%
+  summarise(N = n())
+
+```
+
+```{r}
+# -1 -1 -1				
+# -1 -1 0				
+# -1 -1 1				
+# -1 0 -1				
+# -1 0 0				
+# -1 0 1				
+# -1 1 -1				
+# -1 1 0				
+# -1 1 1				
+# 0 -1 -1
+# 0 -1 0				
+# 0 -1 1				
+# 0 0 -1				
+# 0 0 0				
+# 0 0 1				
+# 0 1 -1				
+# 0 1 0				
+# 0 1 1				
+# 1 -1 -1				
+# 1 -1 0
+# 1 -1 1				
+# 1 0 -1				
+# 1 0 0				
+# 1 0 1				
+# 1 1 -1				
+# 1 1 0				
+# 1 1 1
+
+# PICK UP HERE (2/9/2025 ~ 950am MT)
+
+  mutate(significant_variables = case_when(tmp == "0 1 0" ~ "Age only",
+                                           tmp == "1 0 0" ~ "T21 only",
+                                           tmp == "0 0 0" ~ "None",
+                                           tmp == "1 0 1" ~ "T21; T21-by-Age",
+                                           tmp == "1 1 1" ~ "T21; Age; T21-by-Age",
+                                           tmp == "0 1 1" ~ "Age; T21-by-Age",
+                                           tmp == "1 1 0" ~ "T21; Age",
+                                           tmp == "0 0 1" ~ "T21-by-Age only",
+                                           .default = NA)) %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+  dplyr::select(-c(tmp)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+# PadjBH_T21  PadjBH_Age    PadjBH_T21byAge   # significant_variables
+# 0	          1		          0		              "Age only"
+# 1	          0		          0		              "T21 only"
+# 0	          0		          0		              "None"
+# 1	          0		          1		              "T21; T21-by-Age"
+# 1	        	1		          1		              "T21; Age; T21-by-Age"
+# 0	        	1		          1		              "Age; T21-by-Age"
+# 1	        	1		          0		              "T21; Age"
+# 0	        	0		          1		              "T21-by-Age only"
+
+t_p4c_soma_lm_singleaptamer_res_cat
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_cat, "t_p4c_soma_lm_singleaptamer_res_cat.csv.gz")
+```
+
+```{r}
+# t_p4c_soma_lm_singleaptamer_tidy %>% filter(term == "T21:Age" & PadjBH < 0.10) %>% nrow() #[1] 850 
+
+t_p4c_soma_lm_singleaptamer_res_cat <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age)>=0.10 ~ 0, .default = 1),
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1)) %>%
+  mutate(tmp = paste(PadjBH_T21, PadjBH_Age, PadjBH_T21byAge, sep = " ")) %>%
+  mutate(significant_variables = case_when(tmp == "0 1 0" ~ "Age only",
+                                           tmp == "1 0 0" ~ "T21 only",
+                                           tmp == "0 0 0" ~ "None",
+                                           tmp == "1 0 1" ~ "T21; T21-by-Age",
+                                           tmp == "1 1 1" ~ "T21; Age; T21-by-Age",
+                                           tmp == "0 1 1" ~ "Age; T21-by-Age",
+                                           tmp == "1 1 0" ~ "T21; Age",
+                                           tmp == "0 0 1" ~ "T21-by-Age only",
+                                           .default = NA)) %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+  dplyr::select(-c(tmp)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+# PadjBH_T21  PadjBH_Age    PadjBH_T21byAge   # significant_variables
+# 0	          1		          0		              "Age only"
+# 1	          0		          0		              "T21 only"
+# 0	          0		          0		              "None"
+# 1	          0		          1		              "T21; T21-by-Age"
+# 1	        	1		          1		              "T21; Age; T21-by-Age"
+# 0	        	1		          1		              "Age; T21-by-Age"
+# 1	        	1		          0		              "T21; Age"
+# 0	        	0		          1		              "T21-by-Age only"
+
+t_p4c_soma_lm_singleaptamer_res_cat
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_cat, "t_p4c_soma_lm_singleaptamer_res_cat.csv.gz")
+```
+
+```{r}
+t_p4c_soma_lm_singleaptamer_res_catn <- t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome,significant_variables) %>%
+  summarise(N_Aptamers = n()) %>%
+  arrange(desc(N_Aptamers)) %>%
+  ungroup()
+
+t_p4c_soma_lm_singleaptamer_res_catn
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_catn, "t_p4c_soma_lm_singleaptamer_res_catn.csv.gz")
+```
+
+```{r}
+#t_p4c_soma_lm_singleaptamer_res_catn <- 
+ggbar1 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`, color = significant_variables, fill = significant_variables)) +
+    geom_bar(stat = "identity",
+             position = "dodge") +
+    facet_wrap(~significant_variables, nrow = 2) +
+  ggtitle("Significant associations by chromosome");
+
+ggbar2 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = chr21, fill = chr21)) +
+    geom_bar(stat = "identity",
+             position = "stack") +
+  ggtitle("Significant associations by chromosome") +
+  facet_wrap(~significant_variables, nrow=2);
+
+ggbar3 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = chr21, fill = chr21)) +
+    geom_bar(stat = "identity",
+             position = "stack") +
+  ggtitle("Significant associations by chromosome") #+
+  #facet_wrap(~significant_variables, nrow=2);
+
+ggbar4 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  filter(!is.na(Chromosome)) %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+      dplyr::rename(`Significant\nassociations` = significant_variables) %>%
+  ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = `Significant\nassociations`, fill = `Significant\nassociations`)) +
+    geom_bar(stat = "identity",
+             position = "stack") +
+  ggtitle("Significant associations by chromosome") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  ylab("Significant Aptamers(%)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom"); 
+
+ggbar5 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  filter(!is.na(Chromosome)) %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+  dplyr::rename(`Significant\nassociations` = significant_variables) %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = `Significant\nassociations`, fill = `Significant\nassociations`)) +
+    geom_bar(stat = "identity",
+             position = "dodge") +
+  ggtitle("Significant associations by chromosome") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  ylab("Significant Aptamers(%)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom");
+
+ggbar1
+ggbar2
+ggbar3
+ggbar4 # KEEPER
+ggbar5
+```
+
+```{r}
+ggdata_loess_T21byAgeOnly <- rbindlist(ardata.split) %>%
+  filter(UniProt_Aptamer_Chr_Cluster %in%
+           c((t_p4c_soma_lm_singleaptamer_res_cat %>%
+                filter(significant_variables == "T21-by-Age only") %>%
+                dplyr::select(UniProt_Aptamer_Chr_Cluster) %>%
+                unique())$UniProt_Aptamer_Chr_Cluster))
+
+ggdata_loess_T21byAgeOnly %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster) %>%
+  unique() %>%
+  nrow() # 269
+```
+
+
+#### Barplot chrommosomal distribution of sigT21
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0, size = 12), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 12), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ));
+#### Barplot chrommosomal distribution of sigT21byAge
+ggdata_sigT21_updown <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  mutate(tmp = case_when(as.numeric(PadjBH_T21)<0.10 & Zlog10FC_T21> 0 ~ 1, 
+                                as.numeric(PadjBH_T21)<0.10 & Zlog10FC_T21< 0 ~ -1, 
+                                .default = 0),
+         tmp = as.character(tmp),
+         sigT21_cat = case_when(tmp == "1" ~ "Significantly up",
+                                tmp == "-1" ~ "Significantly down",
+                                .default = "Not significant"),
+         sigT21_cat = factor(sigT21_cat, levels = c("Significantly up", "Significantly down", "Not significant"))) %>%
+  group_by(Chromosome, sigT21_cat) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  group_by(Chromosome) %>%
+  mutate(N_Chromosome_Aptamers_Total = sum(N)) %>%
+  ungroup() %>%
+  filter(sigT21_cat != "Not significant") %>%
+  dplyr::rename(N_Sig10PadjBH_T21 = N) %>%
+  #dplyr::select(-c(sigT21_cat)) %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21 = round(100*N_Sig10PadjBH_T21/N_Chromosome_Aptamers_Total, digits = 1)) %>%
+  dplyr::rename(`Encoding chromosome` = Chromosome);
+
+ggdata_sigT21_updown %>%
+  filter(grepl(21, `Encoding chromosome`)==TRUE)
+
+# KEEPER!
+ggbar1_sigT21_updown <- ggdata_sigT21_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+              width = 0.6,
+              color = sigT21_cat, fill = sigT21_cat)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Chromosomal encoding of proteins with significantly\ndifferential abundance in T21 (PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0))  +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+ggbar2_sigT21_updown <- ggdata_sigT21_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+              width = 0.6,
+              color = sigT21_cat, fill = sigT21_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significantly\ndifferential abundance in T21 (PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0))  +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+ggbar3_sigT21_updown <- ggdata_sigT21_updown %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21 = case_when(grepl("down", sigT21_cat)==TRUE ~
+                                                                    -1*Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+                                                                  .default = Pct_Chromosome_Aptamers_Sig10PadjBH_T21)) %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+              width = 0.6,
+              color = sigT21_cat, fill = sigT21_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significantly\ndifferential abundance in T21 (PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0))  +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  labs(caption = element_text(
+    "*Significant aptamers as a percentage of total aptamers encoded by the chromosome.
+*For aptamers with significant T21 association (PadjBH<0.10) and Zlog10FC>0,\nthe percentage of chromosomal aptamers is displayed as +1*(sum(Percentage)).
+*For aptamers with significant T21 association (PadjBH<0.10) and Zlog10FC<0,\nthe percentage of chromosomal aptamers is displayed as -1*(sum(Percentage))."));
+
+ggbar1_sigT21_updown
+ggbar2_sigT21_updown
+ggbar3_sigT21_updown
+```
+
+```{r}
+setwd(dir.ddata)
+t_p4c_soma_lm_singleaptamer_res_wide <- fread("t_p4c_soma_lm_singleaptamer_res_wide.csv.gz")
+
+t_p4c_soma_lm_singleaptamer_res_wide %>%
+  filter(PadjBH_T21<0.10 & Zlog10FC_T21<0)
+```
+
+#### Barplot chrommosomal distribution of sigT21byAge
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0, size = 12), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 12), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ));
+
+ggdata_sigT21byAge_updown <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  mutate(tmp = case_when(as.numeric(PadjBH_T21byAge)<0.10 & ZlogFC_T21byAge> 0 ~ 1, 
+                                as.numeric(PadjBH_T21byAge)<0.10 & ZlogFC_T21byAge< 0 ~ -1, 
+                                .default = 0),
+         tmp = as.character(tmp),
+         sigT21byAge_cat = case_when(tmp == "1" ~ "Significantly up",
+                                tmp == "-1" ~ "Significantly down",
+                                .default = "Not significant"),
+         sigT21byAge_cat = factor(sigT21byAge_cat, levels = c("Significantly up", "Significantly down", "Not significant"))) %>%
+  group_by(Chromosome, sigT21byAge_cat) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  group_by(Chromosome) %>%
+  mutate(N_Chromosome_Aptamers_Total = sum(N)) %>%
+  ungroup() %>%
+  filter(sigT21byAge_cat != "Not significant") %>%
+  dplyr::rename(N_Sig10PadjBH_T21byAge = N) %>%
+  #dplyr::select(-c(sigT21_cat)) %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge = round(100*N_Sig10PadjBH_T21byAge/N_Chromosome_Aptamers_Total, digits = 1)) %>%
+  dplyr::rename(`Encoding chromosome` = Chromosome)
+
+# KEEPER!
+ggbar1_sigT21byAge_updown <- ggdata_sigT21byAge_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+              width = 0.6,
+              color = sigT21byAge_cat, fill = sigT21byAge_cat)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Chromosomal encoding of proteins with significant T21-by-Age\ninteractions\n(PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  #labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome.")) +
+  labs(caption = element_text(
+    "*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+# KEEPER!
+ggbar2_sigT21byAge_updown <- ggdata_sigT21byAge_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+              width = 0.6,
+              color = sigT21byAge_cat, fill = sigT21byAge_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significant T21-by-Age\ninteractions\n(PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+ggbar3_sigT21byAge_updown <- ggdata_sigT21byAge_updown %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge = case_when(grepl("down", sigT21byAge_cat)==TRUE ~
+                                                                    -1*Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+                                                                  .default = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge)) %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+              width = 0.6,
+              color = sigT21byAge_cat, fill = sigT21byAge_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significant T21-by-Age\ninteractions\n(PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = element_text(
+    "*Significant aptamers as a percentage of total aptamers encoded by the chromosome.
+*For aptamers with significant T21-by-Age interaction (PadjBH<0.10) and Zlog10FC>0,\nthe percentage of chromosomal aptamers is displayed as +1*(sum(Percentage)).
+*For aptamers with significant T21-by-Age interaction (PadjBH<0.10) and Zlog10FC<0,\nthe percentage of chromosomal aptamers is displayed as -1*(sum(Percentage))."));
+
+ggbar1_sigT21byAge_updown
+ggbar2_sigT21byAge_updown
+ggbar3_sigT21byAge_updown # KEEPER
+```
+

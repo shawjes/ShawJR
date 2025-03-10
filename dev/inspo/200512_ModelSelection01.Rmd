@@ -1,0 +1,487 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+#install.packages(c("broom", "broomExtra", "tibble", "sjstats", "car", "lme4", "lmerTest"))
+library(broom)
+#install.packages("broomExtra")
+#library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+#install.packages("tidyverse")
+#library(tidyverse)
+#library(miceadds)
+#library(ggforce)
+```
+
+```{r}
+help("vif") # car
+help(AIC) # stats
+```
+
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd
+
+by_analyte<-msd %>%
+  group_by(Panel_Analyte)
+```
+
+```{r}
+# setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+# msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv")
+# msd
+```
+
+```{r}
+# samp1.MeansOnly<-dat %>%
+#   filter(Panel_Analyte!="Chemokine_IL-8" &
+#            Panel_Analyte!="TH17_IL-17A" &
+#            Panel_Analyte!="Cytokine2_IL-17A/F" &
+#            Analyte!="IL-21") %>%
+#   filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") %>%
+#   rename(Age=Age)
+# 
+# samp1.MeansOnly %>% dplyr::select(Panel, Analyte) %>% unique() # 55 analytes.
+# 
+# samp1.MeansOnly
+# 
+# by_analyte<-samp1.MeansOnly %>%
+#   group_by(Panel_Analyte)
+```
+
+# Identify the best model parameterization using AIC
+
+# Summarize changes in fit statistics with the addition of random intercept for source (denoted '+ (1|Source)')
+```{r}
+set.seed(1234)
+
+m1 = by_analyte %>%
+  do(fit = lm(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female, data = .))
+names(m1$fit)<-m1$Panel_Analyte
+call1<-(m1$fit[[1]]$call %>% as.character())[2]
+
+m2 = by_analyte %>%
+  do(fit = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + (1|Source), REML=FALSE, data = .))
+names(m2$fit)<-m2$Panel_Analyte
+call2<-(summary(m2$fit[[1]])$call %>% as.character())[2]
+
+temp.AIC<-vector("list", 54)
+temp.maxVIF1<-vector("list", 54)
+temp.maxVIF2<-vector("list", 54)
+temp.Rsq1<-vector("list", 54)
+temp.Rsq2<-vector("list", 54)
+temp.sigma<-vector("list", 54)
+for ( i in 1:length(m1$fit) ) {
+  temp.AIC[[i]]<-AIC( m1$fit[[i]],
+                         m2$fit[[i]]) %>%
+    rownames_to_column() %>%
+    rename(Model=rowname) %>%
+    mutate(Model_Call = ifelse(Model=="m1$fit[[i]]", call1,
+                               ifelse(Model=="m2$fit[[i]]", call2, NA))) %>%
+    mutate(Panel_Analyte = m1$Panel_Analyte[i]) %>%
+    select(Panel_Analyte, Model, Model_Call, df, AIC)
+  compare.AIC<-rbindlist(temp.AIC)
+  
+  temp.maxVIF1[[i]]<-max(vif(m1$fit[[i]])) %>%
+    as.data.frame() %>%
+    `colnames<-`("Max_VIF") %>%
+    mutate(Model = "m1$fit[[i]]", Panel_Analyte = m1$Panel_Analyte[i]) %>%
+    select(Panel_Analyte, Model, Max_VIF)
+  temp.maxVIF2[[i]]<-max(vif(m2$fit[[i]])) %>%
+    as.data.frame() %>%
+    `colnames<-`("Max_VIF") %>%
+    mutate(Model = "m2$fit[[i]]", Panel_Analyte = m2$Panel_Analyte[i]) %>%
+    select(Panel_Analyte, Model, Max_VIF)
+  compare.maxVIF<-rbind( rbindlist(temp.maxVIF1),
+                  rbindlist(temp.maxVIF2) )
+
+  temp.Rsq1[[i]]<-cbind("m1", performance::r2(m1$fit[[i]])$R2, performance::r2(m1$fit[[i]])$R2_adjusted) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("Model", "R2", "R2_adjusted")) %>%
+    mutate(Panel_Analyte = m1$Panel_Analyte[i]) %>%
+    select(Panel_Analyte, Model, R2, R2_adjusted)
+  temp.Rsq2[[i]]<-cbind("m2", performance::r2(m2$fit[[i]])$R2_conditional, performance::r2(m2$fit[[i]])$R2_marginal) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("Model", "R2_conditional", "R2_marginal")) %>%
+    mutate(Panel_Analyte = m2$Panel_Analyte[i]) %>%
+    select(Panel_Analyte, Model, R2_conditional, R2_marginal)
+  m1.R2<-rbindlist(temp.Rsq1)
+  m2.R2<-rbindlist(temp.Rsq2)
+  
+  temp.sigma[[i]]<-cbind(m1$Panel_Analyte[i],
+                         m2$Panel_Analyte[i],
+                         summary(m1$fit[[i]])$sigma,
+                         summary(m2$fit[[i]])$sigma) %>%
+    `colnames<-`(c("Panel_Analyte", "verify_Panel_Analyte", "sigma1", "sigma2")) %>%
+    as.data.frame() %>%
+    mutate(sigma1=as.numeric(as.character(sigma1)),
+           sigma2=as.numeric(as.character(sigma2)),
+           sigma2_minus_sigma1 = sigma2 - sigma1,
+           pctChange_sigma = 100*sigma2_minus_sigma1 / sigma1)
+           
+  compare.sigma<-rbindlist(temp.sigma)
+}
+
+compare.AIC_wide<-compare.AIC %>% select(Panel_Analyte, Model, AIC) %>% unique() %>%
+  spread(key="Model", value="AIC") %>%
+  mutate(AIC2_minus_AIC1=`m2$fit[[i]]`-`m1$fit[[i]]`)
+compare.AIC_wide
+
+compare.sigma
+
+vif(m1$fit[[1]])
+vif(m2$fit[[1]])
+# T21      Age   Female 
+# 1.060194 1.049741 1.043231 
+#     T21      Age   Female 
+# 1.038281 1.029492 1.039372
+
+vif(m1$fit[[2]])
+vif(m2$fit[[2]])
+
+compare.maxVIF %>%
+  mutate(Model = ifelse(Model == "m1$fit[[i]]", "1",
+                        ifelse(Model == "m2$fit[[i]]", "2", NA)))
+```
+
+
+```{r}
+compare.AIC_wide01<-compare.AIC_wide %>%
+  rename(Model1=`m1$fit[[i]]`, Model2=`m2$fit[[i]]`) %>%
+  mutate(`deltaAIC<=-2` = ifelse(AIC2_minus_AIC1<=-2, 1, 0),
+         `deltaAIC<=-5` = ifelse(AIC2_minus_AIC1<=-5, 1, 0),
+         `deltaAIC<=-10` = ifelse(AIC2_minus_AIC1<=-10, 1, 0),
+         `deltaAIC>=2` = ifelse(AIC2_minus_AIC1>=2, 1, 0),
+         `deltaAIC>=5` = ifelse(AIC2_minus_AIC1>=5, 1, 0),
+         `deltaAIC>=10` = ifelse(AIC2_minus_AIC1>=10, 1, 0)) %>%
+  rename(`deltaAIC (AIC2 - AIC1)` = AIC2_minus_AIC1)
+
+compare.deltaAIC2<-compare.AIC_wide01 %>%
+  group_by(`deltaAIC<=-2`, `deltaAIC>=2`) %>%
+  summarise(N=n()) %>%
+  mutate(Category = ifelse(`deltaAIC<=-2`==0 & `deltaAIC>=2`==0, "Ambivalent",
+                           ifelse(`deltaAIC<=-2`==1, "Better fit",
+                                  ifelse(`deltaAIC>=2`==1, "Worse fit", NA))))
+
+compare.deltaAIC5<-compare.AIC_wide01 %>%
+  group_by(`deltaAIC<=-5`, `deltaAIC>=5`) %>%
+  summarise(N=n()) %>%
+  mutate(Category = ifelse(`deltaAIC<=-5`==0 & `deltaAIC>=5`==0, "Ambivalent",
+                           ifelse(`deltaAIC<=-5`==1, "Better fit",
+                                  ifelse(`deltaAIC>=5`==1, "Worse fit", NA))))
+
+compare.deltaAIC10<-compare.AIC_wide01 %>%
+  group_by(`deltaAIC<=-10`, `deltaAIC>=10`) %>%
+  summarise(N=n()) %>%
+  mutate(Category = ifelse(`deltaAIC<=-10`==0 & `deltaAIC>=10`==0, "Ambivalent",
+                           ifelse(`deltaAIC<=-10`==1, "Better fit",
+                                  ifelse(`deltaAIC>=10`==1, "Worse fit", NA))))
+
+compare.AIC_wide01
+compare.deltaAIC2
+compare.deltaAIC5
+compare.deltaAIC10
+```
+
+
+
+
+
+
+
+```{r}
+lm4 = by_analyte %>%
+  do(fit3 = lm(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Age, data = .))
+
+lmm = by_analyte %>%
+  do(fit4 = lme4::lmer(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Age + (1|Source), data = ., REML=FALSE))
+
+AIC1 =  broom::glance(lm1, fit1) %>% select(Panel_Analyte, AIC) %>% rename(AIC1=AIC)
+AIC2 =  broom::glance(lm2, fit2) %>% select(Panel_Analyte, AIC) %>% rename(AIC2=AIC)
+AIC3 =  broom::glance(lm3, fit3) %>% select(Panel_Analyte, AIC) %>% rename(AIC3=AIC)
+AIC4 =  broom::glance(lmm, fit4) %>% select(Panel_Analyte, AIC) %>% rename(AIC4=AIC)
+
+AIC<-AIC1 %>%
+  full_join(AIC2, by="Panel_Analyte") %>%
+  full_join(AIC3, by="Panel_Analyte") %>%
+  full_join(AIC4, by="Panel_Analyte") %>%
+  mutate(BetterWithFemale=ifelse(AIC2<AIC1, 1, 0),
+         SigBetterWithFemale=ifelse( (AIC2-AIC1)<=-2, 1, 0)) %>%
+  mutate(WorseWithFemale=ifelse(AIC2>AIC1, 1, 0),
+         SigWorseWithFemale=ifelse( (AIC2-AIC1)>=2, 1, 0)) %>%
+  mutate(SigBetterWithInteraction=ifelse( (AIC3-AIC2)<=-2, 1, 0),
+         SigWorseWithInteraction=ifelse( (AIC3-AIC2)>=2, 1, 0)) %>%
+  mutate(SigBetterWithSource=ifelse( (AIC4-AIC3)<=-2, 1, 0),
+         SigWorseWithSource=ifelse( (AIC4-AIC3)>=2, 1, 0))
+AIC %>% group_by(SigBetterWithFemale) %>% summarise(N=n()) # 13 significantly better after including Female covariate
+AIC %>% group_by(SigWorseWithFemale) %>% summarise(N=n()) # 0 significantly worse after including Female covariate
+
+AIC %>% group_by(SigBetterWithInteraction) %>% summarise(N=n()) # 9 significantly better after including T21*Age
+AIC %>% group_by(SigWorseWithInteraction) %>% summarise(N=n()) # 0 significantly worse after including T21*Age
+
+AIC %>% group_by(SigBetterWithSource) %>% summarise(N=n()) # 40 significantly better after including (1|Source)
+AIC %>% group_by(SigWorseWithSource) %>% summarise(N=n()) # 4 significantly worse after including (1|Source)
+AIC %>% filter(SigWorseWithSource==1) %>% select(Panel_Analyte)
+# Significantly worse by AIC after inclusion of random intercept for Source:
+# Cytokine 1_IL-12/IL-23p40				
+# TH17_IL-22				
+# TH17_MIP-3alpha				
+# VascularInjury_ICAM-1				
+
+AIC %>% filter(SigBetterWithSource==0 & SigWorseWithSource==0) %>% select(Panel_Analyte)
+# Cytokines that neither improve nor worsen with (1|Source):
+# Angiogenesis_VEGF-D				
+# Chemokine_Eotaxin				
+# Cytokine 1_IL-15				
+# Cytokine 1_TNF-beta				
+# Cytokine 1_VEGF-A				
+# Proinflammatory_IL-10				
+# Proinflammatory_IL-1beta				
+# Proinflammatory_IL-2				
+# Proinflammatory_IL-6				
+# Proinflammatory_TNF-alpha
+
+# Chosen model: log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Age + (1|Source)
+```
+
+#### Confirm that results are the same with ML and REML
+```{r}
+lmm_ML = by_analyte %>%
+  do(fit.lmm_ML = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Age + (1|Source), data = ., REML=FALSE))
+
+lmm_REML = by_analyte %>%
+  do(fit.lmm_REML = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Age + (1|Source), data = ., REML=TRUE))
+
+# augment:
+augment.lmm_ML = augment(lmm_ML, fit.lmm_ML)
+augment.lmm_REML = augment(lmm_REML, fit.lmm_REML)
+
+# glance:
+glance.lmm_ML = broom::glance(lmm_ML, fit.lmm_ML)
+glance.lmm_REML = broom::glance(lmm_REML, fit.lmm_REML)
+
+# Name each dataframe in list of results:
+names(lmm_ML$fit.lmm_ML)<-lmm_ML$Panel_Analyte
+names(lmm_REML$fit.lmm_REML)<-lmm_REML$Panel_Analyte
+
+# tidy:
+# Define new function that defaults to include confidence intervals in output:
+tidyPlus <- function(x, print=TRUE) {
+  result <- tidy(x, conf.int=T)
+  return(result)
+}
+# Apply tidyPlus to all dataframes in list 'dfAnalyte_lm$fitAnalyte_lm'
+tidy.lmm_ML<-lapply(lmm_ML$fit.lmm_ML, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte")
+tidy.lmm_REML<-lapply(lmm_REML$fit.lmm_REML, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte")
+
+tidy.lmm_ML
+tidy.lmm_REML
+
+T21_results.lmm_ML<-tidy.lmm_ML %>% filter(term=="T21") %>% select(-c(effect, group, statistic, df)) %>%
+  rename(P=p.value) %>% mutate(P_BH=p.adjust(P, method="BH")) %>%
+  arrange(P_BH) %>%
+  mutate(Rank_ML=seq(1:55))
+T21_results.lmm_REML<-tidy.lmm_ML %>% filter(term=="T21") %>% select(-c(effect, group, statistic, df)) %>%
+  rename(P=p.value) %>% mutate(P_BH=p.adjust(P, method="BH")) %>%
+  arrange(P_BH) %>%
+  mutate(Rank_REML=seq(1:55))
+
+T21_results.lmm_ML
+T21_results.lmm_REML
+
+rank.MLvsREML<-T21_results.lmm_ML %>% select(Panel_Analyte, Rank_ML, estimate) %>%
+  rename(Estimate_ML=estimate) %>%
+  full_join(T21_results.lmm_REML, by="Panel_Analyte") %>%
+  rename(Estimate_REML=estimate) %>%
+  select(Panel_Analyte, Rank_ML, Rank_REML, Estimate_ML, Estimate_REML) %>%
+  mutate(delta_Estimate=Estimate_REML-Estimate_ML)
+rank.MLvsREML # Exactly the same ranks and estimates - Good.
+```
+
+#### Look at how many T21s vs. D21s were sampled at each Source location
+```{r}
+by_analyte %>%
+  ungroup() %>%
+  select(PID, Source, T21) %>%
+  unique() %>%
+  group_by(Source, T21) %>%
+  summarise(N=n())
+```
+
+#### Repeat the model fitting procedure to be sure that the apparent effect of Source isn't due to distribution of T21 vs. D21 within each Source
+```{r}
+lm_T21 = by_analyte %>%
+  filter(T21==1) %>%
+  do(fit.lm_T21 = lm(log2(CalcConcMean_AfterImputation) ~ Age + Female, data = .))
+
+lmm_T21 = by_analyte %>%
+  filter(T21==1) %>%
+  do(fit.lmm_T21 = lme4::lmer(log2(CalcConcMean_AfterImputation) ~ Age + Female + (1|Source), data = ., REML=FALSE))
+
+AIC.lm_T21 =  broom::glance(lm_T21, fit.lm_T21) %>% select(Panel_Analyte, AIC) %>% rename(AIC_lmT21=AIC)
+AIC.lmm_T21 =  broom::glance(lmm_T21, fit.lmm_T21) %>% select(Panel_Analyte, AIC) %>% rename(AIC_lmmT21=AIC)
+
+AIC<-AIC.lm_T21 %>%
+  full_join(AIC.lmm_T21, by="Panel_Analyte") %>%
+  mutate(SigBetterWithSource=ifelse( (AIC_lmmT21-AIC_lmT21)<=-2, 1, 0),
+         SigWorseWithSource=ifelse( (AIC_lmmT21-AIC_lmT21)>=2, 1, 0))
+AIC %>% group_by(SigBetterWithSource, SigWorseWithSource) %>% summarise(N=n())
+# SigBetterWithSource SigWorseWithSource  N
+# 0	                  0	                  13		
+# 0	                  1	                  3		
+# 1	                  0	                  39
+
+# So even considering only T21s, (1|Source) improves model fit for the vast majority of analytes.
+# 3 analytes are less happy after adjustment for Source, but the change in AIC is just barely 'significant':
+AIC %>% filter(SigWorseWithSource==1)
+# Panel_Analyte               AIC_lmT21   AIC_lmmT21  SigBetterWithSource   SigWorseWithSource
+# Cytokine 1_IL-12/IL-23p40	  620.0699	  622.0699	  0	                    1
+# Cytokine 1_IL-15	          383.4355	  385.4355	  0	                    1
+```
+
+#### Final touches
+```{r}
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/LMM/Results")
+#T21_results.lmm_ML<-fread("200302_T21results_LMM_FIXEDageFemaleT21byFemale_RANDsource.csv")
+
+T21_results.lmm_ML01<-T21_results.lmm_ML %>%
+  #rename(Rank=Rank_ML) %>%
+  mutate(Sig_BH=ifelse(P_BH<0.05, 1, 0))
+T21_results.lmm_ML01
+```
+
+#### Now output the results
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/LMM/Results")
+fwrite(T21_results.lmm_ML01, "200305_T21results_LMM_FIXEDageFemaleT21byFemale_RANDsource.csv")
+```
+
+#### Model diagnostics
+```{r}
+qqnorm(augment.lm3$`.resid`)
+qqline(augment.lm3$`.resid`)
+
+qqnorm(augment.lmm_ML$`.resid`)
+qqline(augment.lmm_ML$`.resid`)
+
+# "p.value	 an approximate p-value for the test. This is said in Royston (1995) to be adequate for p.value < 0.1."
+shapiro.test(rnorm(100, mean = 5, sd = 3))
+shapiro.test(runif(100, min = 2, max = 4))
+# Shapiro-Wilk normality test
+# data:  rnorm(100, mean = 5, sd = 3)
+# W = 0.97525, p-value = 0.0564
+#	Shapiro-Wilk normality test
+# data:  runif(100, min = 2, max = 4)
+# W = 0.92874, p-value = 4.222e-05
+
+class(runif(100, min = 2, max = 4)) #[1] "numeric"
+
+augment.LM<-augment.lm3 %>% rename(resid=`.resid`)
+augment.LMM<-augment.lmm_ML %>% rename(resid=`.resid`)
+# "p.value	 an approximate p-value for the test. This is said in Royston (1995) to be adequate for p.value < 0.1."
+resid_lm<-augment.LM$resid
+resid_lmm<-augment.LMM$resid
+class(resid_lm) #[1] "numeric"
+class(resid_lmm) #[1] "numeric"
+
+analyte.index<-augment.LM %>% ungroup() %>% select(Panel_Analyte) %>% unique() %>% dplyr::mutate(Index=seq(1:55))
+
+augment.LM01<-augment.LM %>% ungroup() %>% full_join(analyte.index, by="Panel_Analyte")
+augment.LMM01<-augment.LMM %>% ungroup() %>% full_join(analyte.index, by="Panel_Analyte")
+
+shapiro.LM<-list()
+shapiro.LMM<-list()
+for (i in 1:55) {
+  aug.LM<-augment.LM01 %>% filter(Index==i)
+  aug.LMM<-augment.LMM01 %>% filter(Index==i)
+  shapiro.LM[[i]]<-shapiro.test(aug.LM$resid) %>% unlist() %>% as.matrix() %>% t() %>% as.data.frame() %>%
+    mutate(Panel_Analyte=aug.LM$Panel_Analyte[[1]])
+  shapiro.LMM[[i]]<-shapiro.test(aug.LMM$resid) %>% unlist() %>% as.matrix() %>% t() %>% as.data.frame() %>%
+    mutate(Panel_Analyte=aug.LM$Panel_Analyte[[1]])
+}
+
+results_shapiro.LM<-rbindlist(shapiro.LM) %>%
+  mutate(p.value=as.numeric(as.character(p.value))) %>%
+  mutate(Sig_Shapiro=ifelse(p.value<0.05, 1, 0))
+results_shapiro.LMM<-rbindlist(shapiro.LMM) %>%
+  mutate(p.value=as.numeric(as.character(p.value))) %>%
+  mutate(Sig_Shapiro=ifelse(p.value<0.05, 1, 0))
+
+results_shapiro.LM %>% group_by(Sig_Shapiro) %>% summarise(N=n())
+results_shapiro.LMM %>% group_by(Sig_Shapiro) %>% summarise(N=n())
+# Most cytokines fail formal test for normality of residuals. Residual plots do look decent, though...
+```
+
+```{r}
+# augment:
+augment.lmm_ML = augment(lmm_ML, fit.lmm_ML)
+augment.lmm_REML = augment(lmm_REML, fit.lmm_REML)
+
+# glance:
+glance.lmm_ML = broom::glance(lmm_ML, fit.lmm_ML)
+glance.lmm_REML = broom::glance(lmm_REML, fit.lmm_REML)
+
+augment.lmm_ML
+augment.lmm_REML
+glance.lmm_ML
+glance.lmm_REML
+
+plot(augment.lmm_ML$`.resid`)
+plot(augment.lmm_REML$`.resid`)
+
+plot(density(augment.lmm_ML$`.resid`))
+plot(density(augment.lmm_REML$`.resid`))
+
+augment.lm3 = augment(lm3, fit3)
+plot(augment.lm3$`.resid`)
+plot(density(augment.lm3$`.resid`))
+
+qqnorm(augment.lm3$`.resid`)
+qqline(augment.lm3$`.resid`)
+```
+
+
+ 

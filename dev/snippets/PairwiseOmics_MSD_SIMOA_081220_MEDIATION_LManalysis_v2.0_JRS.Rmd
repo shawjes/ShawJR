@@ -1,0 +1,762 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Project:
+HTP
+
+#### Analyst (Email):
+Jessica Shaw (jessica.shaw@cuanschutz.edu)
+
+#### Goal:
+Analysis of MSD cytokine concentrations in association with AD biomarkers, as measured by 4-plex SIMOA.
+
+Baseline linear models were be fitted for the log2 concentration of each of four AD biomarkers (NfL, GFAP, TAU, and UCH-L1), with independent variables T21, Age, and Female sex.
+
+Then, the linear models were re-fitted with additional adjustment for each of 54 cytokines.
+
+This analysis provides estimates of association between cytokine concentrations and levels of AD biomarkers. Furthermore, we can infer whether cytokine levels mediate the association between T21 and AD biomarker levels (this part isn't shown yet in this report).
+
+```{r}
+#rm(list = ls(all = TRUE))
+#library(openxlsx)
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(broom)
+#library(lattice)
+library(ggplot2)
+#library(infer)
+#library(miceadds)
+#library(FedData)
+#library(xlsx)
+library(ggrepel)
+library(reshape2)
+library(tictoc)
+library(car)
+library(broomExtra)
+library(tibble)
+```
+
+```{r}
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Pairwise_Omics/MSD_SIMOA/Data")
+#simoa_msd.complete<-fread("PairwiseOmics_MSD_SIMOA_073020_SIMOAwide_MSDlong_MatchLabID_v2.1_JRS.csv")
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Pairwise_Omics/MSD_SIMOA/Data")
+simoa_msd.complete<-fread("PairwiseOmics_MSD_SIMOA_080620_SIMOAwide_MSDlong_MatchLabID_v2.2_JRS.csv")
+
+simoa_msd.complete
+```
+
+#### Get summary statistics for each AD biomarker
+```{r}
+summaryStats.SIMOA<-simoa_msd.complete %>%
+  select(RecordID, LabID, NfL, GFAP, TAU, `UCH-L1`) %>%
+  gather(key="SIMOA_Biomarker", value="SIMOA_Concentration", NfL:`UCH-L1`) %>%
+  group_by(SIMOA_Biomarker) %>%
+  summarise(N=n(),
+            Min = min(SIMOA_Concentration),
+            p01 = quantile(SIMOA_Concentration, 0.01),
+            p05 = quantile(SIMOA_Concentration, 0.05),
+            Mean = mean(SIMOA_Concentration),
+            Med = median(SIMOA_Concentration),
+            Max = max(SIMOA_Concentration))
+summaryStats.SIMOA
+# UCH-L1 has a minimum value of 0, so will require an offset for log2 transformation.
+```
+
+#### MEDIATION ANALYSIS
+Goal: Identify which cytokines mediate the association of T21 and AD biomarkers levels.
+
+##### Mediation Analysis | Step 1: Run models for only AD biomarkers in association with age, T21, * in THIS subset of data *
+```{r}
+set.seed(1234)
+
+# LM without random effect for Source:
+baselineLM.NfL<-lm(log2(NfL) ~ T21 + Age + Female, data=simoa_msd.complete)
+baselineLM.GFAP<-lm(log2(GFAP) ~ T21 + Age + Female, data=simoa_msd.complete)
+baselineLM.TAU<-lm(log2(TAU) ~ T21 + Age + Female, data=simoa_msd.complete)
+baselineLM.UCHL1<-lm(log2(`UCH-L1` + 0.00001) ~ T21 + Age + Female, data=simoa_msd.complete)
+
+# LMM with random effect for Source:
+baselineLMM.NfL<-lmerTest::lmer(log2(NfL) ~ T21 + Age + Female + (1|Source), REML=FALSE, data=simoa_msd.complete)
+baselineLMM.GFAP<-lmerTest::lmer(log2(GFAP) ~ T21 + Age + Female + (1|Source), REML=FALSE, data=simoa_msd.complete)
+baselineLMM.TAU<-lmerTest::lmer(log2(TAU) ~ T21 + Age + Female + (1|Source), REML=FALSE, data=simoa_msd.complete)
+baselineLMM.UCHL1<-lmerTest::lmer(log2(`UCH-L1` + 0.00001) ~ T21 + Age + Female + (1|Source), REML=FALSE, data=simoa_msd.complete)
+
+AIC(baselineLM.NfL, baselineLMM.NfL,
+    baselineLM.GFAP, baselineLMM.GFAP,
+    baselineLM.TAU, baselineLMM.TAU,
+    baselineLM.UCHL1, baselineLMM.UCHL1)
+# NfL improves dramatically with random intercept for Source. GFAP improves somewhat. TAU and UCH-L1 don't change much - very slightly worse fit with random effect...
+
+simoa_msd.complete %>%
+  select(RecordID, Source) %>%
+  unique() %>%
+  group_by(Source) %>%
+  summarise(N=n())
+
+simoa_msd.complete %>%
+  select(RecordID, Source, T21) %>%
+  unique() %>%
+  group_by(Source, T21) %>%
+  summarise(N=n())
+
+# Only N=3 from NDSC 2019, so in this particular case we really may not be able to trust a random effect... hmmm...
+```
+
+```{r}
+tidyBasic_BaselineLMM.NfL<-baselineLMM.NfL %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "NfL",
+         Cytokine = "NONE",
+         Model = "log2(NfL) ~ T21 + Age + Female") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+tidyBasic_BaselineLMM.GFAP<-baselineLMM.GFAP %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "GFAP",
+         Cytokine = "NONE",
+         Model = "log2(GFAP) ~ T21 + Age + Female") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+tidyBasic_BaselineLMM.TAU<-baselineLMM.TAU %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "TAU",
+         Cytokine = "NONE",
+         Model = "log2(TAU) ~ T21 + Age + Female") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+tidyBasic_BaselineLMM.UCHL1<-baselineLMM.UCHL1 %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "UCH-L1",
+         Cytokine = "NONE",
+         Model = "log2(`UCH-L1` + offset.UCHL1) ~ T21 + Age + Female") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+# tidyBasic_BaselineLMM.NfL
+# tidyBasic_BaselineLMM.GFAP
+# tidyBasic_BaselineLMM.TAU
+# tidyBasic_BaselineLMM.UCHL1
+
+ageResultsBasic_BASELINElmm.NfL<-tidyBasic_BaselineLMM.NfL %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+ageResultsBasic_BASELINElmm.GFAP<-tidyBasic_BaselineLMM.GFAP %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+ageResultsBasic_BASELINElmm.TAU<-tidyBasic_BaselineLMM.TAU %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+ageResultsBasic_BASELINElmm.UCHL1<-tidyBasic_BaselineLMM.UCHL1 %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+
+T21resultsBasic_BASELINElmm.NfL<-tidyBasic_BaselineLMM.NfL %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+T21resultsBasic_BASELINElmm.GFAP<-tidyBasic_BaselineLMM.GFAP %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+T21resultsBasic_BASELINElmm.TAU<-tidyBasic_BaselineLMM.TAU %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+T21resultsBasic_BASELINElmm.UCHL1<-tidyBasic_BaselineLMM.UCHL1 %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+
+
+# LM without random effect for Source:
+tidyBasic_BaselineLM.NfL<-baselineLM.NfL %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "NfL",
+         Cytokine = "NONE",
+         Model = "log2(NfL) ~ T21 + Age + Female + (1|Source)") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+tidyBasic_BaselineLM.GFAP<-baselineLM.GFAP %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "GFAP",
+         Cytokine = "NONE",
+         Model = "log2(GFAP) ~ T21 + Age + Female + (1|Source)") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+tidyBasic_BaselineLM.TAU<-baselineLM.TAU %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "TAU",
+         Cytokine = "NONE",
+         Model = "log2(TAU) ~ T21 + Age + Female + (1|Source)") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+tidyBasic_BaselineLM.UCHL1<-baselineLM.UCHL1 %>%
+  tidy() %>%
+  mutate(AD_Biomarker = "UCH-L1",
+         Cytokine = "NONE",
+         Model = "log2(`UCH-L1` + offset.UCHL1) ~ T21 + Age + Female + (1|Source)") %>%
+  select(AD_Biomarker, Cytokine, Model, everything()) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "df", "P"))
+
+# tidyBasic_BaselineLM.NfL
+# tidyBasic_BaselineLM.GFAP
+# tidyBasic_BaselineLM.TAU
+# tidyBasic_BaselineLM.UCHL1
+
+ageResultsBasic_BASELINElm.NfL<-tidyBasic_BaselineLM.NfL %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+ageResultsBasic_BASELINElm.GFAP<-tidyBasic_BaselineLM.GFAP %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+ageResultsBasic_BASELINElm.TAU<-tidyBasic_BaselineLM.TAU %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+ageResultsBasic_BASELINElm.UCHL1<-tidyBasic_BaselineLM.UCHL1 %>%
+  filter(Term=="Age") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_Age", "SE_Age", "Statistic_Age", "df_Age", "P_Age"))
+
+T21resultsBasic_BASELINElm.NfL<-tidyBasic_BaselineLM.NfL %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+T21resultsBasic_BASELINElm.GFAP<-tidyBasic_BaselineLM.GFAP %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+T21resultsBasic_BASELINElm.TAU<-tidyBasic_BaselineLM.TAU %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+T21resultsBasic_BASELINElm.UCHL1<-tidyBasic_BaselineLM.UCHL1 %>%
+  filter(Term=="T21") %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate_T21", "SE_T21", "Statistic_T21", "df_T21", "P_T21"))
+
+# View the results:
+
+T21resultsBasic_BASELINElmm.NfL
+T21resultsBasic_BASELINElm.NfL
+
+T21resultsBasic_BASELINElmm.GFAP
+T21resultsBasic_BASELINElm.GFAP
+
+T21resultsBasic_BASELINElmm.TAU
+T21resultsBasic_BASELINElm.TAU
+
+T21resultsBasic_BASELINElmm.UCHL1
+T21resultsBasic_BASELINElm.UCHL1
+
+# ageResultsBasic_BASELINElmm.NfL
+# ageResultsBasic_BASELINElmm.GFAP
+# ageResultsBasic_BASELINElmm.TAU
+# ageResultsBasic_BASELINElmm.UCHL1
+# ageResultsBasic_BASELINElm.NfL
+# ageResultsBasic_BASELINElm.GFAP
+# ageResultsBasic_BASELINElm.TAU
+# ageResultsBasic_BASELINElm.UCHL1
+
+# All four are highly significantly associated with T21, regardless of whether we include random intercept for Source. In general, including the random intercept for Source makes T21 much more significant.
+
+# Decision: Only for proof of concept, use only fixed-effects models for this script. Come back later to figure out how to deal with random effects in the context of mediation analysis.
+```
+
+##### Mediation Analysis | Step 2: Run models for only cytokines in association with age, T21, * in THIS subset of data *
+```{r}
+set.seed(1234)
+
+msd_only<-simoa_msd.complete %>% select(-c(NfL, GFAP, TAU, `UCH-L1`)) %>% unique() %>%
+  mutate(Index_Analyte = as.numeric(as.factor(MSD_Analyte)))
+msd_only
+
+lm.Cytokine<-list()
+tidy.Cytokine<-list()
+for ( i in 1:max(msd_only$Index_Analyte) ) {
+
+  df<-msd_only %>% filter(Index_Analyte==i)
+  msd_analyte<-df$MSD_Analyte[1]
+  
+  lm.Cytokine[[i]]<-lm(log2(MSD_Concentration) ~ T21 + Age + Female, data = df)
+  tidy.Cytokine[[i]]<-lm.Cytokine[[i]] %>% tidy() %>% filter(term!="(Intercept)") %>%
+    mutate(`AD Biomarker` = "NONE", Cytokine = msd_analyte,
+           Model = "log2(MSD_Concentration) ~ T21 + Age + Female") %>%
+    select(`AD Biomarker`, Cytokine, Model, everything())
+  
+}
+
+T21results.Cytokine<-tidy.Cytokine %>%
+  rbindlist() %>%
+  filter(term=="T21") %>%
+  select(-term) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Estimate_T21", "SE_T21", "Statistic_T21",
+                 "P_T21")) %>%
+  mutate(Sig_Cytokine = ifelse(P_T21<0.05, 1, 0))
+
+T21results.Cytokine %>%
+  arrange(P_T21)
+```
+
+### Run cytokine-adjusted models
+
+Above we fitted a preliminary model with adjustment for standard covariates (T21, age, and sex) and batch effect correction for sample source. We'll refer to this model specification as the 'basic' model, specified by the formula:
+  log2(Conc. AD Biomarker) ~ T21 + Age + Sex + (1|Source)
+
+We also identified the best-fitting model specification for our AD biomarkers. We'll refer to this model specification as the 'optimal' model, specified by the formula:
+  log2(Conc. AD Biomarker) ~ T21 + Age + Sex + (T21 x Age) + (T21 x Sex) + (1|Source)
+
+The code below re-fits the 'basic' and 'optimal' models with additional adjustment for the level of one cytokine at a time (cytokine_i). In other words, we fit one mixed model for each unique pair of AD biomarker (measured by SIMOA) and cytokine (measured by MSD):
+  * Basic model + Cytokine_i
+  * Optimal model + Cytokine_i
+
+##### Mediation Analysis | Step 3: Run cytokine-adjusted models
+```{r}
+# Prepare an analysis dataset with an index for cytokine, to facilitate adding one cytokine at a time to each model:
+simoa_msd.complete01<-simoa_msd.complete %>%
+  select(MSD_Analyte) %>%
+  unique() %>%
+  mutate(Index_MSD = seq(1:length(MSD_Analyte))) %>%
+  full_join(simoa_msd.complete, by="MSD_Analyte")
+#simoa_msd.complete01
+
+# Define objects to store the various outputs produced in the for loop below:
+df<-list()
+cytokine_i<-list() # Where i takes on values 1 through 49 for the 1st through 49th cytokine in the joint SIMOA x MSD dataset.
+lmAdjCytokine.NfL<-list()
+lmAdjCytokine.GFAP<-list()
+lmAdjCytokine.TAU<-list()
+lmAdjCytokine.UCHL1<-list()
+tidyAdjCytokine.NfL<-list()
+tidyAdjCytokine.GFAP<-list()
+tidyAdjCytokine.TAU<-list()
+tidyAdjCytokine.UCHL1<-list()
+vifAdjCytokine.NfL<-list()
+vifAdjCytokine.GFAP<-list()
+vifAdjCytokine.TAU<-list()
+vifAdjCytokine.UCHL1<-list()
+
+set.seed(1234)
+
+for (i in 1:max(simoa_msd.complete01$Index_MSD)) {
+  
+  df[[i]]<-simoa_msd.complete01 %>%
+    filter(Index_MSD == i) %>%
+    select(RecordID, NfL, GFAP, TAU, `UCH-L1`, MSD_Analyte, MSD_Concentration, T21, Age, Female, Source) %>%
+    unique() %>%
+    na.omit()
+  
+  cytokine_i[[i]]<-df[[i]]$MSD_Analyte[1]
+  colnames(df[[i]])[7]<-cytokine_i[[i]]
+
+  # Template for 'AdjCytokine' model + Cytokine = The model for log2(Conc) of AD biomarker, with adjustment only for T21, age, sex, and source.
+  formula_adjCytokine<-paste("log2(`", "placeholder.AD_Biomarker", "` + offset) ~ log2(`",
+                                   colnames(df[[i]])[7], # column for cytokine concentration
+                                   "`) + T21 + Age + Female",
+                                   sep = "")
+
+  ###########
+  ##  NfL  ##
+  ###########
+  ADbiomarker<-"NfL"
+  offset<-0
+  formula_adjCytokine_i<-as.formula( gsub("placeholder.AD_Biomarker", ADbiomarker, formula_adjCytokine) )
+
+  # 'AdjCytokine' model + Cytokine:
+  lmAdjCytokine.NfL[[i]]<-try( lm( formula_adjCytokine_i, data=df[[i]] ) )
+  tidyAdjCytokine.NfL[[i]]<-try( lmAdjCytokine.NfL[[i]] %>%
+                             tidy() %>%
+                             mutate(AD_Biomarker = ADbiomarker,
+                                    Cytokine = cytokine_i[[i]],
+                                    Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                             select(AD_Biomarker, Cytokine, Model, everything()) )
+  vifAdjCytokine.NfL[[i]]<-try( lmAdjCytokine.NfL[[i]] %>%
+                       car::vif() %>%
+                       as.data.frame() %>%
+                       rownames_to_column("Model Term") %>%
+                       `colnames<-`(c("Model Term", "VIF(Model Term)")) %>%
+                       mutate(Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                       select(Model, `Model Term`, `VIF(Model Term)`) )
+  
+
+   ############
+  ##  GFAP  ##
+  ############
+  ADbiomarker<-"GFAP"
+  offset<-0
+  formula_adjCytokine_i<-as.formula( gsub("placeholder.AD_Biomarker", ADbiomarker, formula_adjCytokine) )
+
+  # 'AdjCytokine' model + Cytokine:
+  lmAdjCytokine.GFAP[[i]]<-try( lm( formula_adjCytokine_i, data=df[[i]] ) )
+  tidyAdjCytokine.GFAP[[i]]<-try( lmAdjCytokine.GFAP[[i]] %>%
+                             tidy() %>%
+                             mutate(AD_Biomarker = ADbiomarker,
+                                    Cytokine = cytokine_i[[i]],
+                                    Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                             select(AD_Biomarker, Cytokine, Model, everything()) )
+  vifAdjCytokine.GFAP[[i]]<-try( lmAdjCytokine.GFAP[[i]] %>%
+                       car::vif() %>%
+                       as.data.frame() %>%
+                       rownames_to_column("Model Term") %>%
+                       `colnames<-`(c("Model Term", "VIF(Model Term)")) %>%
+                       mutate(Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                       select(Model, `Model Term`, `VIF(Model Term)`) )
+  
+
+   ###########
+  ##  TAU  ##
+  ###########
+  ADbiomarker<-"TAU"
+  offset<-0
+  formula_adjCytokine_i<-as.formula( gsub("placeholder.AD_Biomarker", ADbiomarker, formula_adjCytokine) )
+
+  # 'AdjCytokine' model + Cytokine:
+  lmAdjCytokine.TAU[[i]]<-try( lm( formula_adjCytokine_i, data=df[[i]] ) )
+  tidyAdjCytokine.TAU[[i]]<-try( lmAdjCytokine.TAU[[i]] %>%
+                             tidy() %>%
+                             mutate(AD_Biomarker = ADbiomarker,
+                                    Cytokine = cytokine_i[[i]],
+                                    Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                             select(AD_Biomarker, Cytokine, Model, everything()) )
+  vifAdjCytokine.TAU[[i]]<-try( lmAdjCytokine.TAU[[i]] %>%
+                       car::vif() %>%
+                       as.data.frame() %>%
+                       rownames_to_column("Model Term") %>%
+                       `colnames<-`(c("Model Term", "VIF(Model Term)")) %>%
+                       mutate(Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                       select(Model, `Model Term`, `VIF(Model Term)`) )
+  
+
+  #############
+  ##  UCH-L1  ##
+  #############
+  ADbiomarker<-"UCH-L1"
+  offset<-0.00001 # Preliminary offset value for UCH-L1 as defined in earlier code chunk.
+  formula_adjCytokine_i<-as.formula( gsub("placeholder.AD_Biomarker", ADbiomarker, formula_adjCytokine) )
+
+  # 'AdjCytokine' model + Cytokine:
+  lmAdjCytokine.UCHL1[[i]]<-try( lm( formula_adjCytokine_i, data=df[[i]] ) )
+  tidyAdjCytokine.UCHL1[[i]]<-try( lmAdjCytokine.UCHL1[[i]] %>%
+                             tidy() %>%
+                             mutate(AD_Biomarker = ADbiomarker,
+                                    Cytokine = cytokine_i[[i]],
+                                    Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                             select(AD_Biomarker, Cytokine, Model, everything()) )
+  vifAdjCytokine.UCHL1[[i]]<-try( lmAdjCytokine.UCHL1[[i]] %>%
+                       car::vif() %>%
+                       as.data.frame() %>%
+                       rownames_to_column("Model Term") %>%
+                       `colnames<-`(c("Model Term", "VIF(Model Term)")) %>%
+                       mutate(Model = paste(as.character(formula_adjCytokine_i)[2:3], collapse=" ~ ")) %>%
+                       select(Model, `Model Term`, `VIF(Model Term)`) )
+  
+}
+```
+
+###### Extract the results from step 3 above
+```{r}
+tidyAdjCytokine_All.NfL<-tidyAdjCytokine.NfL %>% rbindlist()
+tidyAdjCytokine_All.GFAP<-tidyAdjCytokine.GFAP %>% rbindlist()
+tidyAdjCytokine_All.TAU<-tidyAdjCytokine.TAU %>% rbindlist()
+tidyAdjCytokine_All.UCHL1<-tidyAdjCytokine.UCHL1 %>% rbindlist()
+
+fixedAdjCytokine_All.NfL<-tidyAdjCytokine_All.NfL %>%
+  filter(#effect=="fixed" &
+    term!="(Intercept)") %>%
+  #select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "P")) #, "df" ))
+fixedAdjCytokine_All.GFAP<-tidyAdjCytokine_All.GFAP %>%
+  filter(#effect=="fixed" &
+    term!="(Intercept)") %>%
+  #select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "P")) #, "df" ))
+fixedAdjCytokine_All.TAU<-tidyAdjCytokine_All.TAU %>%
+  filter(#effect=="fixed" &
+    term!="(Intercept)") %>%
+  #select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "P")) #, "df" ))
+fixedAdjCytokine_All.UCHL1<-tidyAdjCytokine_All.UCHL1 %>%
+  filter(#effect=="fixed" &
+    term!="(Intercept)") %>%
+  #select(-c(effect, group)) %>%
+  `colnames<-`(c("AD_Biomarker", "Cytokine", "Model", "Term", "Estimate", "SE", "Statistic", "P")) #, "df" ))
+
+fixedAdjCytokine_All.NfL
+fixedAdjCytokine_All.GFAP
+fixedAdjCytokine_All.TAU
+fixedAdjCytokine_All.UCHL1
+
+cytokineResultsAdjCytokine_All.NfL<-fixedAdjCytokine_All.NfL %>%
+  filter(Term!="T21" & Term!="Age" & Term!="Female") %>%
+  arrange(P)
+
+T21resultsAdjCytokine_All.NfL<-fixedAdjCytokine_All.NfL %>%
+  filter(Term=="T21") %>%
+  rename(Estimate_T21_ADJcytokine = Estimate,
+         SE_T21_ADJcytokine = SE,
+         Statistic_T21_ADJcytokine = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_T21_ADJcytokine = P) %>%
+  arrange(desc(P_T21_ADJcytokine))
+T21resultsAdjCytokine_All.GFAP<-fixedAdjCytokine_All.GFAP %>%
+  filter(Term=="T21") %>%
+  rename(Estimate_T21_ADJcytokine = Estimate,
+         SE_T21_ADJcytokine = SE,
+         Statistic_T21_ADJcytokine = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_T21_ADJcytokine = P) %>%
+  arrange(desc(P_T21_ADJcytokine))
+T21resultsAdjCytokine_All.TAU<-fixedAdjCytokine_All.TAU %>%
+  filter(Term=="T21") %>%
+  rename(Estimate_T21_ADJcytokine = Estimate,
+         SE_T21_ADJcytokine = SE,
+         Statistic_T21_ADJcytokine = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_T21_ADJcytokine = P) %>%
+  arrange(desc(P_T21_ADJcytokine))
+T21resultsAdjCytokine_All.UCHL1<-fixedAdjCytokine_All.UCHL1 %>%
+  filter(Term=="T21") %>%
+  rename(Estimate_T21_ADJcytokine = Estimate,
+         SE_T21_ADJcytokine = SE,
+         Statistic_T21_ADJcytokine = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_T21_ADJcytokine = P) %>%
+  arrange(desc(P_T21_ADJcytokine))
+
+T21resultsAdjCytokine_All.NfL %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+T21resultsAdjCytokine_All.GFAP %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+T21resultsAdjCytokine_All.TAU %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+T21resultsAdjCytokine_All.UCHL1 %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+
+
+cytokineResultsAdjT21_All.NfL<-fixedAdjCytokine_All.NfL %>%
+  filter(Term!="T21" & Term!="Age" & Term!="Female") %>%
+  rename(Estimate_Cytokine_AdjT21 = Estimate,
+         SE_Cytokine_AdjT21 = SE,
+         Statistic_Cytokine_AdjT21 = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_Cytokine_AdjT21 = P) %>%
+  arrange(desc(P_Cytokine_AdjT21))
+
+cytokineResultsAdjT21_All.GFAP<-fixedAdjCytokine_All.GFAP %>%
+  filter(Term!="T21" & Term!="Age" & Term!="Female") %>%
+  rename(Estimate_Cytokine_AdjT21 = Estimate,
+         SE_Cytokine_AdjT21 = SE,
+         Statistic_Cytokine_AdjT21 = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_Cytokine_AdjT21 = P) %>%
+  arrange(desc(P_Cytokine_AdjT21))
+
+cytokineResultsAdjT21_All.TAU<-fixedAdjCytokine_All.TAU %>%
+  filter(Term!="T21" & Term!="Age" & Term!="Female") %>%
+  rename(Estimate_Cytokine_AdjT21 = Estimate,
+         SE_Cytokine_AdjT21 = SE,
+         Statistic_Cytokine_AdjT21 = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_Cytokine_AdjT21 = P) %>%
+  arrange(desc(P_Cytokine_AdjT21))
+
+cytokineResultsAdjT21_All.UCHL1<-fixedAdjCytokine_All.UCHL1 %>%
+  filter(Term!="T21" & Term!="Age" & Term!="Female") %>%
+  rename(Estimate_Cytokine_AdjT21 = Estimate,
+         SE_Cytokine_AdjT21 = SE,
+         Statistic_Cytokine_AdjT21 = Statistic,
+         #df_T21_ADJcytokine = df,
+         P_Cytokine_AdjT21 = P) %>%
+  arrange(desc(P_Cytokine_AdjT21))
+```
+
+##### Mediation Analysis | Step 4: Identify mediatiors by evaluating changes in results for T21 after adjustment for cytokines
+##### NfL
+```{R}
+temp.ADbiomarkerOnly<-T21resultsBasic_BASELINE.NfL %>%
+  select(AD_Biomarker, Model, Estimate_T21, P_T21) %>%
+  rename(Model_ADbiomarkerOnly = Model,
+         Estimate_T21_ADbiomarkerOnly = Estimate_T21,
+         P_T21_ADbiomarkerOnly = P_T21) %>%
+  mutate(Sig_ADbiomarkerOnly = ifelse(P_T21_ADbiomarkerOnly<0.05, 1, 0))
+temp.CytokineOnly<-T21results.Cytokine %>%
+  select(Cytokine, Model, Estimate_T21, P_T21, Sig_Cytokine) %>%
+  rename(Model_CytokineOnly = Model,
+         Estimate_T21_CytokineOnly = Estimate_T21,
+         P_T21_CytokineOnly = P_T21,
+         Sig_CytokineOnly = Sig_Cytokine)
+tempT21.ADbiomarkerADJcytokine<-T21resultsAdjCytokine_All.NfL %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+tempCytokine.ADbiomarkerAdjT21<-cytokineResultsAdjT21_All.NfL %>% select(AD_Biomarker, Cytokine, Model, Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21)
+temp.ADbiomarkerADJcytokine<-tempT21.ADbiomarkerADJcytokine %>%
+  full_join(tempCytokine.ADbiomarkerAdjT21, by=c("AD_Biomarker", "Cytokine", "Model")) %>%
+  mutate(Sig_T21adjCytokine = ifelse(P_T21_ADJcytokine<0.05, 1, 0),
+         Sig_CytokineAdjT21 = ifelse(P_Cytokine_AdjT21<0.05, 1, 0)) %>%
+  rename(Mediation_Model = Model) %>%
+  select(AD_Biomarker, Cytokine, Mediation_Model,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21)
+
+temp.CytokineOnly
+temp.ADbiomarkerOnly
+temp.ADbiomarkerADJcytokine
+
+change_T21Results.NfL<-temp.ADbiomarkerADJcytokine %>%
+  full_join(temp.ADbiomarkerOnly, by=c("AD_Biomarker")) %>%
+  full_join(temp.CytokineOnly, by=c("Cytokine")) %>%
+  select(AD_Biomarker, Cytokine,
+         Model_CytokineOnly, Estimate_T21_CytokineOnly, P_T21_CytokineOnly, Sig_CytokineOnly,
+         Model_ADbiomarkerOnly, Estimate_T21_ADbiomarkerOnly, P_T21_ADbiomarkerOnly, Sig_ADbiomarkerOnly,
+         Mediation_Model,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine)
+change_T21Results.NfL
+
+change_T21Results.NfL %>%
+  filter(Sig_ADbiomarkerOnly==1 &
+         Sig_CytokineOnly==1) %>%
+  filter(Sig_T21adjCytokine==0 &
+           Sig_CytokineAdjT21==1)
+```
+
+##### GFAP
+```{R}
+temp.ADbiomarkerOnly<-T21resultsBasic_BASELINE.GFAP %>%
+  select(AD_Biomarker, Model, Estimate_T21, P_T21) %>%
+  rename(Model_ADbiomarkerOnly = Model,
+         Estimate_T21_ADbiomarkerOnly = Estimate_T21,
+         P_T21_ADbiomarkerOnly = P_T21) %>%
+  mutate(Sig_ADbiomarkerOnly = ifelse(P_T21_ADbiomarkerOnly<0.05, 1, 0))
+temp.CytokineOnly<-T21results.Cytokine %>%
+  select(Cytokine, Model, Estimate_T21, P_T21, Sig_Cytokine) %>%
+  rename(Model_CytokineOnly = Model,
+         Estimate_T21_CytokineOnly = Estimate_T21,
+         P_T21_CytokineOnly = P_T21,
+         Sig_CytokineOnly = Sig_Cytokine)
+tempT21.ADbiomarkerADJcytokine<-T21resultsAdjCytokine_All.GFAP %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+tempCytokine.ADbiomarkerAdjT21<-cytokineResultsAdjT21_All.GFAP %>% select(AD_Biomarker, Cytokine, Model, Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21)
+temp.ADbiomarkerADJcytokine<-tempT21.ADbiomarkerADJcytokine %>%
+  full_join(tempCytokine.ADbiomarkerAdjT21, by=c("AD_Biomarker", "Cytokine", "Model")) %>%
+  mutate(Sig_T21adjCytokine = ifelse(P_T21_ADJcytokine<0.05, 1, 0),
+         Sig_CytokineAdjT21 = ifelse(P_Cytokine_AdjT21<0.05, 1, 0)) %>%
+  rename(Mediation_Model = Model) %>%
+  select(AD_Biomarker, Cytokine, Mediation_Model,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21)
+
+temp.CytokineOnly
+temp.ADbiomarkerOnly
+temp.ADbiomarkerADJcytokine
+
+### PICK UP HERE (8/12/20 ~6PM): Join together the different model results, then identify mediators:
+change_T21Results.GFAP<-temp.ADbiomarkerADJcytokine %>%
+  full_join(temp.ADbiomarkerOnly, by=c("AD_Biomarker")) %>%
+  full_join(temp.CytokineOnly, by=c("Cytokine")) %>%
+  select(AD_Biomarker, Cytokine,
+         Model_CytokineOnly, Estimate_T21_CytokineOnly, P_T21_CytokineOnly, Sig_CytokineOnly,
+         Model_ADbiomarkerOnly, Estimate_T21_ADbiomarkerOnly, P_T21_ADbiomarkerOnly, Sig_ADbiomarkerOnly,
+         Mediation_Model,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine)
+change_T21Results.GFAP
+
+change_T21Results.GFAP %>%
+  filter(Sig_ADbiomarkerOnly==1 &
+         Sig_CytokineOnly==1) %>%
+  filter(Sig_T21adjCytokine==0 &
+           Sig_CytokineAdjT21==1)
+```
+
+##### TAU
+```{R}
+temp.ADbiomarkerOnly<-T21resultsBasic_BASELINE.TAU %>%
+  select(AD_Biomarker, Model, Estimate_T21, P_T21) %>%
+  rename(Model_ADbiomarkerOnly = Model,
+         Estimate_T21_ADbiomarkerOnly = Estimate_T21,
+         P_T21_ADbiomarkerOnly = P_T21) %>%
+  mutate(Sig_ADbiomarkerOnly = ifelse(P_T21_ADbiomarkerOnly<0.05, 1, 0))
+temp.CytokineOnly<-T21results.Cytokine %>%
+  select(Cytokine, Model, Estimate_T21, P_T21, Sig_Cytokine) %>%
+  rename(Model_CytokineOnly = Model,
+         Estimate_T21_CytokineOnly = Estimate_T21,
+         P_T21_CytokineOnly = P_T21,
+         Sig_CytokineOnly = Sig_Cytokine)
+tempT21.ADbiomarkerADJcytokine<-T21resultsAdjCytokine_All.TAU %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+tempCytokine.ADbiomarkerAdjT21<-cytokineResultsAdjT21_All.TAU %>% select(AD_Biomarker, Cytokine, Model, Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21)
+temp.ADbiomarkerADJcytokine<-tempT21.ADbiomarkerADJcytokine %>%
+  full_join(tempCytokine.ADbiomarkerAdjT21, by=c("AD_Biomarker", "Cytokine", "Model")) %>%
+  mutate(Sig_T21adjCytokine = ifelse(P_T21_ADJcytokine<0.05, 1, 0),
+         Sig_CytokineAdjT21 = ifelse(P_Cytokine_AdjT21<0.05, 1, 0)) %>%
+  rename(Mediation_Model = Model) %>%
+  select(AD_Biomarker, Cytokine, Mediation_Model,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21)
+
+temp.CytokineOnly
+temp.ADbiomarkerOnly
+temp.ADbiomarkerADJcytokine
+
+change_T21Results.TAU<-temp.ADbiomarkerADJcytokine %>%
+  full_join(temp.ADbiomarkerOnly, by=c("AD_Biomarker")) %>%
+  full_join(temp.CytokineOnly, by=c("Cytokine")) %>%
+  select(AD_Biomarker, Cytokine,
+         Model_CytokineOnly, Estimate_T21_CytokineOnly, P_T21_CytokineOnly, Sig_CytokineOnly,
+         Model_ADbiomarkerOnly, Estimate_T21_ADbiomarkerOnly, P_T21_ADbiomarkerOnly, Sig_ADbiomarkerOnly,
+         Mediation_Model,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine)
+change_T21Results.TAU
+
+change_T21Results.TAU %>%
+  filter(Sig_ADbiomarkerOnly==1 &
+         Sig_CytokineOnly==1) %>%
+  filter(Sig_T21adjCytokine==0 &
+           Sig_CytokineAdjT21==1)
+```
+
+##### UCH-L1
+```{R}
+temp.ADbiomarkerOnly<-T21resultsBasic_BASELINE.UCHL1 %>%
+  select(AD_Biomarker, Model, Estimate_T21, P_T21) %>%
+  rename(Model_ADbiomarkerOnly = Model,
+         Estimate_T21_ADbiomarkerOnly = Estimate_T21,
+         P_T21_ADbiomarkerOnly = P_T21) %>%
+  mutate(Sig_ADbiomarkerOnly = ifelse(P_T21_ADbiomarkerOnly<0.05, 1, 0))
+temp.CytokineOnly<-T21results.Cytokine %>%
+  select(Cytokine, Model, Estimate_T21, P_T21, Sig_Cytokine) %>%
+  rename(Model_CytokineOnly = Model,
+         Estimate_T21_CytokineOnly = Estimate_T21,
+         P_T21_CytokineOnly = P_T21,
+         Sig_CytokineOnly = Sig_Cytokine)
+tempT21.ADbiomarkerADJcytokine<-T21resultsAdjCytokine_All.UCHL1 %>% select(AD_Biomarker, Cytokine, Model, Estimate_T21_ADJcytokine, P_T21_ADJcytokine)
+tempCytokine.ADbiomarkerAdjT21<-cytokineResultsAdjT21_All.UCHL1 %>% select(AD_Biomarker, Cytokine, Model, Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21)
+temp.ADbiomarkerADJcytokine<-tempT21.ADbiomarkerADJcytokine %>%
+  full_join(tempCytokine.ADbiomarkerAdjT21, by=c("AD_Biomarker", "Cytokine", "Model")) %>%
+  mutate(Sig_T21adjCytokine = ifelse(P_T21_ADJcytokine<0.05, 1, 0),
+         Sig_CytokineAdjT21 = ifelse(P_Cytokine_AdjT21<0.05, 1, 0)) %>%
+  rename(Mediation_Model = Model) %>%
+  select(AD_Biomarker, Cytokine, Mediation_Model,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21)
+
+temp.CytokineOnly
+temp.ADbiomarkerOnly
+temp.ADbiomarkerADJcytokine
+
+### PICK UP HERE (8/12/20 ~6PM): Join together the different model results, then identify mediators:
+change_T21Results.UCHL1<-temp.ADbiomarkerADJcytokine %>%
+  full_join(temp.ADbiomarkerOnly, by=c("AD_Biomarker")) %>%
+  full_join(temp.CytokineOnly, by=c("Cytokine")) %>%
+  select(AD_Biomarker, Cytokine,
+         Model_CytokineOnly, Estimate_T21_CytokineOnly, P_T21_CytokineOnly, Sig_CytokineOnly,
+         Model_ADbiomarkerOnly, Estimate_T21_ADbiomarkerOnly, P_T21_ADbiomarkerOnly, Sig_ADbiomarkerOnly,
+         Mediation_Model,
+         Estimate_Cytokine_AdjT21, P_Cytokine_AdjT21, Sig_CytokineAdjT21,
+         Estimate_T21_ADJcytokine, P_T21_ADJcytokine, Sig_T21adjCytokine)
+change_T21Results.UCHL1
+
+change_T21Results.UCHL1 %>%
+  filter(Sig_ADbiomarkerOnly==1 &
+         Sig_CytokineOnly==1) %>%
+  filter(Sig_T21adjCytokine==0 &
+           Sig_CytokineAdjT21==1)
+```

@@ -1,0 +1,451 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### ar_p4c_soma_sigt21byage_d21only_clustering
+#### ar_p4c_soma_sigt21byage_t21only_clustering
+```{r}
+setwd(dir.ddata)
+ar_p4c_soma_sigt21byage_d21only_clustering <- fread("t_p4c_soma_lm_singleaptamer_tidy.csv.gz") %>%
+  filter(PadjBH<0.10 & term == "T21:Age") %>%
+  left_join(fread(paste0(dir.ardata, "/ar_p4c_soma_d21only.csv.gz")),
+            by = c("UniProt_Aptamer_Chr_Cluster", "UniProt", "Aptamer", "Cluster"))
+
+setwd(dir.ddata)
+ar_p4c_soma_sigt21byage_t21only_clustering <- fread("t_p4c_soma_lm_singleaptamer_tidy.csv.gz") %>%
+  filter(PadjBH<0.10 & term == "T21:Age") %>%
+  left_join(fread(paste0(dir.ardata, "/ar_p4c_soma_t21only.csv.gz")),
+            by = c("UniProt_Aptamer_Chr_Cluster", "UniProt", "Aptamer", "Cluster"))
+
+setwd(dir.ardata)
+fwrite(ar_p4c_soma_sigt21byage_d21only_clustering, "ar_p4c_soma_sigt21byage_d21only_clustering.csv")
+fwrite(ar_p4c_soma_sigt21byage_t21only_clustering, "ar_p4c_soma_sigt21byage_t21only_clustering.csv")
+```
+
+#### Read ardata for clustering among D21s of protein trajectories with significant T21*Age interaction
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_sigd21byage_d21only_clustering <- fread("ar_p4c_soma_sigt21byage_d21only_clustering.csv")
+#ar_p4c_soma_sigt21byage_t21only_clustering <- fread("ar_p4c_soma_sigt21byage_t21only_clustering.csv")
+
+# ar_p4c_soma_sigd21byage_d21only_clustering
+
+#rm(ar_p4c_soma_sigt21byage_t21only_clustering); gc()
+```
+
+
+```{r}
+ar_p4c_soma_sigd21byage_d21only_clustering.split <- ar_p4c_soma_sigd21byage_d21only_clustering %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_sigd21byage_d21only_clustering.split[[1]]
+```
+
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+tmp.predicted_values.D21 <- list()
+plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ar_p4c_soma_sigd21byage_d21only_clustering.split) ){
+  set.seed(1234)
+  loess_newclusters.D21[[i]] <- loess(Zlog10_relative_abundance ~ Age + Female,
+                          data = ar_p4c_soma_sigd21byage_d21only_clustering.split[[i]])
+  
+  tmp.predicted_values.D21[[i]] <- cbind(ar_p4c_soma_sigd21byage_d21only_clustering.split[[i]]$LabID,
+                                        loess_newclusters.D21[[i]]$fitted,
+                                        ar_p4c_soma_sigd21byage_d21only_clustering.split[[i]]$Zlog10_relative_abundance,
+                                        ar_p4c_soma_sigd21byage_d21only_clustering.split[[i]]$Age,
+                                        as.character(ar_p4c_soma_sigd21byage_d21only_clustering.split[[i]]$Female)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("LabID", "predicted_Zlog10_relative_abundance", "Zlog10_relative_abundance", "Age", "Female")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_Zlog10_relative_abundance = as.numeric(predicted_Zlog10_relative_abundance),
+           Zlog10_relative_abundance = as.numeric(Zlog10_relative_abundance) #,
+           #Sex = factor(Sex, levels = c("Male", "Female"))
+           ) %>%
+    arrange(Age) %>%
+    mutate(UniProt_Aptamer_Chr_Cluster = names(ar_p4c_soma_sigd21byage_d21only_clustering.split)[[i]]) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID, Age,
+                  #Sex,
+                  Female,
+                  predicted_Zlog10_relative_abundance, Zlog10_relative_abundance) %>%
+    separate(UniProt_Aptamer_Chr_Cluster, into = c("UniProt", "Other"), sep = "[|]", extra = "merge", remove = FALSE) %>%
+    separate(Other, into = c("Aptamer", "Other"), sep = " [(]", extra = "merge", remove = TRUE) %>%
+    separate(Other, into = c("Chromosome", "Lehallier2019_ClusterID"), sep = "[,] ", extra = "merge", remove = TRUE) %>%
+    mutate(Lehallier2019_ClusterID = gsub("[)]", "", Lehallier2019_ClusterID),
+           Lehallier2019_ClusterID = trimws(Lehallier2019_ClusterID),
+           Chromosome = trimws(Chromosome),
+           UniProt = trimws(UniProt),
+           Aptamer = trimws(Aptamer)) %>%
+  separate(UniProt_Aptamer_Chr_Cluster, into = c("UniProt", "Other"), sep = "[|]", extra = "merge", remove = FALSE) %>%
+  separate(Other, into = c("Aptamer", "Other"), sep = " [(]", extra = "merge", remove = TRUE) %>%
+  separate(Other, into = c("Chromosome", "Lehallier2019_ClusterID"), sep = "[,] ", extra = "merge", remove = TRUE) %>%
+  mutate(Lehallier2019_ClusterID = gsub("[)]", "", Lehallier2019_ClusterID),
+         Lehallier2019_ClusterID = trimws(Lehallier2019_ClusterID),
+         Chromosome = trimws(Chromosome),
+         UniProt = trimws(UniProt),
+         Aptamer = trimws(Aptamer))
+}
+#rm(loess_newclusters.D21, ar_p4c_soma_d21only.split); gc()
+
+ai_predicted_values_d21only <- tmp.predicted_values.D21 %>%
+  rbindlist() %>%
+#  mutate(Female = case_when(Sex == "Male" ~ 0,
+#                            Sex == "Female" ~ 1,
+#                            .default = NA)) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                Lehallier2019_ClusterID,
+                LabID, Age,
+                #Sex,
+                Female,
+                predicted_Zlog10_relative_abundance,
+                Zlog10_relative_abundance)
+
+# ai_predicted_values_d21only
+```
+
+#### ai_predicted_values_d21only.split
+```{R}
+ai_predicted_values_d21only.split <- ai_predicted_values_d21only %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+
+# length(ai_predicted_values_d21only.split) #[1] 4640
+```
+
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+tmp.loess_prediction.D21.df <- list()
+loess_prediction.D21 <- list()
+#plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ai_predicted_values_d21only.split) ){
+#for ( i in 1:3 ){
+  set.seed(1234)
+
+  #loess_prediction.D21[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+  #                                    data = ar_p4c_soma_d21only_extend_clustering.split[[i]])
+
+  tmp.loess_prediction.D21.df[[i]] <- ai_predicted_values_d21only.split[[i]] %>%
+    mutate(predicted_Zlog10_relative_abundance = (loess(Zlog10_relative_abundance ~ Age + Female, # IMPORTANT: ADJUST FOR SEX FOR BETTER CLLUSTERING?
+                                                        data = ai_predicted_values_d21only.split[[i]]))$fitted)
+  # plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+  #   ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+  #   geom_point(color = RedBlue[[1]], alpha = 0.5) +
+  #   geom_line(color = RedBlue[[1]]) +
+  #   ggtitle(names(predicted_newclusters.D21)[[i]])
+  
+  #names(loess_prediction.D21)[[i]] <- names(ar_p4c_soma_d21only_extend_clustering.split)[[i]]
+  names(tmp.loess_prediction.D21.df)[[i]] <- names(ai_predicted_values_d21only.split)[[i]]
+  #names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+}
+#predicted_newclusters.D21 %>% head()
+#plot_predicted_newclusters.D21 %>% head()
+
+loess_prediction.D21.df <- tmp.loess_prediction.D21.df %>%
+  rbindlist();
+#rm(tmp.loess_prediction.D21.df); gc();
+
+# loess_prediction.D21 %>% lapply(class) %>% unique()
+
+loess_prediction.D21.matrix <- tmp.loess_prediction.D21.df %>%
+  rbindlist() %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID, predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+#predicted.D21.matrix %>% as.data.frame()
+
+# Dissimilarity matrix:
+set.seed(1234)
+d_newclusters.D21s <- dist(loess_prediction.D21.matrix,
+                           method = "euclidean");
+# Hierarchical clustering using Complete Linkage:
+set.seed(1234)
+hc1_newclusters.D21s <- hclust(d_newclusters.D21s,
+                               method = "complete");
+```
+
+```{r}
+# # Cut tree into 6 groups
+# for ( i in 1:16 ) {
+#   #k.now <- i;
+#   sub_grp6_newclusters.D21s <- cutree(hc1_newclusters.D21s, k = i)
+#   
+#   setwd(dir.output)
+#   pdf(paste0("gg_p4c_soma_sigt21byage_hctree_k", i, ".pdf"))
+#   plot(hc1_newclusters.D21s, cex = 0.1);
+#   rect.hclust(hc1_newclusters.D21s, k = i, border = 1:i);
+#   dev.off();
+# }
+# 
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 4, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 8, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 9, border = 1:9);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 10, border = 1:10);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 11, border = 1:11);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 12, border = 1:12);
+
+k_hc1_newclusters.D21s <- 8
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s, border = 1:k_hc1_newclusters.D21s);
+```
+
+#### ar_sigt21byage_d21clustered
+```{r}
+k_hc1_newclusters.D21s <- 8
+
+ar_sigt21byage_d21clustered <- cutree(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s) %>%
+    as.data.frame() %>%
+    `colnames<-`("T21-by-Age Cluster") %>%
+    rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(k = 8) %>%
+    ungroup() %>%
+  left_join( fread(paste0(dir.ardata, "/ar_p4c_soma.csv.gz")), by = "UniProt_Aptamer_Chr_Cluster" )
+
+head(ar_sigt21byage_d21clustered)
+
+# ar_sigt21byage_d21clustered
+```
+
+#### f_cca_barplot_n
+#### gg_cca_barplot_n
+```{r}
+f_cca_barplot_n <- ar_sigt21byage_d21clustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                `T21-by-Age Cluster`,
+                Lehallier2019_ClusterID) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  mutate(Lehallier2019_Cluster = case_when(is.na(Lehallier2019_ClusterID)~"None",
+                                           .default = as.character(Lehallier2019_ClusterID))) %>%
+  dplyr::select(-c(Lehallier2019_ClusterID)) %>%
+  group_by(`T21-by-Age Cluster`, Lehallier2019_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  group_by(`T21-by-Age Cluster`) %>%
+  mutate(N_Total = sum(N_Aptamers)) %>%
+  ungroup() %>%
+  mutate(Proportion = N_Aptamers/N_Total) %>%
+  dplyr::rename(`Proteomic Clock Cluster` = Lehallier2019_Cluster);
+
+setwd(dir.ddata)
+fwrite(f_cca_barplot_n, "f_cca_barplot_n.csv")
+
+gg_cca_barplot_n <- f_cca_barplot_n %>%
+  ggplot(aes(x = `T21-by-Age Cluster`, y = N_Aptamers,
+             color = `Proteomic Clock Cluster`,
+             fill = `Proteomic Clock Cluster`,
+             width = 0.6)) + 
+  geom_bar(position = "dodge", stat = "identity") +
+  ylab("Aptamers (N)") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "right",
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = "*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters*") +
+  # set colors
+  scale_colour_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]));
+
+save_as <- "f_cca_barplot_n"
+setwd(dir.output)
+ggsave(gg_cca_barplot_n,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in");
+
+f_cca_barplot_n
+gg_cca_barplot_n
+```
+
+#### f_cca_barplot_proportion
+```{r}
+f_cca_barplot_proportion <- ar_sigt21byage_d21clustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                `T21-by-Age Cluster`,
+                Lehallier2019_ClusterID) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  mutate(Lehallier2019_Cluster = case_when(is.na(Lehallier2019_ClusterID)~"None",
+                                           .default = as.character(Lehallier2019_ClusterID))) %>%
+  dplyr::select(-c(Lehallier2019_ClusterID)) %>%
+  group_by(`T21-by-Age Cluster`, Lehallier2019_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  group_by(`T21-by-Age Cluster`) %>%
+  mutate(N_Total = sum(N_Aptamers),
+         Proportion = N_Aptamers/N_Total,
+         checksum = sum(Proportion)) %>%
+  ungroup() %>%
+  mutate(Proportion = N_Aptamers/N_Total) %>%
+  dplyr::rename(`Proteomic Clock Cluster` = Lehallier2019_Cluster) %>%
+  dplyr::select(-c(checksum));
+
+setwd(dir.ddata)
+fwrite(f_cca_barplot_proportion, "f_cca_barplot_proportion.csv");
+
+gg_cca_barplot_proportion <- f_cca_barplot_proportion %>%
+  ggplot(aes(x = `T21-by-Age Cluster`, y = Proportion,
+             color = `Proteomic Clock Cluster`,
+             fill = `Proteomic Clock Cluster`)) + 
+  geom_bar(position = "stack", stat = "identity") +
+  ylab("Aptamers (Proportion)") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "right",
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = "*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters*") +
+  # set colors
+  scale_colour_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]])) 
+
+save_as <- "f_cca_barplot_proportion"
+setwd(dir.output)
+ggsave(gg_cca_barplot_proportion,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in");
+
+f_cca_barplot_proportion
+gg_cca_barplot_proportion
+```
+
+```{r}
+# `T21-by-Age Cluster`
+
+n_aptamers <- "_" # stand-in
+set.seed(1234)
+gg_sigt21byage_d21clustered_bykaryotype <- ar_sigt21byage_d21clustered %>%
+  mutate(Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+         `T21-by-Age Cluster` = paste0("T21-by-Age Cluster ", `T21-by-Age Cluster`, "\n(N=", n_aptamers, " with FDR<0.10)")) %>%
+  arrange(Karyotype) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = RedBlue) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~`T21-by-Age Cluster`, ncol = 4)
+
+save_as <- "gg_sigt21byage_d21clustered_bykaryotype"
+setwd(dir.output)
+ggsave(gg_sigt21byage_d21clustered_bykaryotype,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in")
+```
+
+
+```{r}
+ar_sigt21byage_d21clustered %>% select(contains("Karyotype")) %>% colnames()
+ar_sigt21byage_d21clustered %>% select(Karyotype_Sex) %>% head()
+ar_sigt21byage_d21clustered$Karyotype_Sex %>% unique()
+#[1] "T21 XX" "T21 XY" "D21 XY" "D21 XX"
+
+gg_sigt21byage_d21clustered_bykaryotypesex <- ar_sigt21byage_d21clustered %>%
+  mutate(Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+         `T21-by-Age Cluster` = paste0("T21-by-Age Cluster ", `T21-by-Age Cluster`, "\n(N=", n_aptamers, " with FDR<0.10)"),
+         Karyotype_Sex = factor(Karyotype_Sex, c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+  arrange(Karyotype) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~`T21-by-Age Cluster`, ncol = 4)
+
+save_as <- "gg_sigt21byage_d21clustered_bykaryotypesex"
+setwd(dir.output)
+ggsave(gg_sigt21byage_d21clustered_bykaryotypesex,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in")
+```
+

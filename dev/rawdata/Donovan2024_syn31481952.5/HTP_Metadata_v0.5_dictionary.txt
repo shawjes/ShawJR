@@ -1,0 +1,15 @@
+Variable	Example	Description
+ParticipantID	HTP0274	Human Trisome Project participant identifier
+LabID	HTP0274A	Human Trisome Project sample/biospecimen identifier
+Karyotype	T21	Trisomy 21 status; trisomy 21/Down syndrome = T21, euploid/non-Down syndrome = Control
+Sex	Female	Biological sex
+Age	17.5	Age at blood draw in years
+Weight_kg	45.3	Weight at blood draw in kilograms
+Height_cm	157	Height at blood draw in centimetres
+Sample_source_code	6	Anonymous collection site identifier
+Event_name	Visit 1	Longitudinal visit/blood draw identifier
+Race	White	Self-reported race
+Ethnicity	Not Hispanic or Latino	Self-reported ethnicity
+Data_contact	email address	Contact for queries about data set
+Date_exported	06012022	Date of data set preparation/export
+Script	HTP_data_Synapse_v0.1.R	Data preparation script

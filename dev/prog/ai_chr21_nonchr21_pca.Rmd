@@ -1,0 +1,650 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/ShawJR/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1) %>%
+  #filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path))) %>%
+  filter(ddata_name == gsub(".Rmd", "", "t_p4c_soma_lm_singleaptamer"))
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  filter(Aptamer_in_P4C == 1)
+
+ar_p4c_soma %>% head()
+```
+
+```{r}
+ar_chr21_pca <- ar_p4c_soma %>%
+  filter(`Chromosome(s)` == "21" |
+           grepl("21", `Chromosome(s)`)==TRUE) %>%
+  dplyr::select(LabID,
+                # T21, Age, Female,
+                # Aptamer,
+                UniProt_Aptamer_Chr_Cluster, #`Chromosome(s)`, 
+                Zlog10_relative_abundance) %>%
+  unique() %>%
+  na.omit() %>%
+  spread(key = UniProt_Aptamer_Chr_Cluster,
+         value = Zlog10_relative_abundance) %>%
+  column_to_rownames("LabID");
+na.omit(ar_chr21_pca) %>% dim()
+ar_chr21_pca %>% dim()
+
+ar_nonchr21_pca <- ar_p4c_soma %>%
+  filter(`Chromosome(s)` == "21" |
+           grepl("21", `Chromosome(s)`)==FALSE) %>%
+  dplyr::select(LabID,
+                # T21, Age, Female,
+                # Aptamer,
+                UniProt_Aptamer_Chr_Cluster, #`Chromosome(s)`, 
+                Zlog10_relative_abundance) %>%
+  unique() %>%
+  na.omit() %>%
+  spread(key = UniProt_Aptamer_Chr_Cluster, value = Zlog10_relative_abundance) %>%
+  column_to_rownames("LabID");
+#ar_chr21_pca
+
+ar_p4c_soma %>%
+  filter(`Chromosome(s)` == "21" |
+           grepl("21", `Chromosome(s)`)==TRUE) %>%
+  dplyr::select(LabID,
+                # T21, Age, Female,
+                # Aptamer,
+                UniProt_Aptamer_Chr_Cluster, #`Chromosome(s)`, 
+                Zlog10_relative_abundance) %>%
+  unique() %>%
+  filter(is.na(LabID) |
+           is.na(UniProt_Aptamer_Chr_Cluster) |
+           is.na(Zlog10_relative_abundance))
+
+ar_chr21_pca %>%
+  gather(key = "key", value = "value") %>%
+  filter(is.na(key) | is.na(value))
+```
+
+```{r}
+# Run PCA
+set.seed(1234)
+prcomp_chr21 <- prcomp(na.omit(ar_chr21_pca),
+                       center = TRUE, scale. = TRUE)
+
+keepncol_prcomp_chr21 <- as.numeric(gsub("PC", "", 
+                (summary(prcomp_chr21)$importance %>%
+  as.data.frame() %>%
+  rownames_to_column("metric") %>%
+  gather(key = "key", value = "value", contains("PC")) %>%
+  filter(metric == "Cumulative Proportion") %>%
+  filter(value >= 0.90) %>%
+  arrange(value) %>%
+  head(n = 1))$key));
+
+ai_chr21_pcs <- (prcomp_chr21$x[,1:keepncol_prcomp_chr21] %>%
+  as.data.frame() %>%
+  rownames_to_column("LabID")) %>%
+  `rownames<-`(NULL) %>%
+  `colnames<-`(gsub("PC", "chr21PC", colnames(.)))
+
+head(ai_chr21_pcs)
+```
+
+```{r}
+set.seed(1234)
+prcomp_nonchr21 <- prcomp(na.omit(ar_nonchr21_pca),
+                          center = TRUE, scale. = TRUE)
+
+# Keep nonchr21 PCs 1-101 -> 90%
+keepncol_prcomp_nonchr21 <- as.numeric(gsub("PC", "", 
+                (summary(prcomp_nonchr21)$importance %>%
+  as.data.frame() %>%
+  rownames_to_column("metric") %>%
+  gather(key = "key", value = "value", contains("PC")) %>%
+  filter(metric == "Cumulative Proportion") %>%
+  filter(value >= 0.90) %>%
+  arrange(value) %>%
+  head(n = 1))$key));
+
+ai_nonchr21_pcs <- (prcomp_nonchr21$x[,1:keepncol_prcomp_nonchr21] %>%
+  as.data.frame() %>%
+  rownames_to_column("LabID")) %>%
+  `rownames<-`(NULL) %>%
+  `colnames<-`(gsub("PC", "nonchr21PC", colnames(.)));
+
+dim(prcomp_chr21$x)
+dim(prcomp_nonchr21$x)
+
+ai_chr21_nonchr21_pca <- ai_chr21_pcs %>%
+  full_join(ai_nonchr21_pcs, by = "LabID");
+
+setwd(dir.aidata)
+fwrite(ai_chr21_nonchr21_pca, "ai_chr21_nonchr21_pca.csv.gz")
+
+ai_chr21_nonchr21_pca
+```
+
+#### ar_daDS_clusters
+```{r}
+setwd(dir.ardata)
+daDS_sigt21byage_clusters <- fread("ar_sigt21byage_d21t21clustered.csv.gz") %>%
+  dplyr::select(Aptamer,
+                #T21byAge_Cluster, N_Cluster_Aptamers,
+                T21byAge_SuperCluster, N_SuperCluster_Aptamers) %>%
+  unique() %>%
+  dplyr::rename(daDS_Cluster = T21byAge_SuperCluster,
+                N_daDS_Aptamers = N_SuperCluster_Aptamers)
+daDS_nonsigt21byage_clusters <- fread("ar_nonsigt21byage_d21t21clustered.csv.gz") %>%
+  dplyr::select(Aptamer, nonsig_T21byAge_Cluster, nonsig_N_Cluster_Aptamers) %>%
+  unique() %>%
+  dplyr::rename(daDS_Cluster = nonsig_T21byAge_Cluster,
+                N_daDS_Aptamers = nonsig_N_Cluster_Aptamers)
+
+ar_daDS_clusters <- rbind(daDS_sigt21byage_clusters,
+                          daDS_nonsigt21byage_clusters)
+setwd(dir.ardata)
+fwrite(ar_daDS_clusters, "ar_daDS_clusters.csv.gz")
+```
+
+#### ardata_chr21trace
+```{r}
+setwd(dir.aidata)
+ai_chr21_nonchr21_pca <- fread("ai_chr21_nonchr21_pca.csv.gz")
+
+setwd(dir.ardata)
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz")
+setwd(dir.ardata)
+ar_daDS_clusters <- fread("ar_daDS_clusters.csv.gz")
+
+ar_daDS_clusters %>%
+  head()
+
+ardata_chr21trace <- ar_p4c_soma %>%
+  full_join(ar_daDS_clusters, by = "Aptamer") %>%
+  full_join(ai_chr21_nonchr21_pca, by = "LabID")
+
+setwd(dir.ardata)
+fwrite(ardata_chr21trace, "ardata_chr21trace.csv.gz")
+```
+
+```{r}
+setwd(dir.ardata)
+ardata_chr21trace <- fread("ardata_chr21trace.csv.gz") %>%
+  filter(!is.na(LabID))
+
+ardata_chr21trace %>% head()
+ardata_chr21trace %>% dim() #[1] 1941126     368 (as it always should be)
+
+ardata_chr21trace %>%
+  dplyr::select(LabID, Karyotype, Sex, Karyotype_Sex) %>%
+  unique() %>%
+  split(., .$Karyotype_Sex)
+```
+
+```{r}
+library(Hmisc)
+
+ardata_chr21trace %>% dim()
+#[1] 1941126     368
+
+corr_chr21pc_nonchr21pc <- rcorr(as.matrix(ardata_chr21trace %>%
+  dplyr::select(LabID,
+                contains("PC")) %>%
+  unique() %>%
+  column_to_rownames(var = "LabID")))
+rm(tmp); gc()
+
+a <- corr_chr21pc_nonchr21pc$r %>%
+  as.data.frame() %>%
+  rownames_to_column("PC_i") %>%
+  gather(key = "PC_j", value = "Corr", contains("chr21"))
+b <- corr_chr21pc_nonchr21pc$P %>%
+  as.data.frame() %>%
+  rownames_to_column("PC_i") %>%
+  gather(key = "PC_j", value = "Pvalue", contains("chr21"))
+summary(b$Pvalue)
+
+a %>% head()
+b %>% head()
+c <- a %>% full_join(b, by = c("PC_i", "PC_j"))
+
+corr_to_test <- c %>%
+  dplyr::filter(grepl("nonchr21", PC_i)==FALSE) %>%
+  arrange(Pvalue) %>%
+  mutate(Padj_BH = p.adjust(Pvalue, method = "BH")) %>%
+  #mutate(Pvalue = round(Pvalue, digits = 4) )%>%
+  arrange(Pvalue) %>%
+  dplyr::filter(Padj_BH<0.05) %>%
+  arrange(desc(abs(Corr))) %>%
+  head(n=10) %>%
+  dplyr::select(PC_i, PC_j)
+
+tmp <- ardata_chr21trace %>%
+  dplyr::select(LabID, T21, Age, Female,
+                starts_with("chr21PC"),
+                starts_with("nonchr21PC")) %>%
+  unique()
+
+corr_to_test %>%
+  `rownames<-`(NULL)
+
+lm(nonchr21PC1/chr21PC2 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC2/chr21PC3 ~ T21*Age + Female, data = tmp) %>% tidy()
+lm(nonchr21PC3/chr21PC6 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC2/chr21PC1 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC6/chr21PC5 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC6/chr21PC1 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC11/chr21PC4 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC5/chr21PC1 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC1/chr21PC1 ~ T21*Age + Female, data = tmp) %>% tidy()		
+lm(nonchr21PC4/chr21PC12 ~ T21*Age + Female, data = tmp) %>% tidy()
+
+tmp %>% colnames()
+
+# vec1 <- paste0("chr21PC", seq(1:36)) %>%
+#   as.data.frame() %>%
+#   `colnames<-`("V1")
+# vec2 <- paste0("nonchr21PC", seq(1:292)) %>%
+#   as.data.frame() %>%
+#   `colnames<-`("V2")
+vec1 <- paste0("chr21PC", seq(1:10)) %>%
+  as.data.frame() %>%
+  `colnames<-`("V1")
+vec2 <- paste0("nonchr21PC", seq(1:10)) %>%
+  as.data.frame() %>%
+  `colnames<-`("V2")
+vec1 %>% head()
+
+#find unique combinations of elements from vector1 and vector2
+model_formulas <- (tidyr::crossing(vec1, vec2) %>%
+  mutate(LHS = paste0(V2, "/", V1)) %>%
+  mutate(RHS = "T21*Age*Female") %>%
+  mutate(model_formula = paste0(LHS, "~", RHS)))$model_formula
+names(model_formulas) <- (tidyr::crossing(vec1, vec2) %>%
+  mutate(LHS = paste0(V2, "/", V1)))$LHS
+names(model_formulas) %>% head()
+
+fit_lm_PCs <- list()
+for ( i in 1:length(model_formulas) ) {
+  fit_lm_PCs[[i]] <- lm(as.formula(model_formulas[[i]]), 
+                        data = tmp) %>%
+    tidy(conf.int=TRUE) %>%
+    mutate(Ratio = names(model_formulas)[[i]])
+}
+
+fit_lm_PCs %>%
+  rbindlist() %>%
+  dplyr::select(Ratio, everything()) %>%
+  filter(term != "(Intercept)") %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+  filter(p.value<0.05)
+# PICK UP HERE (3/1/2025 ~10:30PM)
+
+gg_chr21PC6 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=chr21PC6,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Chr21 PC6")
+
+gg_chr21PC10 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=chr21PC10,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Chr21 PC10")
+
+gg_nonchr21PC4 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC4,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC4")
+
+gg_nonchr21PC1 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC1,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC1")
+
+gg_nonchr21PC5 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC5,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC5")
+
+gg_nonchr21PC10 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC10,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC10")
+
+gg_nonchr21PC7 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC7,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC7")
+
+gg_nonchr21PC9 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC9,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC9")
+
+gg_nonchr21PC6 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC6,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC6")
+
+gg_nonchr21PC3 <- tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC3,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  scale_color_manual(values = RedBlue) +
+  scale_fill_manual(values = RedBlue) +
+  ggtitle("Non-Chr21 PC3")
+
+ls(pattern = "gg_")
+
+gg_trajectory_chr21pca_nonchr21pca <- list(gg_chr21PC10, 
+  gg_chr21PC6,
+  gg_nonchr21PC1,
+  gg_nonchr21PC10,
+  gg_nonchr21PC3,
+  gg_nonchr21PC4,
+  gg_nonchr21PC5,
+ gg_nonchr21PC6,
+ gg_nonchr21PC7,
+ gg_nonchr21PC9)
+
+gg_trajectory_chr21pca_nonchr21pca
+```
+
+```{r}
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y = chr21PC6, 
+             color = nonchr21PC4,
+             fill = nonchr21PC4)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~factor(T21))
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y = chr21PC6, 
+             color = nonchr21PC1,
+             fill = nonchr21PC1)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~factor(T21))
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y = chr21PC6, 
+             color = nonchr21PC5,
+             fill = nonchr21PC5)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~factor(T21))
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y = chr21PC6, 
+             color = nonchr21PC10,
+             fill = nonchr21PC10)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~factor(T21))
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y = chr21PC6, 
+             color = nonchr21PC7,
+             fill = nonchr21PC7)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~factor(T21))
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=chr21PC6,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+  #facet_wrap(~factor(T21))
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC4,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC1,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC5,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC10,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=nonchr21PC7,
+             color = factor(T21),
+             fill = factor(T21))) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+
+
+tmp %>%
+  na.omit() %>%
+  ggplot(aes(x=Age, y=chr21PC10,
+             color = factor(T21),
+             fill = factor(T21))) +
+  #geom_point() +
+  geom_smooth(method = "loess") +
+  theme(aspect.ratio = 1.0) +
+  #scale_colour_manual(values = blues9) +
+  #scale_fill_manual(values = blues9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") #+
+
+
+# Strategy: Run lms to identity any nonchr21 PCs with signifcant T21*Age interaction; then, run models for each significant nonchr21PC as a ratio of each chr21PC, to try to trace the source of differential aging back to the 21st chromosome.
+```
+
+
+```{r}
+#setwd(dir.output)
+#ggsave(gg_trajectory_bykt_sigt21byage_cluster[[i]],
+#       filename = paste0(save_as, ".png"),
+#       width = 5, height = 5, units = "in")
+ardata_chr21trace %>%
+  dplyr::select(LabID, Karyotype, Sex, contains("PC")) %>%
+  unique() %>%
+  filter(!is.na(Karyotype)) %>%
+  na.omit()
+gg1 <-  %>%
+  ggplot(aes(x = chr21PC1, y = chr21PC2, 
+             color = interaction(Karyotype, Sex),
+             fill = interaction(Karyotype, Sex))) +
+  geom_point(size = 0.75) +
+  theme(aspect.ratio = 1.0);
+gg2 <- ardata_chr21trace %>% 
+  dplyr::select(LabID, Karyotype, Sex, contains("PC")) %>%
+  unique() %>%
+  filter(!is.na(Karyotype)) %>%
+  na.omit() %>%
+  ggplot(aes(x = chr21PC1, y = nonchr21PC1,
+             color = interaction(Karyotype, Sex),
+             fill = interaction(Karyotype, Sex))) +
+  geom_point(size = 0.75) +
+  theme(aspect.ratio = 1.0);
+gg3 <- ardata_chr21trace %>%
+  dplyr::select(LabID, Karyotype, Sex, contains("PC")) %>%
+  unique() %>%
+  na.omit() %>%
+  filter(!is.na(Karyotype)) %>%
+  ggplot(aes(x = nonchr21PC1, y = nonchr21PC2, 
+             color = interaction(Karyotype, Sex))) +
+  geom_point(size = 0.75) +
+  theme(aspect.ratio = 1.0);
+
+setwd(dir.output)
+ggsave(gg1,
+       filename = "f_chr21pc1__vs_chr21pc2.png",
+       width = 5, height = 5, units = "in")
+
+setwd(dir.output)
+ggsave(gg2,
+       filename = "f_chr21pc1__vs_nonchr21pc1.png",
+       width = 5, height = 5, units = "in")
+
+setwd(dir.output)
+ggsave(gg3,
+       filename = "f_nonchr21pc1__vs_nonchr21pc2.png",
+       width = 5, height = 5, units = "in")
+```
+
+
+

@@ -1,0 +1,612 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Abstract
+
+In this script we read in an RDS object containing all idat data from the HTP MEGA data, extract the chromosome 21 GRS SNP, manually identify 4 genotype clusters, and validate the manually assigned genotypes for n=3 D21s that were genotyped on MEGA.
+
+Further validation should be done by applying this manual genotyping approach to a few more chromosome 21 SNPs, as well as the non-chromosome 21 SNPs in the GRS. The non-HLA-DQ SNPs in the GRS are good candidate SNPs to use for validation since we already know that they are all common variants in the typical population.
+
+#### Load frequently used packages
+```{r}
+library(skimr)
+library(openxlsx)
+library(ggrepel)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+#library(lme4)
+#library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(tidyverse)
+library(caret)
+#library(glmnet)
+library(ggplot2)
+library(gridExtra)
+library(MASS) # rlm
+library(lmPerm)
+library(circlize)
+library(RColorBrewer)
+library(ComplexHeatmap)
+
+select <- dplyr::select
+filter <- dplyr::filter
+`%notin%` <- Negate(`%in%`)
+
+library(illuminaio)
+library(IlluminaDataTestFiles)
+#install.packages("scales")
+library(scales)
+```
+
+#### Define the directories used in this script
+```{r}
+# Find and replace: /Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/
+dir.IlluminaProductFiles <- "/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/Illumina_ProductFiles"
+dir.chr21_genotyping <- "/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping"
+dir.chr21_idatQuants <- "/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/idatQuants"
+dir.GRSdata <- "/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript_Figure1/Data"
+dir.GRSplots <- "/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript_Figure1/Plots"
+```
+
+#### Print session info for reproducibility
+```{r}
+save.sessionInfo <- sessionInfo()
+
+setwd(dir.GRSdata)
+saveRDS(save.sessionInfo, "MEGA_041822_sessionInfo_chr21_rs1893592_manual_genotyping_v0.1_JRS.rds")
+```
+
+#### Copy the RDS of all HTP MEGA idat data to the GRS data directory
+```{bash}
+cd '/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/idatQuants'
+cp -a MEGA_041422_idat_Quants_all_v0.1_JRS.rds /Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript_Figure1/Data
+```
+
+#### Read in the prepared R data object of MEGA idat data
+Note: This RDS file of idatData was prepared in script 'MEGA_041422_chr21_genotyping_v0.1_JRS.Rmd'
+```{r}
+setwd(dir.GRSdata)
+HTP.idatData <- readRDS(file = "MEGA_041422_idat_Quants_all_v0.1_JRS.rds")
+
+HTP.idatData[[1]] %>% names()
+
+HTP.idatData[[1]]
+```
+
+#### Copy Illumina product files to the GRS analysis data directory
+```{bash}
+# cp -a /source/. /dest/
+  
+cp -a '/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/Illumina_ProductFiles' '/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript_Figure1/Data/'
+
+cp -a '/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/031422_Proton_to_Local/GenomeStudio/Espinosa_MEGA2_08122019_Final.csv' '/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript_Figure1/Data/'
+```
+
+#### Read in the Illumina product file manifest for MEGA
+```{r}
+setwd(paste(dir.GRSdata, "/Illumina_ProductFiles", sep = ""))
+productFile.manifest <- fread("Multi-EthnicGlobal_D1.csv", skip = 7)
+
+productFile.manifest
+
+productFile.manifest %>% filter(!is.na(AddressB_ID))
+```
+
+#### Read in the strand report
+```{r}
+setwd(paste(dir.GRSdata, "/Illumina_ProductFiles", sep = ""))
+productFile.strandReport <- fread("Multi-EthnicGlobal_D1_StrandReport_FDT.txt")
+productFile.rsIDs <- fread("Multi-EthnicGlobal_D1_b150_rsids.txt")
+#productFile.PopulationReport <- fread("Population Reports (MAF, Copy Numbers).
+
+productFile.strandReport
+productFile.rsIDs
+```
+
+#### For rs1893592 (A/C), determine which alleles are represented by the Illumina TOP 'Allele A' and 'Allele B'
+```{r}
+productFile.strandReport.rs1893592 <- productFile.strandReport %>%
+  filter(grepl("rs1893592", SNP_Name)==TRUE) %>%
+  select(-c(Forward_Seq, Design_Seq, Top_Seq)) %>%
+  select(SNP_Name, Ilmn_ID, Top_AlleleA, Top_AlleleB, Forward_Allele1, Forward_Allele2, everything())
+
+productFile.strandReport.rs1893592
+
+print("rs1893592: TOP Allele A: A, TOP Allele B: C")
+print("rs1893592: FWD Allele 1: A, FWD Allele 2: C")
+```
+
+
+#### Read MEGA sample manifest
+```{r}
+setwd(dir.GRSdata)
+HTP.MEGA.manifest <- fread("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/031422_Proton_to_Local/GenomeStudio/Espinosa_MEGA2_08122019_Final.csv",
+                       skip = 8)
+
+HTP.MEGA.manifest
+```
+
+#### Figure out the idat identifier for the GRS SNP on chromosome 21
+```{r}
+productFile.manifest %>% filter(Name == "rs1893592")
+
+# Possible identifiers to match with idat files:
+# 29800833
+# 2264336221
+```
+
+#### Use the illuminaio package to read in the idat files and save them to an R data object
+```{r}
+# HTP.idat <- list()
+# HTP.idatData <- list()
+HTP.idatData.29800833.rs1893592 <- list()
+for ( i in 1:length(HTP.idatData) ){
+  # idat_id <- idat_paths$partial_path[[i]]
+  # 
+  # setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/031422_Proton_to_Local/idats")
+  # HTP.idat[[i]] <- try(readIDAT(idat_id))
+  # 
+  # HTP.idatData[[i]] <- HTP.idat[[i]]$Quants %>%
+  #   as.data.frame()%>%
+  #   mutate(Barcode = HTP.idat[[i]]$Barcode) %>%
+  #   rownames_to_column("Quants_rowname") %>%
+  #   mutate(idatID = idat_id) %>%
+  #   select(idatID, Barcode, everything())
+  
+  HTP.idatData.29800833.rs1893592[[i]] <- HTP.idatData[[i]] %>%
+    filter(Quants_rowname == "29800833") %>%
+    mutate(Name = "rs1893592")
+}
+
+HTP.idatData.29800833.rs1893592.ALL <- HTP.idatData.29800833.rs1893592 %>% rbindlist()
+
+HTP.idatData.29800833.rs1893592.ALL
+```
+
+#### Save the idat data for rs1893592
+```{r}
+setwd(dir.chr21_idatQuants)
+saveRDS(HTP.idatData.29800833.rs1893592, file = "MEGA_041822_idat_Quants_AddressA29800833_rs1893592_v0.1_JRS.rds")
+
+setwd(dir.chr21_idatQuants)
+fwrite(HTP.idatData.29800833.rs1893592.ALL, "MEGA_041822_idat_Quants_AddressA29800833_rs1893592_ALL_v0.1_JRS.csv.gz")
+
+setwd(dir.GRSdata)
+saveRDS(HTP.idatData.29800833.rs1893592, file = "MEGA_041822_idat_Quants_AddressA29800833_rs1893592_v0.1_JRS.rds")
+
+setwd(dir.GRSdata)
+fwrite(HTP.idatData.29800833.rs1893592.ALL, "MEGA_041822_idat_Quants_AddressA29800833_rs1893592_ALL_v0.1_JRS.csv.gz")
+```
+
+#### Read in the prepared rs1893592 idat data for further manipulation
+```{r}
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/idatQuants")
+#HTP.idatData.29800833.rs1893592 <- readRDS(file = "MEGA_041422_idat_Quants_AddressA29800833_rs1893592_v0.1_JRS.rds")
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/idatQuants")
+HTP.idatData.29800833.rs1893592.ALL <- fread("MEGA_041422_idat_Quants_AddressA29800833_rs1893592_ALL_v0.1_JRS.csv.gz")
+
+HTP.idatData.29800833.rs1893592.ALL
+```
+
+#### Clean the idat quant data to have a column for sample barcode, a column for mean red intensity, and a column for mean green intensity
+```{r}
+temp <- HTP.idatData.29800833.rs1893592.ALL %>%
+  rename(partial_path = idatID) %>%
+  separate(partial_path, into = c("a", "b", "c"), sep = "/", extra = "merge", remove = FALSE) %>%
+  select(-c(a)) %>%
+  rename(Barcode_from_pathname.1 = b,
+         idat_basename = c) %>%
+  separate(idat_basename, into = c("Barcode_from_pathname.2", "SentrixPosition_A", "Color"), sep = "_") %>%
+  mutate(Barcode = as.character(Barcode),
+         Color = gsub(".idat", "", Color)) %>%
+  arrange(Barcode, SentrixPosition_A, Color) %>%
+  select(partial_path, Barcode, Barcode_from_pathname.1, Barcode_from_pathname.2, SentrixPosition_A, Color, everything())
+
+identical(temp$Barcode, temp$Barcode_from_pathname.1)
+identical(temp$Barcode, temp$Barcode_from_pathname.2)
+# [1] TRUE
+# [1] TRUE
+
+HTP.idatData.29800833.rs1893592.ALL01 <- temp %>%
+  select(-c(Barcode_from_pathname.1, Barcode_from_pathname.2))
+
+a <- HTP.idatData.29800833.rs1893592.ALL01 %>%
+  select(#partial_path,
+         Barcode, SentrixPosition_A, Quants_rowname, Name, Color, Mean) %>%
+  spread(key = Color, value = Mean) %>%
+  rename(Mean_Intensity.Red = Red,
+         Mean_Intensity.Grn = Grn)
+
+b <- HTP.idatData.29800833.rs1893592.ALL01 %>%
+  select(#partial_path,
+         Barcode, SentrixPosition_A, Quants_rowname, Name, Color, SD) %>%
+  spread(key = Color, value = SD) %>%
+  rename(SD_Intensity.Red = Red,
+         SD_Intensity.Grn = Grn)
+
+c <- HTP.idatData.29800833.rs1893592.ALL01 %>%
+  select(#partial_path,
+         Barcode, SentrixPosition_A, Quants_rowname, Name, Color, NBeads) %>%
+  spread(key = Color, value = NBeads) %>%
+  rename(NBeads_Intensity.Red = Red,
+         NBeads_Intensity.Grn = Grn)
+
+HTP.idatData.29800833.rs1893592.ALL02 <- a %>%
+  full_join(b, by = c("Barcode", "SentrixPosition_A", "Quants_rowname", "Name")) %>%
+  full_join(c, by = c("Barcode", "SentrixPosition_A", "Quants_rowname", "Name"))
+
+HTP.idatData.29800833.rs1893592.ALL02
+```
+
+
+Staaf, Johan, et al. “Normalization of Illumina Infinium Whole-Genome SNP Data Improves Copy Number Estimates and Allelic Intensity Ratios.” BMC Bioinformatics, vol. 9, Oct. 2008, p. 409. PubMed Central, https://doi.org/10.1186/1471-2105-9-409.
+Cy5 Dye - US. //www.thermofisher.com/us/en/home/life-science/cell-analysis/fluorophores/cy5-dye.html. Accessed 15 Apr. 2022.
+What Color Is Cy3? | AAT Bioquest. https://www.aatbio.com/resources/faq-frequently-asked-questions/What-color-is-Cy3. Accessed 15 Apr. 2022.
+
+#### Calculate R and theta from the columns for red and green intensity
+```{r}
+# A alleles = Alleles measured by the X channel (Cy5 dye (Red))
+# B alleles = Alleles measured by the Y channel (Cy3 dye (Green))
+# Red = X = A allele
+# Grn = Y = B allele
+# Combined SNP intensity = R = X + Y = Red + Green
+# Allelic intensity ratio = theta = θ = 2/π*arctan(Y/X) = 2/ π *arctan(Green/Red)
+
+HTP.idatData.29800833.rs1893592.ALL03 <- HTP.idatData.29800833.rs1893592.ALL02 %>%
+  mutate(`R (Combined SNP intensity)` = Mean_Intensity.Red + Mean_Intensity.Grn,
+         # The arc-tangent of two arguments atan2(y, x) returns the angle between the x-axis and the vector from the origin to (x, y), i.e., for positive arguments atan2(y, x) == atan(y/x).
+         `theta (Allelic intensity ratio)` = (2/pi)*atan(Mean_Intensity.Grn/Mean_Intensity.Red)) %>%
+  rename(SentrixBarcode_A = Barcode,
+         SNP = Name) %>%
+  full_join(HTP.MEGA.manifest %>% mutate(SentrixBarcode_A = as.character(SentrixBarcode_A)),
+            by = c("SentrixBarcode_A", "SentrixPosition_A")) %>%
+  rename(MEGA.IID = Sample_ID,
+         MEGA.LabID = Sample_Name) %>%
+  select(MEGA.IID, MEGA.LabID, SentrixBarcode_A, SentrixPosition_A, Quants_rowname, SNP,
+         `R (Combined SNP intensity)`,
+         `theta (Allelic intensity ratio)`,
+         everything()) %>%
+  mutate(Karyotype = ifelse(grepl("B", MEGA.LabID)==TRUE, "D21",
+                            ifelse(grepl("A", MEGA.LabID)==TRUE, "T21", NA)))
+
+HTP.idatData.29800833.rs1893592.ALL03
+```
+
+#### Setting and modifying theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 11), #size = 14
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+RedBlue <- c("#CD3333", "#1874CD")
+GrayBlue <- c("grey", "#2b8cbe")
+```
+
+#### Read in the GRS annotation and note the GRS risk allele
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript/Data")
+anno.GRSrevised <- read.xlsx("CD_GRS42_1000G_nopalin_pos_hg19.xlsx")
+
+anno.GRSrevised %>%
+  filter(grepl("21:", POSITION_DBSNP151)==TRUE) %>%
+  separate(POSITION_DBSNP151, into = c("CHR", "BP"), sep = ":", extra = "merge", remove = FALSE) %>%
+  mutate(plotName = paste(RSID, " (", A1, "/", A2, ") [chr", POSITION_DBSNP151, "]", sep = ""))
+
+plotName.rs1893592 <- (anno.GRSrevised %>%
+  filter(grepl("21:", POSITION_DBSNP151)==TRUE) %>%
+  separate(POSITION_DBSNP151, into = c("CHR", "BP"), sep = ":", extra = "merge", remove = FALSE) %>%
+  mutate(plotName = paste(RSID, " (", A1, "/", A2, ") [chr", POSITION_DBSNP151, "]", sep = "")))$plotName[1]
+
+plotName.rs1893592
+```
+
+#### Plot theta versus R and identify thresholds of theta that discriminate genotype clusters
+```{r}
+# https://dnatech.genomecenter.ucdavis.edu/wp-content/uploads/2013/05/technote_infinium_genotyping_data_analysis.pdf
+# x axis = theta
+# y axis = R
+
+HTP.idatData.29800833.rs1893592.ALL03 %>%
+  rename(`R\n(Combined SNP intensity)` = `R (Combined SNP intensity)`,
+         `theta\n(Allelic intensity ratio)` = `theta (Allelic intensity ratio)`) %>%
+  ggplot(aes(x = `theta\n(Allelic intensity ratio)`,
+             y = `R\n(Combined SNP intensity)`,
+             color = Karyotype, fill = Karyotype)) +
+  geom_point() +
+  #ggtitle(paste("UBASH3A ", plotName.rs1893592, sep = "")) +
+  labs(title = "UBASH3A rs1893592 (A/C)",
+       subtitle = "chr21:43855067") +
+  scale_colour_manual(values = c("gray20", GrayBlue[[2]])) +
+  scale_fill_manual(values = c("gray20", GrayBlue[[2]])) +
+  theme(legend.position = "bottom") +
+  geom_vline(xintercept = 0.09, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 0.25, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 0.5, linetype = "dashed", color = "black") +
+  ylim(0, 32000) +
+  theme(legend.title = element_blank(),
+        aspect.ratio = 1.0)
+
+filename <- "MEGA_041822_Theta_vs_R_ManualGenotypeClusters_idatrowname29800833_rs1893592_v0.1_JRS"
+
+setwd(dir.GRSplots)
+ggsave(filename = paste(filename, ".png", sep = ""), width = 5, height = 5, units = "in")
+setwd(dir.GRSplots)
+ggsave(filename = paste(filename, ".pdf", sep = ""), device = cairo_pdf, width = 5, height = 5, units = "in")
+
+setwd(dir.GRSplots)
+ggsave(filename = paste(filename, ".png", sep = ""), width = 5, height = 5, units = "in")
+setwd(dir.GRSplots)
+ggsave(filename = paste(filename, ".pdf", sep = ""), device = cairo_pdf, width = 5, height = 5, units = "in")
+```
+
+#### Based on the thresholds of theta identified visually above, define the genotype of each participant
+```{r}
+# Above we determined that the "A" allele for this SNP is A, and the "B" allele is C.
+# rs1893592: Allele A = A (FWD), Allele B = C (FWD)
+
+HTP.idatData.29800833.rs1893592.ALL04 <- HTP.idatData.29800833.rs1893592.ALL03 %>%
+  mutate(Genotype = ifelse(Karyotype == "D21" & `theta (Allelic intensity ratio)`<0.09, "AA",
+                           ifelse(Karyotype == "D21" & `theta (Allelic intensity ratio)`>0.09, "AC", # We will validate this below (not all genotype clusters were observed for the D21s genotyped on MEGA, so we can't be positive).
+                                  ifelse(Karyotype == "T21" & `theta (Allelic intensity ratio)`<0.09, "AAA",
+                                         ifelse(Karyotype == "T21" & `theta (Allelic intensity ratio)`>0.09 & `theta (Allelic intensity ratio)`<0.25, "AAC",
+                                                ifelse(Karyotype == "T21" & `theta (Allelic intensity ratio)`>0.25 & `theta (Allelic intensity ratio)`<0.50, "ACC",
+                                                       ifelse(Karyotype == "T21" & `theta (Allelic intensity ratio)`>0.5, "CCC", NA)))))))
+
+HTP.idatData.29800833.rs1893592.ALL04
+
+setwd(dir.GRSdata)
+fwrite(HTP.idatData.29800833.rs1893592.ALL04, "MEGA_041822_chr21_UBASH3A_rs1893592_Manual_Genotypes_v0.1_JRS.csv")
+
+setwd(dir.GRSdata)
+HTP.idatData.29800833.rs1893592.ALL04 <- fread("MEGA_041822_chr21_UBASH3A_rs1893592_Manual_Genotypes_v0.1_JRS.csv")
+```
+
+```{r}
+chr21UBASH3Asnp_vs_CD %>%
+  select(MEGA.IID, Celiac, Genotype) %>%
+  unique() %>%
+  group_by(Celiac, Genotype) %>%
+  summarise(N = n())
+
+chr21UBASH3Asnp_vs_CD %>%
+  select(MEGA.IID, Celiac, Genotype) %>%
+  unique() %>%
+  group_by(Genotype, Celiac) %>%
+  summarise(N = n())
+
+chr21UBASH3Asnp_vs_CD%>%
+  select(MEGA.IID, Celiac, Genotype) %>%
+  unique() %>%
+  group_by(Celiac) %>%
+  summarise(N = n())
+
+100*7/71
+100*19/182
+```
+
+
+#### Read in the chr21 SNP dosage data based on Illumina's disomic genotype calling algorithm
+```{r}
+#list.files("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript/Data")
+
+# If an HTP LabID includes A, then the individual is T21
+# If a HTP LabID includes B, then the individual is D21
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript/Data")
+dosage.disomic.rs1893592.D21s <- fread("MEGA_022322_CeliacGRS_35of38_nonHLADR_SNPs_v0.1_JRS.raw") %>%
+  select(IID, rs1893592_C) %>%
+  rename(MEGA.IID = IID) %>%
+  filter(grepl("HTP", MEGA.IID)==TRUE) %>%
+  mutate(temp = gsub("HTP", "|HTP", MEGA.IID)) %>%
+  separate(temp, into = c("a", "LabID"), sep = "[|]") %>%
+  select(-c(a)) %>%
+  filter(grepl("B", LabID)==TRUE) %>%
+  mutate(Variant = "rs1893592 (C)") %>%
+  rename(Dosage.Disomic = rs1893592_C) %>%
+  select(MEGA.IID, Variant, Dosage.Disomic) %>%
+  mutate(Genotype.Disomic = ifelse(Dosage.Disomic == 0, "AA",
+                                   ifelse(Dosage.Disomic == 1, "CA",
+                                          ifelse(Dosage.Disomic == 2, "CC", NA)))) %>%
+  mutate(Karyotype = "D21") %>%
+  select(MEGA.IID, Karyotype, Variant, everything()) %>%
+  unique()
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript/Data")
+dosage.disomic.rs1893592.T21s <- fread("MEGA_022322_AnalysisDataset_GRS_v0.1_JRS.csv") %>%
+  filter(MEGA.CHR == 21 & grepl("rs1893592", Variant)==TRUE) %>%
+  select(FamilyID, RecordID, MEGA.IID, MEGA.LabID, Karyotype, Variant, Dosage) %>%
+  unique() %>%
+  rename(Dosage.Disomic = Dosage) %>%
+  mutate(Genotype.Disomic = ifelse(Dosage.Disomic == 0, "AA",
+                                   ifelse(Dosage.Disomic == 1, "CA",
+                                          ifelse(Dosage.Disomic == 2, "CC", NA)))) %>%
+  select(MEGA.IID, Variant, Dosage.Disomic, Genotype.Disomic) %>%
+  mutate(Karyotype = "T21") %>%
+  select(MEGA.IID, Karyotype, Variant, everything()) %>%
+  unique()
+
+dosage.disomic.rs1893592 <- rbind(dosage.disomic.rs1893592.D21s,
+                                  dosage.disomic.rs1893592.T21s) %>%
+  unique()
+
+dosage.disomic.rs1893592.D21s
+dosage.disomic.rs1893592.T21s
+dosage.disomic.rs1893592
+```
+
+#### For the 3 D21 individuals genotyped on MEGA, compare the genotype called by Illumina's standard disomic genotyping algorithm to the genotype we've assigned them manually above
+```{r}
+D21.trueGenotype_vs_manualGenotype <- HTP.idatData.29800833.rs1893592.ALL04 %>%
+  filter(Karyotype == "D21") %>%
+  rename(Variant = SNP,
+         Genotype.MANUAL = Genotype) %>%
+  select(MEGA.IID, Karyotype, Variant, Genotype.MANUAL) %>%
+  mutate(Variant = paste(Variant, " (C)", sep = "")) %>%
+  full_join(dosage.disomic.rs1893592.D21s %>%
+              filter(Karyotype == "D21") %>%
+              select(MEGA.IID, Karyotype, Variant, Genotype.Disomic) %>%
+              mutate(Genotype.Disomic = gsub("CA", "AC", Genotype.Disomic)),
+            by = c("MEGA.IID", "Karyotype", "Variant")) %>%
+  rename(True_Genotype = Genotype.Disomic,
+         Manual_Genotype = Genotype.MANUAL) %>%
+  mutate(TrueGenotype_matches_ManualGenotype = ifelse(Manual_Genotype == Manual_Genotype, "Yes", "No"))
+
+D21.trueGenotype_vs_manualGenotype
+```
+
+#### Take a peek at this SNP's association with Celiac (too excited...)
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript/Data")
+celiacStatus <- fread("MEGA_022322_AnalysisDataset_GRS_v0.1_JRS.csv") %>%
+  select(RecordID, MEGA.IID, Celiac, EXCLUDE_from_analysis, EXCLUDE_reason, PC1:PC5) %>%
+  unique()
+celiacStatus
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/Celiac_MultiOmics/GRS/DSMIG_Shared/Manuscript_Figure1/Data")
+chr21_UBASH3A_rs1893592 <- fread("MEGA_041422_chr21_UBASH3A_rs1893592_Manual_Genotypes_v0.1_JRS.csv")
+chr21_UBASH3A_rs1893592
+
+chr21UBASH3Asnp_vs_CD <- celiacStatus %>%
+  left_join(chr21_UBASH3A_rs1893592, by = c("MEGA.IID")) %>%
+  mutate(GRS_risk_allele = "C") %>%
+  select(RecordID, MEGA.IID, Celiac, SNP, GRS_risk_allele, Genotype, PC1:PC5) %>%
+  mutate(Dosage.GRS_risk_allele = ifelse(Genotype == "AAA", 0,
+                                         ifelse(Genotype == "AAC", 1,
+                                                ifelse(Genotype == "ACC", 2,
+                                                       ifelse(Genotype == "CCC", 3, NA)))))
+chr21UBASH3Asnp_vs_CD
+
+
+fit.UBASH3Asnp.additive <- glm(Celiac ~ Dosage.GRS_risk_allele + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD)
+
+plotData.probabilityCD <- fit.UBASH3Asnp.additive %>%
+  augment() %>%
+  mutate(Celiac.predicted = predict(fit.UBASH3Asnp.additive, type = "response"),
+         Group = gsub("0", "+DS-\nCD", Celiac),
+         Group = gsub("1", "+DS\n+CD", Group),
+         Group = factor(Group, levels = c("+DS\n-CD", "+DS\n+CD"))) %>%
+  rename(`Pr(CD)` = Celiac.predicted,
+         `UBASH3A rs1893592 (C)` = Dosage.GRS_risk_allele) %>%
+  mutate(`UBASH3A rs1893592 (A)` = 3 - `UBASH3A rs1893592 (C)`)
+
+probCD_vs_dosage_rs1893592_C <- ggplot() +
+  geom_smooth(aes(x = `UBASH3A rs1893592 (C)`, y = `Pr(CD)`), se = FALSE, color = "black", data = plotData.probabilityCD, method = "lm", linetype = "dashed") +
+  geom_point(aes(x = `UBASH3A rs1893592 (C)`, y = `Pr(CD)`), data = (plotData.probabilityCD %>% filter(Celiac == 0)), color = GrayBlue[[1]], fill = GrayBlue[[1]], alpha = 0.95, size = 2) +
+  geom_point(aes(x = `UBASH3A rs1893592 (C)`, y = `Pr(CD)`), data = (plotData.probabilityCD %>% filter(Celiac == 1)), color = GrayBlue[[2]], fill = GrayBlue[[2]], alpha = 0.95, size = 2) +
+  scale_colour_manual(values = GrayBlue) +
+  scale_fill_manual(values = GrayBlue) +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        aspect.ratio = 1.0) +
+  xlab("Dosage") +
+  labs(title = element_text(paste("UBASH3A ", chr21UBASH3Asnp_vs_CD$SNP[1], " (", chr21UBASH3Asnp_vs_CD$GRS_risk_allele[1], ")", sep = "")))
+
+probCD_vs_dosage_rs1893592_A <- ggplot() +
+  geom_smooth(aes(x = `UBASH3A rs1893592 (A)`, y = `Pr(CD)`), se = FALSE, color = "black", data = plotData.probabilityCD, method = "lm", linetype = "dashed") +
+  geom_point(aes(x = `UBASH3A rs1893592 (A)`, y = `Pr(CD)`), data = (plotData.probabilityCD %>% filter(Celiac == 0)), color = GrayBlue[[1]], fill = GrayBlue[[1]], alpha = 0.95, size = 2) +
+  geom_point(aes(x = `UBASH3A rs1893592 (A)`, y = `Pr(CD)`), data = (plotData.probabilityCD %>% filter(Celiac == 1)), color = GrayBlue[[2]], fill = GrayBlue[[2]], alpha = 0.95, size = 2) +
+  scale_colour_manual(values = GrayBlue) +
+  scale_fill_manual(values = GrayBlue) +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        aspect.ratio = 1.0) +
+  xlab("Dosage") +
+  labs(title = element_text("UBASH3A rs1893592 (A)"))
+
+probCD_vs_dosage_rs1893592_C
+probCD_vs_dosage_rs1893592_A
+
+tidy(fit.UBASH3Asnp.additive)
+```
+
+
+
+
+
+# ARCHIVE
+```{r}
+glm(Celiac ~ Dosage.GRS_risk_allele + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD) %>%
+  tidy() %>%
+  filter(term != "(Intercept)") %>%
+  mutate(term = gsub("Dosage.GRS_risk_allele", "Dosage of UBASH3A rs1893592 (C)", term)) %>%
+  select(-c(std.error, statistic)) %>%
+  filter(grepl("PC", term)==FALSE) %>%
+  rename(logOR = estimate)
+
+glm(Celiac ~ factor(Dosage.GRS_risk_allele, levels = c("1", "0", "2", "3")) + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD) %>%
+  tidy() %>%
+  filter(term != "(Intercept)")
+
+glm(Celiac ~ factor(Dosage.GRS_risk_allele, levels = c("2", "0", "1", "3")) + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD) %>%
+  tidy() %>%
+  filter(term != "(Intercept)")
+
+glm(Celiac ~ factor(Dosage.GRS_risk_allele, levels = c("0", "1", "2", "3")) + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD) %>%
+  tidy() %>%
+  filter(term != "(Intercept)")
+
+# Well, that was anti-climactic.
+
+
+
+glm(Celiac ~ factor(Dosage.GRS_risk_allele, levels = c("0", "1", "2", "3")) + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD) %>%
+  augment()
+
+glm(Celiac ~ factor(Dosage.GRS_risk_allele, levels = c("0", "1", "2", "3")) + PC1 + PC2 + PC3 + PC4 + PC5,
+    family = binomial(link = "logit"),
+    data = chr21UBASH3Asnp_vs_CD) %>%
+  predict(type = "response", data = .)
+
+df <- tibble::tibble(
+  x = sort(runif(100)),
+  y = 5 * x + 0.5 * x ^ 2 + 3 + rnorm(length(x))
+)
+grid <- data.frame(x = seq(0, 1, length = 10))
+grid
+grid %>% add_predictions(m1)
+
+#emmeans::predict(fit.UBASH3Asnp.additive, interval = "prediction")
+```
+
+
+#### Finally, do some further investigation to confirm that rownames of idat$Quants represent 'AddressA_ID' column of the idat files (and not the last part of the Illumina variant 'Name' column)
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MEGA/chr21_genotyping/idatQuants")
+HTP.idatData <- readRDS(file = "MEGA_041422_idat_Quants_all_v0.1_JRS.rds")
+
+HTP.idatData
+```
+
+

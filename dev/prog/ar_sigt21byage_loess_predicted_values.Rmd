@@ -1,0 +1,749 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# KEEP SCRIPT
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata for clustering among D21s of protein trajectories with significant T21*Age interaction
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_sigt21byage_d21only_clustering_input <- fread("ar_p4c_soma_sigt21byage_d21only_clustering_input.csv.gz")
+
+setwd(dir.ardata)
+ar_p4c_soma_sigt21byage_t21only_clustering_input <- fread("ar_p4c_soma_sigt21byage_t21only_clustering_input.csv.gz")
+
+head(ar_p4c_soma_sigt21byage_d21only_clustering_input)
+head(ar_p4c_soma_sigt21byage_t21only_clustering_input)
+```
+
+#### Split ardata by UniProt_Aptamer_Chr_Cluster (used as uid used for convenience)
+```{r}
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split <- ar_p4c_soma_sigt21byage_d21only_clustering_input %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_sigt21byage_t21only_clustering_input.split <- ar_p4c_soma_sigt21byage_t21only_clustering_input %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[1]]
+ar_p4c_soma_sigt21byage_t21only_clustering_input.split[[1]]
+
+ar_p4c_soma_sigt21byage_d21only_clustering_input$UniProt_Aptamer_Chr_Cluster %>% unique() %>% length()
+ar_p4c_soma_sigt21byage_t21only_clustering_input$UniProt_Aptamer_Chr_Cluster %>% unique() %>% length()
+#[1] 850
+#[1] 850
+```
+
+```{r}
+# https://purrr.tidyverse.org/reference/quietly.html
+quiet_loess <- purrr::quietly(loess)
+```
+
+```{r}
+# loess(formula, data, weights, subset, na.action, model = FALSE,
+#       span = 0.75, enp.target, degree = 2,
+#       parametric = FALSE, drop.square = FALSE, normalize = TRUE,
+#       family = c("gaussian", "symmetric"),
+#       method = c("loess", "model.frame"),
+#       control = loess.control(...), ...)
+# 
+# parametric - should any terms be fitted globally rather than locally? Terms can be specified by name, number or as a logical vector of the same length as the number of predictors.
+# 
+# model	- should the model frame be returned?
+#   
+# degree - the degree of the polynomials to be used, normally 1 or 2. (Degree 0 is also allowed, but see the ‘Note’.)
+# 
+# family - if "gaussian" fitting is by least-squares, and if "symmetric" a re-descending M estimator is used with Tukey's biweight function. Can be abbreviated.
+# 
+# method - fit the model or just extract the model frame. Can be abbreviated.
+# 
+# control - control parameters: see loess.control.
+
+
+# loess.control(surface = c("interpolate", "direct"),
+#               statistics = c("approximate", "exact", "none"),
+#               trace.hat = c("exact", "approximate"),
+#               cell = 0.2, iterations = 4, iterTrace = FALSE, ...)
+
+# iterations	
+# the number of iterations used in robust fitting, i.e. only if family is "symmetric".
+# 
+# surface	
+# should the fitted surface be computed exactly ("direct") or via interpolation from a k-d tree? Can be abbreviated.
+```
+
+#### LOESS predictions for D21
+```{r}
+# tmp.loess_prediction.D21.df
+
+loess_fit_d21 <- list()
+loess_pred_d21 <- list()
+gg_t21byage_cluster_trajectories_d21 <- list()
+f_t21byage_cluster_trajectories_d21 <- list()
+tval_d21 <- list()
+lwr_d21 <- list()
+upr_d21 <- list()
+for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+#for ( i in 1:1 ){
+  set.seed(1234)
+  ardata.now <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]];
+  loess_fit_d21[[i]] <- loess(Zlog10_relative_abundance ~ Age + Female,
+                          iterations = 10000,
+                          data = ardata.now);
+  loess_pred_d21[[i]] <- predict(loess_fit_d21[[i]], se = TRUE);
+  tval_d21[[i]] <- qt(p = 0.975, df = loess_pred_d21[[i]]$df)
+  lwr_d21[[i]] <- loess_pred_d21[[i]]$fit - tval_d21[[i]]*loess_pred_d21[[i]]$se.fit
+  upr_d21[[i]] <- loess_pred_d21[[i]]$fit + tval_d21[[i]]*loess_pred_d21[[i]]$se.fit
+  ord_d21 <- order(ardata.now$Age)
+  f_t21byage_cluster_trajectories_d21[[i]] <- ardata.now %>%
+    mutate(ci95_ll = lwr_d21[[i]][ord_d21], 
+           ci95_ul = upr_d21[[i]][ord_d21], 
+           predicted_Zlog10_relative_abundance = loess_pred_d21[[i]]$fit[ord_d21], 
+           Age = ardata.now$Age[ord_d21], 
+           Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_d21])
+}
+```
+
+#### LOESS predictions for T21
+```{r}
+loess_fit_t21 <- list()
+loess_pred_t21 <- list()
+gg_t21byage_cluster_trajectories_t21 <- list()
+f_t21byage_cluster_trajectories_t21 <- list()
+tval_t21 <- list()
+lwr_t21 <- list()
+upr_t21 <- list()
+for ( i in 1:length(ar_p4c_soma_sigt21byage_t21only_clustering_input.split) ){
+#for ( i in 1:1 ){
+  set.seed(1234)
+  ardata.now <- ar_p4c_soma_sigt21byage_t21only_clustering_input.split[[i]];
+  loess_fit_t21[[i]] <- loess(Zlog10_relative_abundance ~ Age + Female,
+                          iterations = 10000,
+                          data = ardata.now);
+  loess_pred_t21[[i]] <- predict(loess_fit_t21[[i]], se = TRUE);
+  tval_t21[[i]] <- qt(p = 0.975, df = loess_pred_t21[[i]]$df)
+  lwr_t21[[i]] <- loess_pred_t21[[i]]$fit - tval_t21[[i]]*loess_pred_t21[[i]]$se.fit
+  upr_t21[[i]] <- loess_pred_t21[[i]]$fit + tval_t21[[i]]*loess_pred_t21[[i]]$se.fit
+  ord_t21 <- order(ardata.now$Age)
+  f_t21byage_cluster_trajectories_t21[[i]] <- ardata.now %>%
+    mutate(ci95_ll = lwr_t21[[i]][ord_t21], 
+           ci95_ul = upr_t21[[i]][ord_t21], 
+           predicted_Zlog10_relative_abundance = loess_pred_t21[[i]]$fit[ord_t21], 
+           Age = ardata.now$Age[ord_t21], 
+           Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_t21])
+}
+```
+
+#### LOESS predictions for D21 females (D21 XX)
+```{r}
+# loess_fit_d21xx <- list()
+# loess_pred_d21xx <- list()
+# gg_t21byage_cluster_trajectories_d21xx <- list()
+# f_t21byage_cluster_trajectories_d21xx <- list()
+# tval_d21xx <- list()
+# lwr_d21xx <- list()
+# upr_d21xx <- list()
+# for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+# #for ( i in 1:1 ){
+#   set.seed(1234)
+#   ardata.now <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+#     filter(Female == 1);
+#   loess_fit_d21xx[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+#                           iterations = 10000,
+#                           data = ardata.now);
+#   loess_pred_d21xx[[i]] <- predict(loess_fit_d21xx[[i]], se = TRUE);
+#   tval_d21xx[[i]] <- qt(p = 0.975, df = loess_pred_d21xx[[i]]$df)
+#   lwr_d21xx[[i]] <- loess_pred_d21xx[[i]]$fit - tval_d21xx[[i]]*loess_pred_d21xx[[i]]$se.fit
+#   upr_d21xx[[i]] <- loess_pred_d21xx[[i]]$fit + tval_d21xx[[i]]*loess_pred_d21xx[[i]]$se.fit
+#   ord_d21xx <- order(ardata.now$Age)
+#   f_t21byage_cluster_trajectories_d21xx[[i]] <- ardata.now %>%
+#     mutate(ci95_ll = lwr_d21xx[[i]][ord_d21xx], 
+#            ci95_ul = upr_d21xx[[i]][ord_d21xx], 
+#            predicted_Zlog10_relative_abundance = loess_pred_d21xx[[i]]$fit[ord_d21xx], 
+#            Age = ardata.now$Age[ord_d21xx], 
+#            Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_d21xx])
+# }
+```
+
+#### LOESS predictions for D21 males (D21 XY)
+```{r}
+# loess_fit_d21xy <- list()
+# loess_pred_d21xy <- list()
+# gg_t21byage_cluster_trajectories_d21xy <- list()
+# f_t21byage_cluster_trajectories_d21xy <- list()
+# tval_d21xy <- list()
+# lwr_d21xy <- list()
+# upr_d21xy <- list()
+# for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+# #for ( i in 1:1 ){
+#   set.seed(1234)
+#   ardata.now <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+#     filter(Female == 0);
+#   loess_fit_d21xy[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+#                           iterations = 10000,
+#                           data = ardata.now);
+#   loess_pred_d21xy[[i]] <- predict(loess_fit_d21xy[[i]], se = TRUE);
+#   tval_d21xy[[i]] <- qt(p = 0.975, df = loess_pred_d21xy[[i]]$df)
+#   lwr_d21xy[[i]] <- loess_pred_d21xy[[i]]$fit - tval_d21xy[[i]]*loess_pred_d21xy[[i]]$se.fit
+#   upr_d21xy[[i]] <- loess_pred_d21xy[[i]]$fit + tval_d21xy[[i]]*loess_pred_d21xy[[i]]$se.fit
+#   ord_d21xy <- order(ardata.now$Age)
+#   f_t21byage_cluster_trajectories_d21xy[[i]] <- ardata.now %>%
+#     mutate(ci95_ll = lwr_d21xy[[i]][ord_d21xy], 
+#            ci95_ul = upr_d21xy[[i]][ord_d21xy], 
+#            predicted_Zlog10_relative_abundance = loess_pred_d21xy[[i]]$fit[ord_d21xy], 
+#            Age = ardata.now$Age[ord_d21xy], 
+#            Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_d21xy])
+# }
+```
+
+#### LOESS predictions for T21 females (T21 XX)
+```{r}
+# loess_fit_t21xx <- list()
+# loess_pred_t21xx <- list()
+# gg_t21byage_cluster_trajectories_t21xx <- list()
+# f_t21byage_cluster_trajectories_t21xx <- list()
+# tval_t21xx <- list()
+# lwr_t21xx <- list()
+# upr_t21xx <- list()
+# for ( i in 1:length(ar_p4c_soma_sigt21byage_t21only_clustering_input.split) ){
+# #for ( i in 1:1 ){
+#   set.seed(1234)
+#   ardata.now <- ar_p4c_soma_sigt21byage_t21only_clustering_input.split[[i]] %>%
+#     filter(Female == 1);
+#   loess_fit_t21xx[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+#                           iterations = 10000,
+#                           data = ardata.now);
+#   loess_pred_t21xx[[i]] <- predict(loess_fit_t21xx[[i]], se = TRUE);
+#   tval_t21xx[[i]] <- qt(p = 0.975, df = loess_pred_t21xx[[i]]$df)
+#   lwr_t21xx[[i]] <- loess_pred_t21xx[[i]]$fit - tval_t21xx[[i]]*loess_pred_t21xx[[i]]$se.fit
+#   upr_t21xx[[i]] <- loess_pred_t21xx[[i]]$fit + tval_t21xx[[i]]*loess_pred_t21xx[[i]]$se.fit
+#   ord_t21xx <- order(ardata.now$Age)
+#   f_t21byage_cluster_trajectories_t21xx[[i]] <- ardata.now %>%
+#     mutate(ci95_ll = lwr_t21xx[[i]][ord_t21xx], 
+#            ci95_ul = upr_t21xx[[i]][ord_t21xx], 
+#            predicted_Zlog10_relative_abundance = loess_pred_t21xx[[i]]$fit[ord_t21xx], 
+#            Age = ardata.now$Age[ord_t21xx], 
+#            Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_t21xx])
+# }
+```
+
+#### LOESS predictions for T21 males (T21 XY)
+```{r}
+# loess_fit_t21xy <- list()
+# loess_pred_t21xy <- list()
+# gg_t21byage_cluster_trajectories_t21xy <- list()
+# f_t21byage_cluster_trajectories_t21xy <- list()
+# tval_t21xy <- list()
+# lwr_t21xy <- list()
+# upr_t21xy <- list()
+# for ( i in 1:length(ar_p4c_soma_sigt21byage_t21only_clustering_input.split) ){
+# #for ( i in 1:1 ){
+#   set.seed(1234)
+#   ardata.now <- ar_p4c_soma_sigt21byage_t21only_clustering_input.split[[i]] %>%
+#     filter(Female == 0);
+#   loess_fit_t21xy[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+#                           iterations = 10000,
+#                           data = ardata.now);
+#   loess_pred_t21xy[[i]] <- predict(loess_fit_t21xy[[i]], se = TRUE);
+#   tval_t21xy[[i]] <- qt(p = 0.975, df = loess_pred_t21xy[[i]]$df)
+#   lwr_t21xy[[i]] <- loess_pred_t21xy[[i]]$fit - tval_t21xy[[i]]*loess_pred_t21xy[[i]]$se.fit
+#   upr_t21xy[[i]] <- loess_pred_t21xy[[i]]$fit + tval_t21xy[[i]]*loess_pred_t21xy[[i]]$se.fit
+#   ord_t21xy <- order(ardata.now$Age)
+#   f_t21byage_cluster_trajectories_t21xy[[i]] <- ardata.now %>%
+#     mutate(ci95_ll = lwr_t21xy[[i]][ord_t21xy], 
+#            ci95_ul = upr_t21xy[[i]][ord_t21xy], 
+#            predicted_Zlog10_relative_abundance = loess_pred_t21xy[[i]]$fit[ord_t21xy], 
+#            Age = ardata.now$Age[ord_t21xy], 
+#            Zlog10_relative_abundance = ardata.now$Zlog10_relative_abundance[ord_t21xy])
+# }
+```
+
+```{r}
+ar_sigt21byage_loess_predicted_values <- rbind(f_t21byage_cluster_trajectories_d21 %>% rbindlist(),
+                                               f_t21byage_cluster_trajectories_t21 %>% rbindlist()) %>%
+                                               # f_t21byage_cluster_trajectories_d21xx %>% rbindlist(),
+                                               # f_t21byage_cluster_trajectories_d21xy %>% rbindlist(),
+                                               # f_t21byage_cluster_trajectories_t21xx %>% rbindlist(),
+                                               # f_t21byage_cluster_trajectories_t21xy %>% rbindlist()) %>%
+  mutate(Karyotype_Sex = case_when(T21 == 0 & Female == 1 ~ "D21 XX",
+                                   T21 == 0 & Female == 0 ~ "D21 XY",
+                                   
+                                   T21 == 1 & Female == 1 ~ "T21 XX",
+                                   T21 == 1 & Female == 0 ~ "T21 XY"),
+         Karyotype_Sex = factor(Karyotype_Sex, levels = c("D21 XX",
+                                                          "D21 XY",
+                                                          "T21 XX",
+                                                          "T21 XY"))) %>%
+  dplyr::select(-c(Karyotype_XY));
+
+ar_sigt21byage_loess_predicted_values %>% head();
+
+ar_sigt21byage_loess_predicted_values %>% select(Karyotype, Sex, Karyotype_Sex, T21, Female) %>%
+  unique()
+```
+
+```{r}
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_loess_predicted_values, "ar_sigt21byage_loess_predicted_values.csv.gz")
+```
+
+
+
+# ARCHIVE BELOW FOR NOW (2/23/2025 ~2PM)
+
+```{r}
+split(ar_sigt21byage_loess_predicted_values,
+      ar_sigt21byage_loess_predicted_values$UniProt_Aptamer_Chr_Cluster)[[1]] %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = ci95_ul, 
+             ymin = ci95_ll,
+             color = Karyotype,
+             fill = Karyotype)) + 
+  geom_smooth(method = "loess") + # se=T
+  geom_point() +
+  geom_ribbon(alpha = 0.1, colour=NA);
+
+split(ar_sigt21byage_loess_predicted_values,
+      ar_sigt21byage_loess_predicted_values$UniProt_Aptamer_Chr_Cluster)[[1]] %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = ci95_ul, 
+             ymin = ci95_ll,
+             color = Karyotype_Sex,
+             fill = Karyotype_Sex)) + 
+  geom_smooth(method = "loess") + # 
+  geom_point() +
+  geom_ribbon(alpha = 0.1, colour=NA);
+
+# Keep
+split(ar_sigt21byage_loess_predicted_values,
+      ar_sigt21byage_loess_predicted_values$UniProt_Aptamer_Chr_Cluster)[[1]] %>%
+  ggplot(aes(x = Age,
+             y = Zlog10_relative_abundance,
+             color = Karyotype_Sex,
+             fill = Karyotype_Sex)) + 
+  geom_smooth(method = "loess", se = T) + #, se=T) + # 
+  #geom_point() +
+  coord_cartesian(ylim=c(-4, 6.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed")
+# Keep
+split(ar_sigt21byage_loess_predicted_values,
+      ar_sigt21byage_loess_predicted_values$UniProt_Aptamer_Chr_Cluster)[[1]] %>%
+  ggplot(aes(x = Age,
+             y = Zlog10_relative_abundance,
+             color = Karyotype,
+             fill = Karyotype)) + 
+  geom_smooth(method = "loess", se = T) + #, se=T) + # 
+  geom_point() +
+  coord_cartesian(ylim=c(-4, 6.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed")
+
+
+split(ar_sigt21byage_loess_predicted_values,
+      ar_sigt21byage_loess_predicted_values$UniProt_Aptamer_Chr_Cluster)[[1]] %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = ci95_ul, 
+             ymin = ci95_ll,
+             color = Karyotype,
+             fill = Karyotype)) + 
+  geom_smooth(method = "loess", se=T) + # 
+  geom_point() +
+  geom_ribbon(alpha = 0.1, colour=NA);
+
+split(ar_sigt21byage_loess_predicted_values,
+      ar_sigt21byage_loess_predicted_values$UniProt_Aptamer_Chr_Cluster)[[1]] %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = ci95_ul, 
+             ymin = ci95_ll,
+             color = Karyotype_Sex,
+             fill = Karyotype_Sex)) + 
+  # Data points
+  geom_point(aes(y = predicted_Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_smooth(aes(y = predicted_Zlog10_relative_abundance)) + #, se=T) + 
+  # Points from prediction
+  geom_point(aes(y = predicted_Zlog10_relative_abundance), stat = "align") + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3)
+```
+
+
+#### ARCHIVE BELOW - NOT USING AS OF 2/21/2025
+
+```{r}
+rbind(f_t21byage_cluster_trajectories_d21xx[[1]],
+      f_t21byage_cluster_trajectories_d21xy[[1]],
+      f_t21byage_cluster_trajectories_t21xx[[1]],
+      f_t21byage_cluster_trajectories_t21xy[[1]]) %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             #ymax = ci95_ul, 
+             #ymin = ci95_ll,
+             color = interaction(Karyotype, Sex),
+             fill = interaction(Karyotype, Sex))) + 
+  geom_smooth(method = "loess", se=T) +
+  geom_point();
+rbind(f_t21byage_cluster_trajectories_d21xx[[1]],
+      f_t21byage_cluster_trajectories_d21xy[[1]],
+      f_t21byage_cluster_trajectories_t21xx[[1]],
+      f_t21byage_cluster_trajectories_t21xy[[1]]) %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = ci95_ul, 
+             ymin = ci95_ll,
+             color = interaction(Karyotype, Sex),
+             fill = interaction(Karyotype, Sex))) + 
+  geom_smooth(method = "loess") + # se=T
+  geom_point() +
+  geom_ribbon(alpha = 0.1, colour=NA);
+
+f_t21byage_cluster_trajectories_d21xx[[1]] %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = upr_d21xx, 
+             ymin = lwr_d21xx)) + 
+  geom_smooth(method = "loess") + # se=T
+  geom_point() +
+  geom_ribbon(alpha = 0.3);
+f_t21byage_cluster_trajectories_d21xy[[1]] %>%
+  ggplot(aes(x = Age,
+             y = predicted_Zlog10_relative_abundance,
+             ymax = upr_d21xx, 
+             ymin = lwr_d21xx)) + 
+  geom_smooth(method = "loess") + # se=T
+  geom_point() +
+  geom_ribbon(alpha = 0.3)
+
+
+f_t21byage_cluster_trajectories_d21xy[[2]]
+f_t21byage_cluster_trajectories_t21xy[[2]]
+f_t21byage_cluster_trajectories_t21xy[[2]]
+```
+
+
+
+#### For D21s only, obtain loess predicted values for each aptamer with significant T21*Age interaction
+#### ai_loess_predicted_values_d21only
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+tmp.loess_prediction.D21.df <- list()
+loess_prediction.D21 <- list()
+#plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+#for ( i in 1:3 ){
+  set.seed(1234)
+  tmp.loess_prediction.D21.df[[i]] <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    mutate(predicted_Zlog10_relative_abundance = (loess(Zlog10_relative_abundance ~ Age + Female,
+                                                        # IMPORTANT: ADJUST FOR SEX FOR BETTER CLLUSTERING?
+                                                        data = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]))$fitted)
+  # plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+  #   ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+  #   geom_point(color = RedBlue[[1]], alpha = 0.5) +
+  #   geom_line(color = RedBlue[[1]]) +
+  #   ggtitle(names(predicted_newclusters.D21)[[i]])
+  
+  #names(loess_prediction.D21)[[i]] <- names(ar_p4c_soma_d21only_extend_clustering.split)[[i]]
+  names(tmp.loess_prediction.D21.df)[[i]] <- names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]]
+  #names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+}
+#predicted_newclusters.D21 %>% head()
+#plot_predicted_newclusters.D21 %>% head()
+
+# old naming:
+#loess_prediction.D21.df <- tmp.loess_prediction.D21.df %>%
+#  rbindlist();
+ai_loess_predicted_values_d21only <- tmp.loess_prediction.D21.df %>%
+  rbindlist();
+
+setwd(dir.aidata)
+fwrite(ai_loess_predicted_values_d21only, "ai_loess_predicted_values_d21only.csv.gz")
+
+setwd(dir.aidata)
+ai_loess_predicted_values_d21only <- fread("ai_loess_predicted_values_d21only.csv.gz")
+head(ai_loess_predicted_values_d21only)
+dim(ai_loess_predicted_values_d21only) #[1] 87550     49
+```
+
+#### For T21s only, obtain loess predicted values for each aptamer with significant T21*Age interaction
+#### ai_loess_predicted_values_t21only
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+tmp.loess_prediction.D21.df <- list()
+loess_prediction.D21 <- list()
+#plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ar_p4c_soma_sigt21byage_t21only_clustering_input.split) ){
+#for ( i in 1:3 ){
+  set.seed(1234)
+  tmp.loess_prediction.D21.df[[i]] <- ar_p4c_soma_sigt21byage_t21only_clustering_input.split[[i]] %>%
+    mutate(predicted_Zlog10_relative_abundance = (loess(Zlog10_relative_abundance ~ Age + Female,
+                                                        # IMPORTANT: ADJUST FOR SEX FOR BETTER CLLUSTERING?
+                                                        data = ar_p4c_soma_sigt21byage_t21only_clustering_input.split[[i]]))$fitted)
+  # plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+  #   ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+  #   geom_point(color = RedBlue[[1]], alpha = 0.5) +
+  #   geom_line(color = RedBlue[[1]]) +
+  #   ggtitle(names(predicted_newclusters.D21)[[i]])
+  
+  #names(loess_prediction.D21)[[i]] <- names(ar_p4c_soma_t21only_extend_clustering.split)[[i]]
+  names(tmp.loess_prediction.D21.df)[[i]] <- names(ar_p4c_soma_sigt21byage_t21only_clustering_input.split)[[i]]
+  #names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_t21only.split)[[i]]
+}
+#predicted_newclusters.D21 %>% head()
+#plot_predicted_newclusters.D21 %>% head()
+
+# old naming:
+#loess_prediction.D21.df <- tmp.loess_prediction.D21.df %>%
+#  rbindlist();
+ai_loess_predicted_values_t21only <- tmp.loess_prediction.D21.df %>%
+  rbindlist();
+
+setwd(dir.aidata)
+fwrite(ai_loess_predicted_values_t21only, "ai_loess_predicted_values_t21only.csv.gz")
+
+setwd(dir.aidata)
+ai_loess_predicted_values_t21only <- fread("ai_loess_predicted_values_t21only.csv.gz")
+head(ai_loess_predicted_values_t21only)
+dim(ai_loess_predicted_values_t21only) #[1] 268600     49
+```
+
+
+```{r}
+ai_loess_predicted_values_d21only %>% head()
+ai_loess_predicted_values_t21only %>% head()
+```
+
+#### ar_sigt21byage_loess_predicted_values
+```{r}
+ar_sigt21byage_loess_predicted_values <- rbind(ai_loess_predicted_values_d21only,
+                                   ai_loess_predicted_values_t21only)
+
+ar_sigt21byage_loess_predicted_values %>% head()
+
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_loess_predicted_values, "ar_sigt21byage_loess_predicted_values.csv.gz")
+```
+
+
+
+
+```{r}
+ggplot(f_t21byage_cluster_trajectories[[i]],
+       aes(x = Age, ymax = upr, ymin = lwr)) + 
+  # Data points
+  geom_point(aes(y = predicted_Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_line(aes(y = predicted_Zlog10_relative_abundance)) + 
+  # Points from prediction
+  geom_point(aes(y = predicted_Zlog10_relative_abundance)) + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3)
+
+ggplot(f_t21byage_cluster_trajectories[[i]],
+       aes(x = Age, ymax = upr, ymin = lwr)) + 
+  # Data points
+  geom_point(aes(y = predicted_Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_smooth(aes(y = predicted_Zlog10_relative_abundance)) + #, se=T) + 
+  # Points from prediction
+  geom_point(aes(y = predicted_Zlog10_relative_abundance), stat = "align") + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3)
+
+help(geom_ribbon)
+```
+
+```{r}
+ggplot(f_t21byage_cluster_trajectories[[i]],
+       aes(x = Age, ymax = upr, ymin = lwr)) + 
+  # Data points
+  geom_point(aes(y = Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_line(aes(y = fit)) + 
+  # Points from prediction
+  geom_point(aes(y = fit)) + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3)
+
+ggplot(f_t21byage_cluster_trajectories[[i]],
+       aes(x = Age, ymax = upr, ymin = lwr)) + 
+  # Data points
+  geom_point(aes(y = Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_smooth(aes(y = fit)) + 
+  # Points from prediction
+  geom_point(aes(y = fit)) + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3);
+
+  #gg_t21byage_cluster_trajectories[[i]] <- 
+ggplot(f_t21byage_cluster_trajectories[[i]],
+       aes(x = Age, ymax = upr, ymin = lwr)) + 
+  # Data points
+  geom_point(aes(y = Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_line(aes(y = fit)) + 
+  # Points from prediction
+  geom_point(aes(y = fit)) + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3) #+ #, col = "thistle1") + 
+  # labs(title = "manual")
+
+  #gg_t21byage_cluster_trajectories[[i]] <- 
+ggplot(f_t21byage_cluster_trajectories[[i]],
+       aes(x = Age, ymax = upr, ymin = lwr)) + 
+  # Data points
+  geom_point(aes(y = Zlog10_relative_abundance)) + 
+  # Line from prediction
+  #geom_line(aes(y = loess_fit[[i]])) + 
+  geom_line(aes(y = mean(fit))) + 
+  # Points from prediction
+  geom_point(aes(y = fit)) + 
+  # Confidence interval
+  geom_ribbon(alpha = 0.3) #+ #, col = "thistle1") + 
+  # labs(title = "manual")
+
+
+f_t21byage_cluster_trajectories[[i]] %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance,
+             ymax = upr, ymin = lwr, color = Karyotype)) + 
+  geom_point(show.legend = FALSE) + 
+  geom_smooth(method = "loess", formula = "Zlog10_relative_abundance ~ Age + Female", show.legend = FALSE, se = TRUE) +
+  geom_ribbon(alpha = 0.3)
+
+
+f_t21byage_cluster_trajectories[[i]] %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance,
+             ymax = upr, ymin = lwr, color = Karyotype)) + 
+  geom_smooth(method = "loess", 
+              #formula = "Zlog10_relative_abundance ~ Age + Female",
+              se = TRUE)
+
+
+f_t21byage_cluster_trajectories[[i]] %>%
+  ggplot(aes(x = Age, y = fit,
+             ymax = upr, ymin = lwr, color = Sex, fill = Sex)) + 
+  geom_smooth(method = "loess", 
+              #formula = "Zlog10_relative_abundance ~ Age + Female",
+              se = TRUE) + 
+  geom_point() +
+  geom_ribbon(alpha = 0.3)
+
+
+  geom_smooth(method = "loess",
+              formula = "Zlog10_relative_abundance ~ Age + Female",
+              #show.legend = FALSE, 
+              se = TRUE) + 
+  geom_point() +
+  geom_ribbon(alpha = 0.3) +
+  scale_color_manual(values = RedBlue)
+  #labs(x = "Distance", y = "Response") + 
+  #theme_classic () +
+  #facet_grid(Genotype ~ Treatment)
+
+help(stat_smooth)
+
+
+
+length(loess_fit[[i]])
+
+gg_t21byage_cluster_trajectories
+```
+
+```{r}
+  
+data(mtcars)
+fit <- loess(mpg ~ hp, data = mtcars)
+preds <- predict(fit, se = TRUE)
+names(preds)
+
+T <- qt(p = 0.975, df = preds$df)
+lwr <- preds$fit - T * preds$se.fit
+upr <- preds$fit + T * preds$se.fit
+
+ord <- order(mtcars$hp)
+plotData <- data.frame(lwr = lwr[ord], 
+                       upr = upr[ord], 
+                       fit = preds$fit[ord], 
+                       hp = mtcars$hp[ord], 
+                       mpg = mtcars$mpg[ord])
+
+p1 <- ggplot(plotData, aes(x = hp, ymax = upr, ymin = lwr)) + 
+    #Data points
+    geom_point(aes(y = mpg)) + 
+    #Line from prediction
+    geom_line(aes(y = fit)) + 
+    #Points from prediction
+    geom_point(aes(y = fit)) + 
+    #Confidence interval
+    geom_ribbon(alpha = 0.3, col = "thistle1") + 
+    labs(title = "manual")
+p2 <- ggplot(mtcars, aes(x = hp, y = mpg)) + 
+    geom_point() + 
+    geom_smooth() + 
+    labs(title = "ggplot2")
+#Merge plots
+library(gridExtra)
+grid.arrange(p1, p2, ncol = 1)
+```
+
+```{r}
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[10]] %>%
+    mutate(predicted_Zlog10_relative_abundance = (loess(Zlog10_relative_abundance ~ Age + Female,
+                                                        # IMPORTANT: ADJUST FOR SEX FOR BETTER CLLUSTERING?
+                                                        data = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[10]],
+                                                        interval = "prediction",
+                                                        se.fit = TRUE))$fitted)
+
+predict((loess(Zlog10_relative_abundance ~ Age + Female,
+               data = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[10]])),
+        interval = "prediction",
+        se.fit = TRUE,
+        level = 0.95) %>%
+  names()
+  as.data.frame()
+```
+

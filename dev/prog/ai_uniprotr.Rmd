@@ -1,0 +1,218 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+# https://cran.r-project.org/web/packages/UniprotR/UniprotR.pdf
+# https://github.com/Proteomicslab57357/UniprotR
+# install.packages("UniprotR")
+library(UniprotR) 
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read in_donovan2024_p4c_soma
+```{r}
+# setwd(dir.indata)
+# in_p4c <- list.files() %>% lapply(fread)
+# names(in_p4c) <- gsub(".csv", "", gsub(".csv.gz", "", list.files(dir.indata)))
+# in_p4c
+
+setwd(dir.indata)
+in_donovan2024_p4c_soma <- fread("in_donovan2024_p4c_soma.csv.gz")
+
+in_donovan2024_p4c_soma
+```
+
+```{bash}
+#cd '~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/indata/archive';
+#wget 'https://raw.githubusercontent.com/SomaLogic/SomaLogic-Data/main/example_data.adat'
+```
+
+#### Notice that SomaDataIO built-in annotation does not include chromosomal mapping of targeted proteins
+```{r}
+dir(system.file("extdata", package = "SomaDataIO"), full.names = TRUE)
+
+library(help = SomaDataIO)
+
+f <- system.file("extdata", "example_data10.adat",
+                 package = "SomaDataIO", mustWork = TRUE)
+example_adat <- read_adat(f)
+
+example_adat
+getFeatureData(example_adat)
+getAnalyteInfo(example_adat)
+```
+
+```{r}
+# install.packages("UniprotR")
+library(UniprotR)
+```
+
+```{r}
+p4c_uniprot_accessions <- (in_donovan2024_p4c_soma %>%
+  dplyr::select(UniProt) %>%
+  unique())$UniProt
+
+p4c_uniprot_accessions %>% length()
+p4c_uniprot_accessions %>% head()
+```
+
+```{r}
+# BiocManager::install("SomaScan.db")
+# BiocManager::install("GO.db")
+library(dplyr)
+library(GO.db)
+library(SomaDataIO)
+library(SomaScan.db)
+```
+
+```{r}
+# https://bioconductor.org/packages/release/data/annotation/vignettes/SomaScan.db/inst/doc/example_adat_workflow.html
+
+# To obtain a list of available annotations, use the columns method:
+columns(SomaScan.db)
+```
+
+#### Visualize Chromosomes localization
+```{r}
+# help(PlotChromosomeInfo)
+help(GetNamesTaxa)
+
+p4c_uniprot_taxa <- GetNamesTaxa(ProteinAccList = p4c_uniprot_accessions,
+                                 # Input: A vector of UniProt Accession/s
+                                 directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive");
+
+p4c_uniprot_taxa
+```
+
+```{r}
+PlotChromosomeInfo(ProteinDataObject = p4c_uniprot_taxa, #  input a Dataframe returned from GetNamesTaxa function
+                   directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive")
+```
+
+```{r}
+# Read Accessions from csv file , Note : Accessions must be in the first column. 
+# Accessions <- GetAccessionList("https://s3.amazonaws.com/csvpastebin/uploads/9571fa356c67a0c7c95e8431799a051a/Accessions.csv") 
+
+# Get Taxanomy Information 
+TaxaObj <- GetNamesTaxa(p4c_uniprot_accessions) 
+```
+
+```{r}
+# Visualize protein's gene name as Network 
+PlotGenesNetwork(TaxaObj,
+                   directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive")
+```
+
+```{r}
+GetProteomeInfo(ProteomeID,
+                   directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive")
+```
+
+```{r}
+# cool
+GetPTM_Processing(Accessions,
+                   directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive")
+
+```
+
+```{r}
+# COOL...
+# GetSubcellular_location - Connect and parse UniProt protein Subcellular location information
+GetSubcellular_location(Accessions,
+                   directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive")
+```
+
+```{r}
+ConstructGenesTree(ProteinDataObject,directorypath = NULL)
+```
+
+```{r}
+# This function is connecting to stringdb and retrieve all possible interactions for the searched protein/s.
+# Usage
+GetproteinNetwork(Accessions,
+                   directorypath = "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/output/archive")
+```
+
+```{r}
+# "This function is used for Enrichment analysis of Molecular function of given list of genes or proteins"
+Enrichment.MF(Accs,
+              OS="hsapiens",
+              p_value=0.05,
+              directorypath=NULL,
+              top=10)
+
+# This function is used for Enrichment analysis of given list of genes or proteins
+Pathway.Enr(Accs,OS="hsapiens",p_value=0.05,directorypath=NULL,top=10)
+
+# This Function is used to plot Molecular function of proteins.
+Plot.GOMolecular(GOObj, Top = 10, directorypath = NULL)
+
+PlotAcidity(SeqDataObjPath , directorypath = NULL)
+
+PlotCharge(SeqDataObjPath , directorypath = NULL)
+
+PlotChromosomeInfo(ProteinDataObject, directorypath = NULL)
+
+# This Function is used to cluster proteins based on primary genes retrieved from "GetNamesTaxa"
+PlotGenesNetwork(ProteinDataObject , directorypath = NULL)
+
+PlotGOAll(GOObj, Top = 10, directorypath = NULL, width = width, height = height)
+
+PlotGOBiological(GOObj, Top = 10, directorypath = NULL)
+PlotGoInfo(GOObj , directorypath = NULL)
+PlotGoterms(GOObj , directorypath = NULL)
+PlotPhysicochemical(SeqDataObjPath , directorypath = NULL)
+PlotProteinGO_bio(GO_df , dir_path = NA)
+PlotProteinGO_cel(GO_df , dir_path = NA)
+```
+
+```{r}
+for ( i in 1:length(bitr_totypes) ) {
+
+    #setwd(dir.aidata)
+  #try(fwrite(`_ai_p4c_soma_bitr_anno`[[i]],
+  #       paste0(names(`_ai_p4c_soma_bitr_anno`)[[i]], ".csv.gz")))
+}
+
+length(`__ai_p4c_soma_bitr_anno.fromGENESYMBOL`)
+length(`__ai_p4c_soma_bitr_anno.fromUNIPROT`)
+
+`__ai_p4c_soma_bitr_anno.fromGENESYMBOL` %>% lapply(nrow) %>% unique()
+`__ai_p4c_soma_bitr_anno.fromGENESYMBOL`[[1]]
+
+`__ai_p4c_soma_bitr_anno.fromGENESYMBOL` %>% names()
+
+`__ai_p4c_soma_bitr_anno.fromUNIPROT`$ai_p4c_soma_bitr_symbol
+`__ai_p4c_soma_bitr_anno.fromUNIPROT`$ai_p4c_soma_bitr_map
+`__ai_p4c_soma_bitr_anno.fromUNIPROT`$ai_p4c_soma_bitr_symbol
+
+`__ai_p4c_soma_bitr_anno.fromGENESYMBOL`$ai_p4c_soma_bitr_uniprot
+`__ai_p4c_soma_bitr_anno.fromGENESYMBOL`$ai_p4c_soma_bitr_map
+
+```

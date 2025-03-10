@@ -1,0 +1,84 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+```{r}
+setwd(dir.indata)
+in_p4c <- list.files() %>% lapply(fread)
+names(in_p4c) <- gsub(".csv", "", gsub(".csv.gz", "", list.files(dir.indata)))
+
+in_p4c
+```
+
+#### ai_p4c_soma_gene_symbols
+```{r}
+bitr_totypes <- c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
+                 "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
+                 "GENETYPE", "GO", "GOALL", "IPI", "MAP", "OMIM", "ONTOLOGY",
+                 "ONTOLOGYALL", "PATH", "PFAM", "PMID", "PROSITE", "REFSEQ",
+                 "SYMBOL", "UCSCKG", "UNIPROT")
+
+`_ai_p4c_soma_bitr_anno` <- list()
+for ( i in 1:length(bitr_totypes) ) {
+  `_ai_p4c_soma_bitr_anno`[[i]] <- try(bitr((in_p4c$in_donovan2024_p4c_soma %>%
+                                               dplyr::select(GeneSymbol) %>%
+                                               unique() %>%
+                                               arrange(GeneSymbol))$GeneSymbol,
+                                       fromType = 'SYMBOL',
+                                       toType = bitr_totypes[[i]],
+                               OrgDb = org.Hs.eg.db));
+  names(`_ai_p4c_soma_bitr_anno`)[[i]] <- try(paste0("ai_p4c_soma_bitr_",
+                                                tolower(bitr_totypes[[i]])))
+  
+  setwd(dir.aidata)
+  try(fwrite(`_ai_p4c_soma_bitr_anno`[[i]],
+         paste0(names(`_ai_p4c_soma_bitr_anno`)[[i]], ".csv.gz")))
+}
+
+`_ai_p4c_soma_bitr_anno`
+`_ai_p4c_soma_bitr_anno` %>% names()
+
+bitr_totypes <- c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
+                 "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
+                 "GENETYPE", "GO", "GOALL", "IPI", "MAP", "OMIM", "ONTOLOGY",
+                 "ONTOLOGYALL", "PATH", "PFAM", "PMID", "PROSITE", "REFSEQ",
+                 "SYMBOL", "UCSCKG", "UNIPROT")
+
+setwd(dir.aidata)
+ai_p4c_soma_bitr_anno <- list(`_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_uniprot,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_map,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_path,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_pfam,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_prosite,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_enzyme,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_genetype,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_pfam,
+     `_ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_genename) %>%
+  merge_recurse(by = "SYMBOL") %>%
+  mutate(tmp = gsub("q", "|q", MAP),
+         tmp = gsub("p", "|p", tmp)) %>%
+  separate(tmp, into = c("chromosome", "other"), sep = "[|]", extra = "merge", remove = FALSE) %>%
+  dplyr::select(-c(tmp, other));
+
+ai_p4c_soma_bitr_anno
+```

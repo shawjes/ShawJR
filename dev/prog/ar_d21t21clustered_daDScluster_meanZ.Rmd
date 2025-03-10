@@ -1,0 +1,102 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r echo=True, include=FALSE}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r echo=True, include=FALSE}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+
+select <- dplyr::select
+filter <- dplyr::filter
+rename <- dplyr::rename
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_d21t21clustered <- fread("ar_sigt21byage_d21t21clustered.csv.gz")
+ar_nonsigt21byage_d21t21clustered <- fread("ar_nonsigt21byage_d21t21clustered.csv.gz")
+
+head(ar_sigt21byage_d21t21clustered)
+head(ar_nonsigt21byage_d21t21clustered)
+
+tmp1 <- ar_sigt21byage_d21t21clustered %>%
+  ungroup() %>%
+  dplyr::rename(DA_DS_Cluster = T21byAge_SuperCluster) %>%
+  group_by(LabID, T21, Female, Karyotype, Sex, Karyotype_Sex, Age, DA_DS_Cluster, N_Cluster_Aptamers) %>%
+  summarise(MEAN_Zlog10_relative_abundance = mean(Zlog10_relative_abundance)) %>%
+  ungroup()
+
+tmp2 <- ar_nonsigt21byage_d21t21clustered %>%
+  ungroup() %>%
+  dplyr::rename(DA_DS_Cluster = nonsig_T21byAge_Cluster,
+                N_Cluster_Aptamers = nonsig_N_Cluster_Aptamers) %>%
+  group_by(LabID, T21, Female, Karyotype, Sex, Karyotype_Sex, Age, DA_DS_Cluster, N_Cluster_Aptamers) %>%
+  summarise(MEAN_Zlog10_relative_abundance = mean(Zlog10_relative_abundance))
+
+ar_d21t21clustered_daDScluster_meanZ <- rbind(tmp1, tmp2);
+
+ar_d21t21clustered_daDScluster_meanZ %>% dim()
+#[1] 8799    8
+
+head(ar_d21t21clustered_daDScluster_meanZ, n = 500)
+
+ar_d21t21clustered_daDScluster_meanZ %>%
+  dplyr::select(Karyotype, Sex, Karyotype_Sex, T21, Female) %>%
+  unique()
+
+setwd(dir.ardata)
+fwrite(ar_d21t21clustered_daDScluster_meanZ, "ar_d21t21clustered_daDScluster_meanZ.csv.gz")
+
+ar_d21t21clustered_daDScluster_meanZ %>% head()
+
+rm(tmp1, tmp2, ar_sigt21byage_d21t21clustered, ar_nonsigt21byage_d21t21clustered); gc()
+```

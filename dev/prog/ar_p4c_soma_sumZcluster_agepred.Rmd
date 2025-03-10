@@ -1,0 +1,92 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read aidata
+```{r}
+setwd(dir.aidata)
+ai_p4c_meta <- fread("ai_p4c_meta.csv.gz")
+ai_p4c_soma_anno <- fread("ai_p4c_soma_anno.csv.gz")
+ai_p4c_soma <- fread("ai_p4c_soma.csv.gz")
+setwd(dir.aidata)
+ai_proteomic_clock_proteins_clusters <- fread("ai_proteomic_clock_proteins_clusters.csv.gz") %>%
+  dplyr::rename(Lehallier2019_clusterID = ClusterID,
+         Lehallier_Variable = Variable) %>%
+  mutate(aptamer_in_Lehallier2019 = 1)
+
+ai_p4c_meta
+ai_p4c_soma
+ai_p4c_soma_anno
+ai_proteomic_clock_proteins_clusters
+```
+
+#### ar_p4c_soma_sumZcluster
+```{r}
+ar_p4c_soma_sumZcluster_agepred <- ai_p4c_soma %>%
+  mutate(aptamer_in_p4c_soma = 1) %>%
+  left_join(ai_p4c_soma_anno, by = c("Aptamer", "UniProt", "GeneSymbol")) %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  full_join(ai_proteomic_clock_proteins_clusters, by = c("Aptamer")) %>%
+  mutate(Cluster = paste0("Cluster ", Lehallier2019_clusterID),
+         Cluster = factor(Cluster,
+                          levels = c("Cluster 7",
+                                     "Cluster 6", 
+                                     "Cluster 3",
+                                     "Cluster 4", 
+                                     "Cluster 2", 
+                                     "Cluster 1",
+                                     "Cluster 5",
+                                     "Cluster 8")),
+         ggtitle = Cluster) %>%
+  mutate(T21 = case_when(Karyotype == "T21" ~ 1,
+                         Karyotype == "Control" ~ 0,
+                         .default = NA),
+         Female = case_when(Sex == "Female" ~ 1,
+                            Sex == "Male" ~ 0,
+                            .default = NA)) %>%
+  mutate(Cluster = case_when(is.na(Cluster) ~ "Cluster Other", .default = Cluster)) %>%
+  mutate(Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", chromosome, ", ", Cluster, ")"),
+         UniProt_Aptamer_Chr_Cluster = paste0(UniProt, "|", Aptamer, " (Chr", chromosome, ", ", Cluster, ")")) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster, everything()) %>%
+  dplyr::rename(Aptamer_in_p4c_soma = aptamer_in_p4c_soma,
+         Aptamer_in_Lehallier2019 = aptamer_in_Lehallier2019) %>%
+  # Same data prep as for ar_p4c_soma until this line
+  #filter(!is.na(Aptamer_in_p4c_soma) & !is.na(Aptamer_in_Lehallier2019)) %>%
+  group_by(LabID,
+           T21, Karyotype, Female, Sex, Age,
+           Cluster) %>%
+  summarise(sumZ_Cluster = sum(Zlog10_relative_abundance)) %>%
+  ungroup() %>%
+  mutate(Cluster = gsub(" ", "_", Cluster)) %>%
+  spread(key = Cluster, value = sumZ_Cluster) %>%
+  gather(key = "Cluster", value = "sumZ_Cluster", Cluster_1:Cluster_Other) %>%
+  filter(!is.na(LabID)) %>%
+  dplyr::mutate(Cluster = paste0("sumZ_", Cluster)) %>%
+  spread(key = Cluster, value = sumZ_Cluster);
+
+ar_p4c_soma_sumZcluster_agepred
+
+setwd(dir.ardata)
+fwrite(ar_p4c_soma_sumZcluster_agepred, "ar_p4c_soma_sumZcluster_agepred.csv.gz")
+```

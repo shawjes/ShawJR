@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+```
+
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd
+```
+
+```{r}
+msd %>%
+  select(RecordID, LabID, T21) %>%
+  unique() %>%
+  group_by(T21) %>%
+  summarise(N=n())
+```
+
+```{r}
+#### Read in master comorb/meta-data:
+comorb<-fread("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Comorbidities/Archive/HTP_CLEANED_051420_v0.4_COMORB_MASTER_RecordID_vs_LabID.Labels.tsv")
+comorb
+```
+
+#### Make Supplementary Table 1
+```{r}
+S1<-msd %>%
+  select(RecordID, LabID, Source) %>%
+  unique() %>%
+  left_join(comorb, by=c("RecordID", "LabID")) %>%
+  select(-c(Date_obtained))
+S1
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Supplemental_Tables")
+fwrite(S1, "MSD_082420_Supplemental_Table_1_v1.0_JRS.csv")
+```

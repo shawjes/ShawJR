@@ -1,0 +1,188 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# KEEP SCRIPT
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### ar_sigt21byage_d21onlyclustered
+```{r}
+setwd(dir.ardata)
+#ar_sigt21byage_d21onlyclustered <- fread("ar_sigt21byage_d21onlyclustered.csv.gz")
+#ar_nonsigt21byage_d21onlyclustered <- fread("ar_nonsigt21byage_d21onlyclustered.csv.gz")
+ar_sigt21byage_d21onlyclustered <- fread("ar_sigt21byage_d21onlyclustered.csv.gz")
+
+#ar_sigt21byage_d21onlyclustered.split %>% head()
+```
+
+#### f_sigt21byage_d21onlyclustered
+```{r}
+# head(ar_sigt21byage_d21onlyclustered)
+
+f_sigt21byage_d21onlyclustered <- ar_sigt21byage_d21onlyclustered %>%
+  mutate(gg_title = paste0("D21 Clock Cluster ", D21_Clock_Cluster),
+         gg_subtitle = paste0("(N=", N_Cluster_Aptamers, " Aptamers with FDR<0.05)"))
+
+setwd(dir.ddata)
+fwrite(f_sigt21byage_d21onlyclustered, "f_sigt21byage_d21onlyclustered.csv.gz")
+
+f_sigt21byage_d21onlyclustered.split <- f_sigt21byage_d21onlyclustered %>% split(., .$D21_Clock_Cluster)
+```
+
+#### gg_trajectory_byktsex_sigt21byage_cluster_facet
+#### gg_trajectory_byktsex_sigt21byage_cluster_facet_freescale
+```{r}
+# n_aptamers <- "_n_"
+gg_trajectory_d21only_sigt21byage_cluster_facet <- ar_sigt21byage_d21onlyclustered %>%
+  mutate(`D21 Clock Cluster` = paste0("D21 Clock Cluster ", D21_Clock_Cluster, "\n(N=", N_Cluster_Aptamers, " Aptamers with FDR<0.05)"),
+         Sex = factor(Sex, levels = c("Female", "Male"))) %>%
+         #Karyotype_Sex = factor(Karyotype_Sex, c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+  arrange(Sex) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Sex, fill = Sex)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12)) +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~`D21 Clock Cluster`, nrow = 4);
+
+save_as <- "f_trajectory_d21only_sigt21byage_cluster_facet";
+setwd(dir.output)
+ggsave(gg_trajectory_d21only_sigt21byage_cluster_facet,
+       filename = paste0(save_as, ".png"),
+       width = 6.5, height = 13, units = "in")
+```
+
+```{r}
+gg_trajectory_d21only_sigt21byage_cluster_facet_freescale <- ar_sigt21byage_d21onlyclustered %>%
+  mutate(`D21 Clock Cluster` = paste0("D21 Clock Cluster ", D21_Clock_Cluster, "\n(N=", N_Cluster_Aptamers, " Aptamers with FDR<0.05)"),
+         Sex = factor(Sex, levels = c("Female", "Male"))) %>%
+         #Karyotype_Sex = factor(Karyotype_Sex, c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+  arrange(Sex) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Sex, fill = Sex)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12)) +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~`D21 Clock Cluster`, nrow = 4, scales = "free");
+
+save_as <- "f_trajectory_d21only_sigt21byage_cluster_facet_freescale";
+setwd(dir.output)
+ggsave(gg_trajectory_d21only_sigt21byage_cluster_facet_freescale,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 14, units = "in")
+```
+
+
+#### gg_trajectory_d21only_sigt21byage_cluster
+#### gg_trajectory_d21only_bysex_sigt21byage_cluster
+```{r}
+gg_trajectory_bykt_sigt21byage_cluster <- list()
+gg_trajectory_byktsex_sigt21byage_cluster <- list()
+for ( i in 1:length(f_sigt21byage_d21onlyclustered.split) ) {
+  gg_trajectory_d21only_sigt21byage_cluster[[i]] <- f_sigt21byage_d21onlyclustered.split[[i]] %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+    scale_colour_manual(values = c(RedBlue)) +
+    scale_fill_manual(values = c(RedBlue)) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+    ylab("Relative abundance (Zlog10)") +
+    #facet_wrap(~T21byAge_Cluster, ncol=4) +
+    #ggtitle(paste0("T21-by-Age Cluster ", names(f_sigt21byage_d21onlyclustered.split)[[i]])) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom",
+          legend.title = element_blank()) +
+    labs(title = element_text(unique(f_sigt21byage_d21onlyclustered.split[[i]]$gg_title)),
+         subtitle = element_text(unique(f_sigt21byage_d21onlyclustered.split[[i]]$gg_subtitle)));
+  save_as <- paste0("f_trajectory_d21only_sigt21byage_cluster_",
+                    names(f_sigt21byage_d21onlyclustered.split)[[i]]);
+  setwd(dir.output)
+  ggsave(gg_trajectory_d21only_sigt21byage_cluster[[i]],
+       filename = paste0(save_as, ".png"),
+       width = 5, height = 5, units = "in")
+}
+
+
+
+  gg_trajectory_d21only_bysex_sigt21byage_cluster[[i]] <- f_sigt21byage_d21onlyclustered.split[[i]] %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+    geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+    scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+    scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+    ylab("Relative abundance (Zlog10)") +
+    #facet_wrap(~T21byAge_Cluster, ncol=4) +
+    #ggtitle(paste0("T21-by-Age Cluster ", names(f_sigt21byage_d21onlyclustered.split)[[i]])) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom",
+          legend.title = element_blank()) +
+    labs(title = element_text(unique(f_sigt21byage_d21onlyclustered.split[[i]]$gg_title)),
+         subtitle = element_text(unique(f_sigt21byage_d21onlyclustered.split[[i]]$gg_subtitle)));
+  save_as <- paste0("f_trajectory_d21only_bysex_sigt21byage_cluster_",
+                    names(f_sigt21byage_d21onlyclustered.split)[[i]]);
+  setwd(dir.output)
+  ggsave(gg_trajectory_d21only_bysex_sigt21byage_cluster[[i]],
+       filename = paste0(save_as, ".png"),
+       width = 5, height = 5, units = "in")
+}
+```
+
+

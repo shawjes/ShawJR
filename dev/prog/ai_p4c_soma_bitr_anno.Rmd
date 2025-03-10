@@ -1,0 +1,178 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read in_donovan2024_p4c_soma
+```{r}
+# setwd(dir.indata)
+# in_p4c <- list.files() %>% lapply(fread)
+# names(in_p4c) <- gsub(".csv", "", gsub(".csv.gz", "", list.files(dir.indata)))
+# in_p4c
+
+setwd(dir.indata)
+in_donovan2024_p4c_soma <- fread("in_donovan2024_p4c_soma.csv.gz")
+
+in_donovan2024_p4c_soma
+```
+
+#### `_ai_p4c_soma_bitr_kegg_anno`
+```{r}
+bitr_kegg_totypes <- c("Path", "Module", "ncbi-proteinid", "ncbi-geneid", "kegg");
+ 
+`_ai_bitr_kegg_anno` <- list()
+for ( i in 1:length(bitr_kegg_totypes) ) {
+  `_ai_bitr_kegg_anno`[[i]] <- try(bitr_kegg(((in_donovan2024_p4c_soma %>%
+                   dplyr::select(UniProt) %>%
+                   unique() %>%
+                   arrange(UniProt))$UniProt),
+                                       fromType = 'uniprot',
+                                       toType = bitr_kegg_totypes[[i]],
+                                       # Note: 'hsa' = human
+                                       organism = 'hsa'));
+  names(`_ai_bitr_kegg_anno`) <- try(paste0("ai_bitr_kegg_",
+                                            bitr_kegg_totypes[[i]]))
+}
+`_ai_p4c_soma_bitr_kegg_anno` <- `_ai_bitr_kegg_anno` %>%
+  reshape::merge_recurse(by = "uniprot");
+
+rm(`_ai_bitr_kegg_anno`); gc();
+
+`_ai_p4c_soma_bitr_kegg_anno`
+```
+
+#### `_ai_p4c_soma_bitr_anno`
+```{r}
+# "'fromType' should be one of ACCNUM, ALIAS, ENSEMBL, ENSEMBLPROT, ENSEMBLTRANS, ENTREZID, ENZYME, EVIDENCE, EVIDENCEALL, GENENAME, GENETYPE, GO, GOALL, IPI, MAP, OMIM, ONTOLOGY, ONTOLOGYALL, PATH, PFAM, PMID, PROSITE, REFSEQ, SYMBOL, UCSCKG, UNIPROT."
+bitr_totypes <- c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
+                 "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
+                 "GENETYPE", "GO", "GOALL", "IPI", "MAP", "OMIM", "ONTOLOGY",
+                 "ONTOLOGYALL", "PATH", "PFAM", "PMID", "PROSITE", "REFSEQ",
+                 "SYMBOL", "UCSCKG", "UNIPROT")
+
+`__ai_p4c_soma_bitr_anno` <- list()
+for ( i in 1:length(bitr_totypes) ) {
+  `__ai_p4c_soma_bitr_anno`[[i]] <- try(bitr(((in_donovan2024_p4c_soma %>%
+                                               dplyr::select(GeneSymbol) %>%
+                                               unique() %>%
+                                               arrange(GeneSymbol))$GeneSymbol),
+                                       fromType = 'SYMBOL',
+                                        toType = bitr_totypes[[i]],
+                               OrgDb = org.Hs.eg.db));
+  names(`__ai_p4c_soma_bitr_anno`)[[i]] <- try(paste0("ai_p4c_soma_bitr_",
+                                                                 tolower(bitr_totypes[[i]])))
+  #setwd(dir.aidata)
+  #try(fwrite(`_ai_p4c_soma_bitr_anno`[[i]],
+  #       paste0(names(`_ai_p4c_soma_bitr_anno`)[[i]], ".csv.gz")))
+}
+
+# `__ai_p4c_soma_bitr_anno`
+```
+
+```{r}
+setwd(dir.aidata)
+`_ai_p4c_soma_bitr_anno` <- list(`__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_uniprot,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_map,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_path,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_pfam,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_prosite,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_enzyme,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_genetype,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_pfam,
+                                 `__ai_p4c_soma_bitr_anno`$ai_p4c_soma_bitr_genename)
+
+`_ai_p4c_soma_bitr_anno` <- `_ai_p4c_soma_bitr_anno` %>%
+  merge_recurse(by = "SYMBOL") %>%
+  mutate(tmp = gsub("q", "|q", MAP),
+         tmp = gsub("p", "|p", tmp)) %>%
+  separate(tmp, into = c("chromosome", "other"), sep = "[|]", extra = "merge", remove = FALSE) %>%
+  dplyr::select(-c(tmp, other));
+
+rm(`__ai_p4c_soma_bitr_anno`); gc();
+
+`_ai_p4c_soma_bitr_anno`
+```
+
+#### ai_p4c_soma_genesymbol_uniprot_aptamer
+```{r}
+`_ai_p4c_soma_genesymbol_uniprot_aptamer` <- in_donovan2024_p4c_soma %>%
+  dplyr::select(Aptamer, UniProt, GeneSymbol) %>%
+  mutate(GeneSymbol = case_when(GeneSymbol == "" ~ paste0("N/A (Aptamer: ", Aptamer, ")"),
+                                .default = GeneSymbol)) %>%
+  mutate(UniProt = case_when(UniProt == "" ~ paste0("N/A (Aptamer: ", Aptamer, ")"),
+                                .default = UniProt)) %>%
+  dplyr::select(Aptamer, UniProt, GeneSymbol) %>%
+  unique();
+
+`_ai_p4c_soma_genesymbol_uniprot_aptamer` 
+```
+
+```{r}
+#`_ai_p4c_soma_bitr_anno`
+#`_ai_p4c_soma_bitr_kegg_anno`
+#`_ai_p4c_soma_genesymbol_uniprot_aptamer`
+
+`_ai_p4c_soma_bitr_anno` <-`_ai_p4c_soma_genesymbol_uniprot_aptamer` %>%
+  left_join( (`_ai_p4c_soma_bitr_kegg_anno` %>%
+                group_by(uniprot) %>%
+                summarise(across(everything(), ~paste0(unique(.), collapse = "|")))),
+             by = c("UniProt"="uniprot")) %>%
+  left_join( (`_ai_p4c_soma_bitr_anno` %>%
+                group_by(SYMBOL, UNIPROT) %>%
+                summarise(across(everything(), ~paste0(unique(.), collapse = "|")))
+              ),
+            by = c("UniProt" = "UNIPROT", "GeneSymbol"="SYMBOL"))
+
+`_ai_p4c_soma_bitr_anno`
+```
+
+```{r}
+setwd(dir.aidata)
+ai_donovan2024_p4c_soma_map <- fread("ai_donovan2024_p4c_soma_map.csv.gz")
+# ai_donovan2024_p4c_soma_map
+
+ai_donovan2024_p4c_soma_map %>%
+  dplyr::select(Aptamer, chromosome) %>%
+  unique() %>%
+  filter(is.na(chromosome) | chromosome == "")
+
+`_ai_p4c_soma_bitr_anno` %>%
+  dplyr::select(Aptamer, chromosome) %>%
+  unique() %>%
+  filter(is.na(chromosome) | chromosome == "")
+
+# Creating annotation using bitr and fromType GeneSymbol gives the same amount of chromosome info as doing the same with fromType UniProt. No benefit in combining the two outputs.
+```
+
+```{r}
+ai_p4c_soma_bitr_anno <- `_ai_p4c_soma_bitr_anno`
+
+rm(`_ai_p4c_soma_bitr_anno`); gc()
+
+ai_p4c_soma_bitr_anno
+```
+
+```{r}
+setwd(dir.aidata)
+fwrite(ai_p4c_soma_bitr_anno, "ai_p4c_soma_bitr_anno.csv.gz")
+```
+

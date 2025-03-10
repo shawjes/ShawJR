@@ -1,0 +1,202 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Analyst: Jessica R. Shaw
+
+Date: 6/11/2020
+
+Data: MSD
+
+Analysis: Single-cytokine, single-timepoint analysis of MSD proteomics
+
+Goal: Generate sina plots to visualize the effect of karyotype as estimated by Model 1 (log2(Conc)~T21+Age+Female+(1|Source)).
+
+```{r}
+#install.packages(c("purrr", "dplyr", "tidyr", "ggplot2", "data.table",
+#                   "reshape2", "latticeExtra", "RColorBrewer", "cowplot",
+#                   "broom", "ggforce", "bigmemory"))
+library(data.table); library(dplyr); library(tidyr); library(ggplot2)
+#library(purrr)
+#require(reshape2)
+#library(latticeExtra)
+library(RColorBrewer)
+#library(cowplot)
+library(broom)
+library(ggforce)
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+#library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+```
+
+# Read in clean Crnic MSD data from experiments 3-6
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd
+```
+
+# Prepare data to be plotted, including log2 fold changes, 95% confidence intervals, and corrected P-values (BH)
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results")
+resultsT21.model1<-read.xlsx("MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx", sheet="Model 1") %>%
+  select(Panel_Analyte, log2FC_T21, CI.low_T21, CI.high_T21, FDR_T21) %>%
+  unique() %>%
+  arrange(FDR_T21) %>%
+  mutate(Rank_T21 = seq(1:length(FDR_T21))) %>%
+  mutate(`log2FC (95% CI)` = paste( round(log2FC_T21, digits=2),
+                                    " (", round(CI.low_T21, digits=2), ", ",
+                                    round(CI.high_T21, digits=2), ")", sep="")) %>%
+  mutate(FDR = ifelse(FDR_T21<0.00001, formatC(FDR_T21, format = "e", digits = 2), round(FDR_T21, digits=4))) %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=TRUE) %>%
+  select(-c(log2FC_T21, CI.low_T21, CI.high_T21))
+#resultsT21.model1
+
+msd01<-resultsT21.model1 %>%
+  left_join(msd, by=c("Panel", "Analyte"))
+msd01
+```
+
+#### Define colors for use in plots
+```{r}
+# # Define colors for plotting:
+# # HEX colors pulled from the Crnic/HTP logo @ trisome.org:
+# # https://coolors.co/83781b-95b46a-709255-3e5622-172815
+# # https://www.colorhexa.com/006c9e
+# htp.colors<-c("#153152", # dark blue
+#               "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+#               "#4C4E64", # dark blue-gray
+#               "#54759B", # light blue-gray
+#               "#DADDE4") # pale gray
+# fills<-c("snow3", "snow3")
+# #fills<-c("gray42", "#007db8")
+# c("#DADDE4", "#006C9E")
+# c("#c5c8d1", "#006C9E")
+# 
+# values<-c("gray42", "#007db8")
+# colors<-c("gray42", "#007db8")
+# RedBlue<-c("#CD3333", "#1874CD")
+# Purple<-"#551A8B"
+```
+
+#### Make sina plots by Karyotype using residuals of log2(Conc)~Age+T21
+Note: These plots may not perfectly align with the results for the effect of T21 as estimated by Model 1. To produce plots representative of the effect of karyotype as estimated in Model 1, we need to 'remove' all other effects besides the one we want to visualize. We can get these adjusted values by fitting the same model as the one we want to visualize, but without the term for T21 that we want to plot.
+
+Because our MSD models include a random effect for sample source, residuals from the same model excluding T21 may not perfectly align with the effect estimates produced by the full model. In producing the residuals plotted below, I have left out the random effect for source because without a fixed effect for T21, (1|Source) removes part of the effect of karyotype.
+
+```{r}
+analyteFileNames<-msd01 %>%
+  select(Analyte, Rank_T21) %>%
+  unique() %>%
+  mutate(Analyte_noSpecialChar = gsub("[-]", "", Analyte),
+         Analyte_noSpecialChar = gsub("[/]", "", Analyte_noSpecialChar),
+         Analyte_noSpecialChar = gsub("[(]", "", Analyte_noSpecialChar),
+         Analyte_noSpecialChar = gsub("[)]", "", Analyte_noSpecialChar),
+         Analyte_noSpecialChar = gsub(" ", "", Analyte_noSpecialChar),
+         Analyte_filename = paste("MSD_051220_sina_log2ConcADJageSex_byKaryotype_", Analyte_noSpecialChar, "_v1.6_JRS", sep=""))
+analyteFileNames
+
+msd02<-msd01 %>%
+  left_join(analyteFileNames, by=c("Analyte", "Rank_T21"))
+
+msd02
+```
+
+# Setting and modifying default theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"), 
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = 0.5),
+                  panel.background = element_blank(),
+                  panel.grid = element_blank(),
+                  plot.background = element_blank()
+            ) +
+            theme(strip.background = element_rect(colour="black", fill = "light grey", size = 1)) # adjusts facet label borders
+)
+
+
+### Sina plots by Karyotype
+analytes<-as.character(levels(as.factor(msd02$Analyte)))
+p<-list()
+for(i in 1:length(levels(as.factor(msd02$Analyte)))) {
+  DF<-msd02 %>% filter(Rank_T21==i) %>%
+    mutate(log2Concentration_Adjusted = try(resid( lm( log2(CalcConcMean_AfterImputation) ~ Age + Sex))))
+  AnalyteName<-DF$Analyte[1]
+  Analyte_filename<-DF$Analyte_filename[1]
+  p_i<-DF %>%
+    ggplot(aes(x=Karyotype, y = log2Concentration_Adjusted, color = Karyotype, fill = Karyotype)) +
+    #geom_hline(yintercept = 0, linetype = 2) +
+    geom_sina(size = 0.75) +
+    geom_boxplot(aes(fill = Karyotype), notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5,
+                 color = c("grey", "#2b8cbe")) +
+    scale_color_manual(values = c("Control" = "grey", "T21" = "#2b8cbe", "DS_other" = "#9ecae1")) +
+    scale_fill_manual(values = c("Control" = "grey", "T21" = "#2b8cbe", "DS_other" = "#9ecae1")) +
+    #theme_bw() +
+    theme(legend.position = "none") +
+#    facet_wrap(~ score_type, nrow = 3) +
+    ylab("log2(Concentration), age- and sex-adjusted") +
+    labs(title=AnalyteName,
+         subtitle =
+paste("log2FC (95% CI): ", DF$`log2FC (95% CI)`, "
+Padj: ", DF$FDR), sep="")
+
+    setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Sina/PNG")
+    ggsave(filename = paste0(Analyte_filename, ".png", sep=""),
+         width = 3.5, height = 4, units = "in")
+    setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Sina/PDF")
+    ggsave(filename = paste0(Analyte_filename, ".pdf", sep=""),
+         device = cairo_pdf, width = 3.5, height = 4,
+         units = "in")
+  
+  p[[i]]<-p_i
+
+}
+
+length(p) #[1] 54
+p %>% head()
+```

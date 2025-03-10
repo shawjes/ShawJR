@@ -1,0 +1,2331 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#install.packages("devtools")
+library(devtools)
+# https://github.com/SomaLogic/SomaDataIO
+#devtools::install_github("SomaLogic/SomaDataIO")
+library(SomaDataIO)
+library(ggrepel)
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+#library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(tidyverse)
+#library(caret)
+#library(glmnet)
+```
+
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") %>% # Keep only samples obtained locally or at NDSC
+  mutate(log2Conc = log2(CalcConcMean_AfterImputation)) %>%
+  select(RecordID, LabID, Age, Female, Source, Analyte, log2Conc)
+msd
+```
+
+```{r}
+adat1<-"SS-200060.hybNorm.medNormInt.plateScale.calibrate.anmlQC.qcCheck.adat"
+#adat2<-"SS-200060.hybNorm.medNormInt.plateScale.calibrate.anmlQC.qcCheck.anmlSMP.adat"
+
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/SomaScan/")
+soma1 <- read.adat(adat1)
+#soma2 <- read.adat(adat2)
+#* No Checksum in line 1 of ADAT fileUnable to verify (or find) the ADAT Checksum ...
+# Consider the following:
+#  1) There is no Checksum line in the ADAT (a secondary warning may confirm this)
+#  2) The ADAT file has been modified and the Checksum invalidated
+```
+
+```{r}
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/SomaScan")
+soma.demog <- openxlsx::read.xlsx("SS-200060 RUOC Anschutz-Hill-Down-AD SSF.complete_AR_05.27.20.xlsx", sheet="Demographics")
+soma.meds <- openxlsx::read.xlsx("SS-200060 RUOC Anschutz-Hill-Down-AD SSF.complete_AR_05.27.20.xlsx", sheet="Medications")
+
+#is.soma_adat(soma)
+
+#print(soma, show_header = TRUE)
+
+#soma
+soma.demog
+soma.meds
+```
+
+```{r}
+features1 <- getAnalyteInfo(soma1) %>% ungroup()
+#features2 <- getAnalyteInfo(soma2) %>% ungroup()
+# help(getAnalyteInfo)
+
+features1
+#features2
+```
+
+```{r}
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC7062043/#SD2
+st7 <- openxlsx::read.xlsx("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/NIHMS1541641-supplement-1541641_Sup_Tab1-17.xlsx",
+                 sheet = 8, # "ST7 Plasma proteomic clock"
+                 startRow = 2) %>% 
+  `rownames<-`(NULL)
+
+#install.packages("openxlsx")
+#library(openxlsx)
+st11_clusterIDs <- openxlsx::read.xlsx("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/NIHMS1541641-supplement-1541641_Sup_Tab1-17.xlsx",
+                 sheet = 12, # "ST7 Plasma proteomic clock"
+                 startRow = 3) %>% 
+  `rownames<-`(NULL)
+st11_clusterIDs
+
+
+proteomic_clock_proteins <- st7 %>% select(Variable) %>% filter(Variable != "(Intercept)")
+
+st7
+proteomic_clock_proteins
+```
+
+```{r}
+soma1.analysisData_long <- soma.demog %>% rename(RecordID = Tube.Unique.ID) %>%
+  full_join(soma1 %>% rename(RecordID = SampleId) %>% filter(SampleType == "Sample"), by="RecordID") %>%
+  mutate(T21 = ifelse(Sample.Group=="Down syndrome", 1,
+                      ifelse(Sample.Group=="Control", 0, NA)),
+         Female = ifelse(Sex=="Female", 1,
+                         ifelse(Sex=="Male", 0, NA))) %>%
+  dplyr::select(RecordID, T21, Female, Age, everything()) %>%
+  #gather(key="AptName", value="Abundance", `CRYBB2.10000.28`:`IRF6.9999.1`) %>%
+  gather(key="AptName", value="Abundance", `seq.10000.28`:`seq.9999.1`) %>%
+  full_join(features1, by="AptName") %>%
+  mutate( Male = ifelse(Sex=="Male", 1, ifelse(Sex=="Female", 0, NA)),
+          Karyotype_Sex = factor(ifelse(T21==0 & Female==0, "D21 male",
+                                        ifelse(T21==1 & Female==0, "T21 male",
+                                               ifelse(T21==0 & Female==1, "D21 female",
+                                                      ifelse(T21==1 & Female==1, "T21 female", NA)))),
+          levels = c("D21 male", "T21 male", "D21 female", "T21 female"))) %>%
+  #dplyr::select(RecordID, T21, Male, Female, Sex, Age, Karyotype_Sex, Race, Ethnicity, Site.of.Blood.Collection, everything()) %>%
+  dplyr::select(RecordID, T21, Male, Female, Sex, Age, Karyotype_Sex, Race, Ethnicity, everything()) %>%
+  mutate(uid = paste(TargetFullName, "_", EntrezGeneSymbol, sep = "")) %>%
+  mutate(Karyotype = case_when(T21 == 0 ~ "D21",
+                               T21 == 1 ~ "T21",
+                               .default = NA),
+         log10_Abundance = log10(Abundance))
+
+soma1.D21_summary_stats <- soma1.analysisData_long %>%
+  filter(T21 == 0)%>%
+  group_by(SomaId, T21, Karyotype) %>%
+  summarise(mean_log10Abundance.D21 = mean(log10_Abundance, na.rm = TRUE),
+            sd_log10Abundance.D21 = sd(log10_Abundance, na.rm = TRUE)) %>%
+  ungroup()
+soma1.T21_summary_stats <- soma1.analysisData_long %>%
+  filter(T21 == 1) %>%
+  group_by(SomaId, T21, Karyotype) %>%
+  summarise(mean_log10Abundance.T21 = mean(log10_Abundance, na.rm = TRUE),
+            sd_log10Abundance.T21 = sd(log10_Abundance, na.rm = TRUE)) %>%
+  ungroup()
+
+soma1.D21_summary_stats
+soma1.T21_summary_stats
+
+soma1.analysisData_long01 <- soma1.analysisData_long %>%
+  full_join(soma1.D21_summary_stats %>% select(SomaId, starts_with("mean_"), starts_with("sd_")),
+            by = c("SomaId")) %>%
+  full_join(soma1.T21_summary_stats %>% select(SomaId, starts_with("mean_"), starts_with("sd_")),
+            by = c("SomaId")) %>%
+  mutate(Z_log10_Abundance = (log10_Abundance - mean_log10Abundance.D21)/sd_log10Abundance.D21) %>%
+  ungroup() %>%
+  select(RecordID,
+         #LabID,
+         T21, Karyotype,
+         Male, Female, Sex, Age, Karyotype_Sex, Race, Ethnicity, Sample.Group,
+         SampleType, AptName, uid,
+         Abundance, log10_Abundance, Z_log10_Abundance,
+         SomaId, Target, TargetFullName,
+         EntrezGeneSymbol, UniProt, Organism, Units, Type,
+         mean_log10Abundance.D21, sd_log10Abundance.D21,
+         mean_log10Abundance.T21, sd_log10Abundance.T21);
+rm(soma1.analysisData_long); gc()
+
+soma1.analysisData_long01
+
+# Calculate the Z-score for each ISG using the formula
+# Z = (log10Abundance_{iD21} - mean_{gene_iD21}) / SD_{gene_{iD21}}
+```
+
+```{r}
+soma1.analysisData_long01
+st11_clusterIDs
+
+soma1.analysisData_long01 %>%
+  select(RecordID, T21, SomaId, Abundance, Z_log10_Abundance) %>%
+  unique() %>%
+  filter(T21 == 0);
+soma1.analysisData_long01 %>%
+  select(RecordID, T21, SomaId, Abundance, Z_log10_Abundance) %>%
+  unique() %>%
+  filter(T21 == 1)
+```
+
+```{r}
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+```
+
+```{r}
+soma1_protein_identifiers <- soma1.analysisData_long01 %>%
+  select(uid, SomaId, 
+         AptName, Target, TargetFullName, EntrezGeneSymbol, UniProt) %>%
+  unique() %>%
+  mutate(Protein_numbers = gsub("seq.", "", AptName),
+         test1 = paste0(Target, ".", Protein_numbers),
+         test2 = paste0(EntrezGeneSymbol, ".", Protein_numbers)) %>%
+  `rownames<-`(NULL);
+
+st11_clusterIDs01 <- st11_clusterIDs %>%
+  separate(Protein, into = c(paste0("x", seq(1:10))), sep = "[.]", extra = "merge", remove = FALSE) %>%
+  rename(Protein_name = x1) %>%
+  gather(key = "key", value = "value", x2:x10) %>%
+  mutate(value = case_when(is.na(value) ~ "", .default = value)) %>%
+  mutate(value_c = case_when(is.na(as.numeric(value)) ~ value, .default = ""),
+         value_n = case_when(!is.na(as.numeric(value)) ~ value, .default = "")) %>%
+  select(-c(value)) %>%
+  mutate(value_n_index = as.numeric(gsub("x", "", key))) %>%
+  select(-c(key)) %>%
+  select(Protein, Protein_name, value_c, value_n_index, value_n, ClusterID) %>%
+  group_by(Protein, ClusterID) %>%
+  arrange(Protein, value_n_index) %>%
+  summarise(value_c = paste(value_c, collapse = "_"),
+            value_n = paste(value_n, collapse = "_")) %>%
+  ungroup() %>%
+  mutate(value_c = gsub("__", "_", value_c),
+         value_c = gsub("__", "_", value_c),
+         value_c = gsub("__", "_", value_c),
+         value_n = gsub("__", "_", value_n),
+         value_n = gsub("__", "_", value_n),
+         value_n = gsub("__", "_", value_n),
+         value_n = gsub("__", "_", value_n),
+         value_c = gsub("_", ".", value_c),
+         value_n = gsub("_", ".", value_n)) %>%
+  separate(Protein, into = c("Protein_name", "other"), sep = "[.]", extra = "merge", remove = FALSE) %>%
+  mutate(value_c = case_when(value_c == "." ~ "", .default = value_c),
+         Protein_name = case_when(value_c != "" ~ paste(Protein_name, value_c, sep = "."), .default = Protein_name),
+         
+         Protein_name = gsub("[.]", " ", Protein_name),
+         Protein_name = trimws(Protein_name),
+         Protein_name = gsub(" ", ".", Protein_name),
+         
+         value_n = gsub("[.]", " ", value_n),
+         value_n = trimws(value_n),
+         value_n = gsub(" ", ".", value_n)) %>%
+  select(-c(value_c)) %>%
+  select(-c(other)) %>%
+  rename(Protein_numbers = value_n) %>%
+  separate(Protein_numbers, into = c("Protein_n1", "Protein_n2", "Protein_n3"), sep = "[.]", extra = "merge",
+           remove = FALSE) %>%
+  rename(Protein_numbers3 = Protein_numbers) %>%
+  mutate(Protein_numbers = paste(Protein_n1, Protein_n2, sep = ".")) %>%
+  select(-c(Protein_n1, Protein_n2));
+
+st11_clusterIDs01 %>% select(Protein_name) %>% unique()
+soma1_protein_identifiers %>% select(Target) %>% unique()
+soma1_protein_identifiers %>% select(EntrezGeneSymbol) %>% unique()
+
+unique(st11_clusterIDs01$Protein_name) %>% length() #[1] 2817
+intersect(unique(st11_clusterIDs01$Protein_name), unique(soma1_protein_identifiers$Target)) %>% length() #[1] 993
+intersect(unique(st11_clusterIDs01$Protein_name), unique(soma1_protein_identifiers$EntrezGeneSymbol)) %>% length() #[1] 2638
+
+unique(st11_clusterIDs01$Protein_numbers) %>% length() #[1] 2925
+unique(soma1_protein_identifiers$Protein_numbers) %>% length() #[1] 5284
+intersect(unique(st11_clusterIDs01$Protein_numbers), unique(soma1_protein_identifiers$Protein_numbers)) %>% length() #[1] 2923
+
+colnames(st11_clusterIDs01) <- paste0("st11.", colnames(st11_clusterIDs01))
+colnames(st11_clusterIDs01) <- gsub("st11.Protein_name", "Protein_name", colnames(st11_clusterIDs01))
+colnames(st11_clusterIDs01) <- gsub("st11.Protein_numbers", "Protein_numbers", colnames(st11_clusterIDs01))
+st11_clusterIDs01
+
+
+soma1_protein_identifiers01 <- st11_clusterIDs01 %>%
+  mutate(Protein_In_st11 = 1) %>%
+  full_join(soma1_protein_identifiers %>%
+              select(-c(test1, test2)) %>%
+              mutate(Protein_name = EntrezGeneSymbol,
+                     Protein_In_P4C = 1),
+            by = c("Protein_name", "Protein_numbers"))
+
+soma1_protein_identifiers01
+
+soma1.analysisData_long.ST11 <- soma1.analysisData_long01 %>%
+  full_join(soma1_protein_identifiers01,
+            by = intersect(colnames(soma1.analysisData_long01),
+                           colnames(soma1_protein_identifiers01))) %>%
+  as.data.frame() %>%
+  `rownames<-`(NULL)
+
+soma1.analysisData_long.ST11 %>%
+  filter(!is.na(st11.ClusterID)) %>%
+  select(Target, st11.ClusterID) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  group_by(st11.ClusterID) %>%
+  summarise(N_proteins = n())
+# st11.ClusterID N_proteins
+# 1	1285			
+# 2	913			
+# 3	106			
+# 4	102			
+# 5	199			
+# 6	58			
+# 7	11			
+# 8	8	
+
+soma1.analysisData_long.ST11 %>%
+  select(SomaId, T21, Karyotype, Abundance, Z_log10_Abundance) %>% unique() %>%
+  filter(T21 == 0)
+soma1.analysisData_long.ST11 %>%
+  select(SomaId, T21, Karyotype, Abundance, Z_log10_Abundance) %>% unique() %>%
+  filter(T21 == 1)
+```
+
+#### Setting and modifying theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 11), #size = 14
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+RedBlue <- c("#CD3333", "#1874CD")
+GrayBlue <- c("grey", "#2b8cbe")
+```
+
+```{r}
+soma1.analysisData_long.ST11 %>%
+  ggplot(aes(x = Z_log10_Abundance, y = ..scaled.., color = Karyotype, fill = Karyotype)) +
+  geom_density(alpha = 0.4)
+
+soma1.analysisData_long.ST11 %>%
+  ggplot(aes(x = Z_log10_Abundance, y = ..scaled.., color = Karyotype, fill = Karyotype)) +
+  geom_density(alpha = 0.4)
+```
+
+```{r}
+# 7, 6, 3, 4, 2, 1, 5, 8
+
+# "coord_cartesian() function in ggplot2 can be used to zoom in on a plot. This function performs a visual zoom without changing the underlying data."
+
+ggData <- soma1.analysisData_long.ST11 %>%
+  rename(Cluster = st11.ClusterID) %>%
+  mutate(Cluster = paste0("Cluster ", Cluster),
+         Karyotype = case_when(T21 == 0 ~ "D21",
+                               T21 == 1 ~ "T21", .default = NA),
+         Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+         Cluster = factor(Cluster,
+                          levels = c("Cluster 7",
+                                     "Cluster 6", 
+                                     "Cluster 3",
+                                     "Cluster 4", 
+                                     "Cluster 2", 
+                                     "Cluster 1",
+                                     "Cluster 5",
+                                     "Cluster 8"))) %>%
+  group_by(Cluster) %>%
+  mutate(ggtitle = Cluster) %>%
+  ungroup() %>%
+  arrange(Cluster);
+ggData.split <- ggData %>% split(., .$Cluster)
+
+ggData.split[[8]] %>%
+    ggplot(aes(x = Age, y = Z_log10_Abundance, color = Karyotype)) + #, color = Protein)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE, linewidth = 2) +
+    theme_bw() +
+  coord_cartesian(xlim = c(0,100),
+                  ylim = c(-2,2))
+
+ggData.split[[8]] %>%
+    ggplot(aes(x = Age, y = Z_log10_Abundance, color = Karyotype)) + #, color = Protein)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE) +
+    theme_bw() +
+    ggtitle(ggData.split[[8]]$ggtitle[1]) +
+    coord_cartesian(xlim = c(0,100),
+                    ylim = c(-2,2)) +
+    scale_x_continuous("Age (years)", 
+                       labels = as.character(seq(0, 100, by=20)),
+                       breaks = seq(0, 100, by = 20), 
+                       expand=c(0,0) #,
+                       #limits = c(0,100)
+                       ) +
+    scale_y_continuous("Protein levels (Z-score)", 
+                       labels = as.character(seq(-2, 2, by=1)),
+                       breaks = seq(-2, 2, by = 1), 
+                       expand=c(0,0) #,
+                       #limits = c(0,100)
+                       ) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom")
+
+gg_seT <- list()
+#gg_scatter <- list()
+for ( i in 1:length(ggData.split) ){
+  gg_seT[[i]] <- ggData.split[[i]] %>%
+    ggplot(aes(x = Age, y = Z_log10_Abundance, color = Karyotype)) + #, color = Protein)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE) +
+    theme_bw() +
+    ggtitle(ggData.split[[i]]$ggtitle[1]) +
+    coord_cartesian(xlim = c(0,100),
+                    ylim = c(-2,2)) +
+    scale_x_continuous("Age (years)", 
+                       labels = as.character(seq(0, 100, by=20)),
+                       breaks = seq(0, 100, by = 20), 
+                       expand=c(0,0) #,
+                       #limits = c(0,100)
+                       ) +
+    scale_y_continuous("Protein levels (Z-score)", 
+                       labels = as.character(seq(-2, 2, by=1)),
+                       breaks = seq(-2, 2, by = 1), 
+                       expand=c(0,0) #,
+                       #limits = c(0,100)
+                       ) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom")
+}
+
+for ( i in 1:length(ggData.split) ) {
+  setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/output")
+  ggsave(gg_seT[[i]],
+         filename = paste("20250121_Proteomic_Aging_", ggData.split[[i]]$ggtitle[1], "_seTRUE.png", sep = ""),
+         width = 5, height = 5, units = "in")
+  # setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/output")
+  # ggsave(gg[[i]],
+  #        filename = paste("20250121_Proteomic_Aging_", ggData.split[[i]]$ggtitle[1], "_scatter.png", sep = ""),
+  #        width = 5, height = 5, units = "in")
+}
+
+gg_seT
+```
+
+```{r}
+ggData %>%
+  filter(Cluster == "Cluster 8") %>%
+  select(TargetFullName) %>%
+  unique()
+
+# https://www.mdpi.com/1422-0067/19/1/248
+# Wyganowska-Świątkowska, M., Matthews-Kozanecka, M., Matthews-Brzozowska, T., Skrzypczak-Jankun, E., & Jankun, J. (2018). Can egcg alleviate symptoms of down syndrome by altering proteolytic activity? International Journal of Molecular Sciences, 19(1), 248. https://doi.org/10.3390/ijms19010248
+
+```
+
+```{r}
+model_ardata <- ggData %>%
+  group_by(RecordID, T21, Karyotype, Male, Female, Sex, Age, Karyotype_Sex, Race,
+           Ethnicity, Cluster) %>%
+  summarise(sumZ_Cluster = sum(Z_log10_Abundance)) %>%
+  ungroup() %>%
+  mutate(Cluster = gsub(" ", "_", Cluster)) %>%
+  spread(key = Cluster, value = sumZ_Cluster) %>%
+  rename(Cluster_Other = `<NA>`) %>%
+  select(-c(Cluster_Other))
+
+model_ardata
+
+model_ardata.long <- model_ardata %>%
+  gather(key = "Cluster", value = "sumZ_Cluster", Cluster_1:Cluster_8)
+
+model_ardata.long.split <- model_ardata.long %>%
+  split(., .$Cluster)
+
+# IMPORTANT NOTE: If NA for any cluster, exclude participant from aging Z score analysis and possibly from all analyses (decide later...)
+```
+
+```{r}
+results.logistic <- glm(T21 ~ Cluster_1 + Cluster_2 + Cluster_3 + Cluster_4 + Cluster_5 +
+      Cluster_6 + Cluster_7 + Cluster_8,
+    data = model_ardata,
+    family=binomial(link='logit')) %>%
+  tidy(conf.int = TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  filter(term != "(Intercept)");
+
+results.logistic
+```
+
+```{r}
+set.seed(1234)
+fit.modelA <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female, data = .))
+tidy.modelA <- model_ardata.long.split %>%
+  map2(.x = fit.modelA, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelA %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+
+set.seed(1234)
+fit.modelB <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age, data = .));
+tidy.modelB <- model_ardata.long.split %>%
+  map2(.x = fit.modelB, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+tidy.modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+
+fit.modelB2 <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + Female*Age, data = .));
+tidy.modelB2 <- model_ardata.long.split %>%
+  map2(.x = fit.modelB2, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelB2 %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+
+fit.modelB3 <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age + Female*Age, data = .));
+tidy.modelB3 <- model_ardata.long.split %>%
+  map2(.x = fit.modelB3, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelB3 %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+
+fit.modelB4 <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age + Female*Age + T21*Female, data = .));
+tidy.modelB4 <- model_ardata.long.split %>%
+  map2(.x = fit.modelB4, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelB4 %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+
+fit.modelB5 <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age + T21*Female, data = .));
+tidy.modelB5 <- model_ardata.long.split %>%
+  map2(.x = fit.modelB4, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelB5 %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+
+
+fit.modelC <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age*Female, data = .));
+tidy.modelC <- model_ardata.long.split %>%
+  map2(.x = fit.modelC, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelC %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+
+fit.modelE <- model_ardata.long.split %>%
+    map(~lm(sumZ_Cluster ~ Karyotype_Sex + Age + Karyotype_Sex*Age, data = .));
+tidy.modelE <- model_ardata.long.split %>%
+  map2(.x = fit.modelE, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.modelE %>%
+  filter(grepl("Karyotype", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+```
+
+```{r}
+tidy.modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  arrange(desc(abs(estimate)))
+
+# Top aging-related Clusters largely rank-align with T21 associations... Interesting...
+```
+
+#### Test for T21*Age in males and females separately
+```{r}
+fit.model_Males <- model_ardata.long.split %>% 
+  lapply(., filter, Female == 0) %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + T21*Age, data = .));
+tidy.model_Males <- model_ardata.long.split %>% 
+  lapply(., filter, Female == 0)  %>%
+  map2(.x = fit.model_Males, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.model_Males %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+
+fit.model_Females <- model_ardata.long.split %>% 
+  lapply(., filter, Female == 1) %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + T21*Age, data = .));
+tidy.model_Females <- model_ardata.long.split %>% 
+  lapply(., filter, Female == 1)  %>%
+  map2(.x = fit.model_Females, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.model_Females %>%
+  filter(grepl("T21", term)==TRUE) %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic))
+
+```
+
+```{r}
+tmp <- model_ardata %>%
+  filter(T21 == 1)
+
+plot(density(tmp$Age))
+
+lm(Age ~ Cluster_1 +
+     Cluster_2 +
+     Cluster_3 +
+     Cluster_4 +
+     Cluster_5 +
+     Cluster_6 +
+     Cluster_7 +
+     Cluster_8
+     )
+
+# IMPORTANT TO-DOs:
+# 1) *T21s-ONLY* PCA OF ALL P4C-MEASURED PROTEINS
+# 2) Linear models to identify significantly age-related PCs of the T21 proteome, eg:
+#  PC1 ~ Age
+#  PC2 ~ Age (*)
+# ...
+#  PC7 ~ Age (*)
+# ...
+#  PC10 ~ Age
+
+# 2) Determine which of the published aging Clusters are associated with Aging-related PCs in the P4C:
+#  SigAge_PC2 ~ Cluster_1 + Cluster_2 + ... + Cluster_8
+#  SigAge_PC7 ~ Cluster_1 + Cluster_2 + ... + Cluster_8
+# AND/OR
+# SigAge_PC2 ~ Cluster_1
+# SigAge_PC2 ~ Cluster_2
+# ...
+# SigAge_PC2 ~ Cluster_8
+# SigAge_PC7 ~ Cluster_1
+# SigAge_PC7 ~ Cluster_2
+# ...
+# SigAge_PC7 ~ Cluster_8
+
+# 3) HEATMAP MAGIC
+# Heatmap(s) (with hierarchical clustering +LMs) of the 8 published aging Clusters vs. Age-Associated proteomic PCs
+
+# 4) Discuss what we can learn about aging in DS from the correlations. What proportion of aging-related proteomic variability in T21s can be explained by the published aging Clusters? Can we quantify how much remains to be explained? Do the clusters adequately capture most of the picture of aging in DS, or is there more to uncover/explain about aging in DS?
+
+# 5) Consider performing LOESS curve fitting and clustering among T21s only to develop T21 proteomic aging clock.
+# 6) Do any PCs or Clusters significantly associate with NfL, GFAP?
+# 7) Do any PCs or Clusters significantly associate with CyTOF frequencies?
+# 8) Do any PCs or Clusters significantly associate with MSD cytokines?
+# 9) Do any PCs or Clusters significantly associate with IFN scores?
+# 10) On which CHROMOSOME are the proteins in each cluster?? What about cluster 8??
+
+#  PC2 ~ Cluster_1 + Cluster_2 + ... + Cluster_8
+# ...
+#  PC10 ~ Cluster_1 + Cluster_2 + ... + Cluster_8
+# 3) More linear models:
+#  Cluster_1 ~ PC1 + PC2 + ... + PC10
+#  Cluster_2 ~ PC1 + PC2 + ... + PC10
+# ...
+#  Cluster_8 ~ PC1 + PC2 + ... + PC10
+# 3) Identify PCs which significantly correlate with each aging Cluster
+# 4) Which proteins are in each significant PC? Does this point to other important proteins
+```
+
+
+```{r}
+soma1.analysisData_long.ST11 %>%
+  filter(st11.ClusterID == 8) %>%
+  select(st11.ClusterID, Target, TargetFullName, SomaId, UniProt, EntrezGeneSymbol) %>%
+  unique() 
+
+(soma1.analysisData_long.ST11 %>%
+  filter(st11.ClusterID == 8) %>%
+  select(st11.ClusterID, Target, TargetFullName, SomaId, UniProt, EntrezGeneSymbol) %>%
+  unique() %>%
+  select(EntrezGeneSymbol))$EntrezGeneSymbol
+# https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1471-4159.2007.05075.x?casa_token=KpqqYapBJLMAAAAA%3Atz7ERR-3scHaYRJOZWaWELfzkSsje8dGcL8j3pa5iIaDUpiIBYwSc3EAHXMlvAnzMzpT45V9mb0  
+# "Located on chromosome 21 are the genes that encode β-amyloid (Aβ) precursor protein (APP ), a key protein involved in the pathogenesis of AD, and dual-specificity tyrosine(Y)-phosphorylation regulated kinase 1A (DYRK1A ), a proline-directed protein kinase that plays a critical role in neurodevelopment. Here, we describe a potential mechanism for the regulation of AD pathology in DS brains by DYRK1A-mediated phosphorylation of APP."
+```
+
+#### PICK UP HERE (1/22/2025 ~745pm)
+
+
+
+
+
+
+```{r}
+set.seed(1234)
+tidy1.model <- list()
+tidy2.model <- list()
+tidy3.model <- list()
+for ( i in 1:length(model) ){
+  tidy.model1[[i]] <- map2(.x = fit.model1[[i]], .y = data_split1, .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="AptName") %>%
+    filter(term!="(Intercept)")
+  
+  tidy.model2[[i]] <- map2(.x = fit.model2[[i]], .y = data_split2, .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="AptName") %>%
+    filter(term!="(Intercept)")
+  
+  tidy.model3[[i]] <- map2(.x = fit.model3[[i]], .y = data_split2, .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="AptName") %>%
+    filter(term!="(Intercept)")
+  
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " tidy() complete.", sep=""))
+  }
+}
+
+```
+
+# PICK UP HERE (1/22/2025 ~5:40pm)
+
+
+
+
+```{r}
+cluster_trajectory <- list()
+for ( i in 1:max(soma1.analysisData_long.ST11$st11.ClusterID, na.rm = T)) {
+  cluster_trajectory[[i]] <- soma1.analysisData_long.ST11 %>%
+    filter(st11.ClusterID == i) %>%
+    ggplot(aes(x = Age, y = scaled_log10_Abundance, color = factor(T21))) + #, color = Protein)) +
+    geom_smooth(se = TRUE) +
+    theme(aspect.ratio = 1.0) +
+    theme_minimal() +
+    ggtitle(paste0("ST11 Cluster ", i))
+} 
+cluster_trajectory
+
+# Monotonic increasing clusters:
+# 7, 6, 3, 4, 2
+
+# Flat clusters:
+# 1
+
+# Monotonic decreasing clusters:
+# 5, 8
+
+# st11.ClusterID  st11_Trend  P4C_Trend   Trend_Difference
+# 1               Flat        Multimodal  *
+# 2               Increasing  Multimodal  *
+# 3               Increasing  Increasing
+# 4               Increasing  Increasing
+# 5               Decreasing  Decreasing
+# 6               Increasing  Decreasing  **
+# 7               Increasing  Decreasing  **
+# 8               Decreasing  Decreasing
+
+# NOTES:
+# Clusters 1, 2, 6, and 7 have noticably different trends across age than in discover cohort(s) from published paper (https://pmc.ncbi.nlm.nih.gov/articles/PMC7062043/#SD2)
+```
+
+
+```{r}
+st11_clusterIDs %>%
+  #arrange(Protein) %>%
+  separate(Protein, into = c("Target", "other"), sep = "[.]", extra = "merge", remove = FALSE)
+
+features1 %>%
+  select(AptName, Target,
+         SeqId,
+         SeqIdVersion) %>%
+  unique() %>%
+  arrange(Target) %>%
+  group_by(AptName) %>%
+  mutate(P4C_Protein = paste0(gsub("seq",
+                                   #Target,
+                                   EntrezGeneSymbol,
+                                   AptName),
+                          ".", SeqIdVersion),
+         Protein = P4C_Protein) %>%
+  ungroup() %>%
+  mutate(In_P4C = 1) %>%
+  full_join(st11_clusterIDs %>% mutate(In_publication = 1),
+            by = "Protein") %>%
+  filter(!is.na(In_P4C)) %>%
+  arrange(desc(In_publication))
+
+
+# CRYBB2.10000.28.3
+
+# A1CF.12423.38.3
+# seq.12423.38	A1CF
+```
+
+#### Fit linear models
+```{r}
+# colnames(soma1.analysisData_long)
+
+soma1.analysisData_long.T21only <- soma1.analysisData_long %>%
+  filter(T21 == 1)
+
+soma1.analysisData_long.D21only <- soma1.analysisData_long %>%
+  filter(T21 == 0)
+
+soma1.analysisData_long
+soma1.analysisData_long.D21only
+soma1.analysisData_long.T21only
+```
+
+
+```{r}
+data_split1.D21only <- split(soma1.analysisData_long.D21only,
+                             soma1.analysisData_long.D21only$uid)
+data_split1.T21only <- split(soma1.analysisData_long.T21only,
+                             soma1.analysisData_long.T21only$uid)
+
+data_split1.D21only %>% head(n=2)
+data_split1.T21only %>% head(n=2)
+```
+
+#### Setting and modifying theme for plots
+```{r}
+theme_set(theme_gray(base_size = 14, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), #size = 14
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+RedBlue <- c("#CD3333", "#1874CD")
+GrayBlue <- c("grey", "#2b8cbe")
+```
+
+
+#### LOESS prediction and plotting of age trajectories in D21s
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess.D21 <- list()
+predicted.D21 <- list()
+plot_predicted.D21 <- list()
+for ( i in 1:length(data_split1.D21only) ){
+# for ( i in 1:10 ){
+  loess.D21[[i]] <- loess(scaled_log10_Abundance ~ Age, data = data_split1.D21only[[i]])
+  predicted.D21[[i]] <- cbind(data_split1.D21only[[i]]$RecordID,
+                                        loess.D21[[i]]$fitted,
+                                        data_split1.D21only[[i]]$scaled_log10_Abundance,
+                                        data_split1.D21only[[i]]$Age,
+                                        as.character(data_split1.D21only[[i]]$Sex)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("RecordID", "predicted_scaled_log10_Abundance", "scaled_log10_Abundance", "Age", "Sex")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_scaled_log10_Abundance = as.numeric(predicted_scaled_log10_Abundance),
+           scaled_log10_Abundance = as.numeric(scaled_log10_Abundance),
+           Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+    arrange(Age) %>%
+    mutate(uid = names(data_split1.D21only)[[i]]) %>%
+    select(uid, everything())
+  
+  plot_predicted.D21[[i]] <- predicted.D21[[i]] %>%
+    #arrange(Age) %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log10_Abundance)) +
+    geom_point(color = RedBlue[[2]], alpha = 0.5) +
+    geom_line(color = RedBlue[[2]]) +
+    ggtitle(names(predicted.D21)[[i]])
+  
+  names(loess.D21)[[i]] <- names(data_split1.D21only)[[i]]
+  names(predicted.D21)[[i]] <- names(data_split1.D21only)[[i]]
+  names(plot_predicted.D21)[[i]] <- names(data_split1.D21only)[[i]]
+}
+
+predicted.D21 %>% head()
+
+plot_predicted.D21 %>% head()
+```
+
+```{r}
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+#install.packages("factoextra")
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+library(gridExtra)
+```
+
+#### Cluster the LOESS age-associated trajectories within D21s
+```{r}
+predicted.D21.matrix <- predicted.D21 %>%
+  rbindlist() %>%
+  select(uid, RecordID, predicted_scaled_log10_Abundance) %>%
+  unique() %>%
+  spread(key = RecordID, value = predicted_scaled_log10_Abundance) %>%
+  column_to_rownames(var = "uid") %>%
+  as.matrix()
+#predicted.D21.matrix %>% as.data.frame()
+
+# Dissimilarity matrix
+d.D21s <- dist(predicted.D21.matrix, method = "euclidean")
+  
+# Hierarchical clustering using Complete Linkage
+hc1.D21s <- hclust(d.D21s, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 8, border = 2:6) # Use 8 clusters for this pilot analysis
+
+# Ward's method
+# hc5 <- hclust(d, method = "ward.D2" )
+# hc5.D21s <- hclust(d.D21s, method = "ward.D2" )
+# hc5
+# hc5.D21s
+
+# Cut tree into 6 groups
+sub_grp8.D21s <- cutree(hc1.D21s, k = 8) # hc1.D21s = clustering by "Complete" method for this pilot analysis, here identifying 6 clusters
+#sub_grp6.D21s
+
+# Cluster plot:
+fviz_cluster(list(data = predicted.D21.matrix, cluster = cutree(hc1.D21s, k = 6)))
+
+# Add the the cluster each observation belongs to to our original data.
+predicted.D21.k8_df <- predicted.D21.matrix %>%
+  as.data.frame() %>%
+  mutate(cluster = sub_grp8.D21s) %>%
+  select(cluster, everything()) %>%
+  rownames_to_column("uid") %>%
+  gather(key = "RecordID",
+         value = "predicted_scaled_log10_Abundance",
+         INVAL266CN1:INVZK768PCH) %>%
+  full_join(soma1.analysisData_long.D21only %>% select(RecordID,
+                                                         # LabID,
+                                                         Age, Sex) %>% unique(), by = c("RecordID")) %>%
+  select(RecordID, 
+         #LabID, 
+         Age, Sex, uid, cluster, predicted_scaled_log10_Abundance)
+predicted.D21.k8_df
+
+predicted.D21.k8_df.split_by_cluster <- split(predicted.D21.k8_df,
+                                              predicted.D21.k8_df$cluster)
+
+predicted.D21.k8_df.split_by_cluster[[1]]
+
+# Plot the predicted LOESS trajectories comprising each cluster:
+cluster_loess.D21 <- list()
+for ( i in 1:length(predicted.D21.k8_df.split_by_cluster) ){
+  cluster_loess.D21[[i]] <- predicted.D21.k8_df.split_by_cluster[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_scaled_log10_Abundance, color = uid)) +
+    geom_smooth(method = "loess", se = FALSE, alpha = 0.25) +
+    ggtitle(paste("Trajectory of D21 cluster ",
+                  predicted.D21.k8_df.split_by_cluster[[i]]$cluster[1],
+                  " in D21s")) +
+    theme(legend.position = "bottom")
+}
+
+predicted.D21.k8_df %>%
+    ggplot(aes(x = Age,
+               y = predicted_scaled_log10_Abundance,
+               color = cluster)) +
+    geom_smooth(method = "loess", se = FALSE, alpha = 0.25) +
+    ggtitle(paste("Trajectory of D21 clusters ")) + #,
+                  #predicted.D21.k8_df.split_by_cluster[[i]]$cluster[1],
+                  #" in D21s")) +
+    theme(legend.position = "bottom")
+
+# ** Here's where the fun starts! **
+cluster_loess.D21 %>% tail(n=1)
+
+# Draw the dendrogram with borders around the clusters:
+plot(hc1.D21s, cex = 0.6); rect.hclust(hc1.D21s, k = 8, border = 2:8)
+```
+
+
+
+```{r}
+# Age is a causal mediator of which proteins in T21?
+
+# T21 -> log2(Abundance)
+# Age -> log2(Abundance)
+
+# T21 -> Age -> log2(Abundance)?
+# Requires:
+# T21 -> log2(Abundance)
+# T21 -> Age
+
+# log2(Abundance) ~ T21
+# log2(Abundance) ~ Age
+# log2(Abundance) ~ T21 + Age
+
+
+# log2(Abundance) ~ 1
+# log2(Abundance) ~ Age
+
+model <- list( #as.formula("log2(Abundance) ~ T21 + Age + Female"),
+               as.formula("log2(Abundance) ~ T21 + Age + Female + T21*Female"),
+               as.formula("log2(Abundance) ~ Karyotype_Sex + Age"),
+               as.formula("log2(Abundance) ~ Karyotype_Sex + Age + Karyotype_Sex*Age")) #,
+
+```
+
+```{r}
+model <- list( #as.formula("log2(Abundance) ~ T21 + Age + Female"),
+               as.formula("log2(Abundance) ~ T21 + Age + Female + T21*Female"),
+               as.formula("log2(Abundance) ~ Karyotype_Sex + Age"),
+               as.formula("log2(Abundance) ~ Karyotype_Sex + Age + Karyotype_Sex*Age")) #,
+               #as.formula("log2(Abundance) ~ T21 + Age + Female + T21*Female"),
+               #as.formula("log2(Abundance) ~ T21 + Age + Female + T21*Age + T21*Female"),
+               #as.formula("log2(Abundance) ~ T21 + Age + Female + T21*Age + T21*Female+ T21*Age*Female") )
+
+
+#update_seq<-c(1, 10, seq(from=0, to=1000, by=10)[-c(1:2)] )
+update_seq <- seq(from=0, to=7, by=1)[-c(1)]
+
+set.seed(1234)
+fit..model1 <- list()
+fit.model2 <- list()
+fit.model3 <- list()
+for ( i in 1:length(model) ){
+  fit.model1[[i]] <- map(data_split2, ~lm(formula = model[[i]], data = .))
+  fit.model2[[i]] <- map(data_split2, ~lm(formula = model[[i]], data = .))
+  fit.model3[[i]] <- map(data_split2, ~lm(formula = model[[i]], data = .))
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " lm() complete.", sep=""))
+  }
+}
+
+set.seed(1234)
+tidy1.model <- list()
+tidy2.model <- list()
+tidy3.model <- list()
+for ( i in 1:length(model) ){
+  tidy.model1[[i]] <- map2(.x = fit.model1[[i]], .y = data_split1, .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="AptName") %>%
+    filter(term!="(Intercept)")
+  
+  tidy.model2[[i]] <- map2(.x = fit.model2[[i]], .y = data_split2, .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="AptName") %>%
+    filter(term!="(Intercept)")
+  
+  tidy.model3[[i]] <- map2(.x = fit.model3[[i]], .y = data_split2, .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="AptName") %>%
+    filter(term!="(Intercept)")
+  
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " tidy() complete.", sep=""))
+  }
+}
+
+tidy.model1 %>% filter(term == "T21:Female")
+tidy.model2 %>% filter(term == "Karyotype_Sex")
+tidy.model2 %>% filter(term == "Karyotype_Sex*Age")
+```
+
+```{r}
+fit.emmeans <- list()
+fit.contrasts <- list()
+fit.anmlSMP.emmeans <- list()
+fit.anmlSMP.contrasts <- list()
+
+set.seed(1234)
+for ( i in 1:length(fit.model[[1]]) ){
+  aptname <- names(fit.model[[1]])[[i]]
+  fit.emmeans[[i]] <- emmeans(fit.model[[1]][[i]], revpairwise ~ Karyotype_Sex)$emmeans %>% as.data.frame() %>%
+    mutate(AptName = aptname) %>%
+    select(AptName, Karyotype_Sex, everything())
+  fit.contrasts[[i]] <- emmeans(fit.model[[1]][[i]], revpairwise ~ Karyotype_Sex)$contrasts %>% as.data.frame() %>%
+    rename(log2FC = estimate) %>%
+    mutate(AptName = aptname) %>%
+    select(AptName, everything())
+  
+  aptname.anmlSMP <- names(fit.anmlSMP.model[[1]])[[i]]
+  fit.anmlSMP.emmeans[[i]] <- emmeans(fit.anmlSMP.model[[1]][[i]], revpairwise ~ Karyotype_Sex)$emmeans %>% as.data.frame() %>%
+    mutate(AptName = aptname.anmlSMP) %>%
+    select(AptName, Karyotype_Sex, everything())
+  fit.anmlSMP.contrasts[[i]] <- emmeans(fit.anmlSMP.model[[1]][[i]], revpairwise ~ Karyotype_Sex)$contrasts %>% as.data.frame() %>%
+    rename(log2FC = estimate) %>%
+    mutate(AptName = aptname.anmlSMP) %>%
+    select(AptName, everything())
+}
+
+```
+
+```{r}
+fit.contrasts.df <- fit.contrasts %>% rbindlist() %>%
+  group_by(contrast) %>%
+  mutate(Q = p.adjust(p.value, method = "BH")) %>%
+  ungroup() %>%
+  mutate(SigQ05 = ifelse(Q<0.05, "Yes", "No"),
+         SigQ10 = ifelse(Q<0.10, "Yes", "No"))
+
+fit.emmeans.df <- fit.emmeans %>% rbindlist() %>%
+  rename(`Estimated group mean` = emmean)
+
+fit.contrasts.df
+fit.emmeans.df
+
+fit.contrasts.df %>%
+  select(AptName, contrast, SigQ05) %>%
+  unique() %>%
+  spread(key = contrast, value = SigQ05) %>%
+  filter(`D21 female - D21 male` == "Yes" & `T21 female - T21 male`=="No") %>%
+  arrange(`D21 female - D21 male`,
+         `T21 female - T21 male`,
+         
+         `D21 female - T21 male`,
+         `T21 female - D21 male`,
+         
+         `T21 female - D21 female`,
+         `T21 male - D21 male`) %>%
+  left_join(features.anmlSMP, by = "AptName") %>%
+  select(TargetFullName,
+         `D21 female - D21 male`,
+         `T21 female - T21 male`,
+         
+         `D21 female - T21 male`,
+         `T21 female - D21 male`,
+         
+         `T21 female - D21 female`,
+         `T21 male - D21 male`,
+         #Target,
+         #EntrezGeneSymbol, Organism,
+         everything())
+
+fit.contrasts.df %>%
+  select(AptName, contrast, SigQ05) %>%
+  unique() %>%
+  spread(key = contrast, value = SigQ05) %>%
+  filter(`D21 female - D21 male` == "Yes" & `T21 female - T21 male`=="No") %>%
+  arrange(`D21 female - D21 male`,
+         `T21 female - T21 male`,
+         
+         `D21 female - T21 male`,
+         `T21 female - D21 male`,
+         
+         `T21 female - D21 female`,
+         `T21 male - D21 male`) %>%
+  left_join(features.anmlSMP, by = "AptName") %>%
+  select(TargetFullName,
+         `D21 female - D21 male`,
+         `T21 female - T21 male`,
+         
+         `D21 female - T21 male`,
+         `T21 female - D21 male`,
+         
+         `T21 female - D21 female`,
+         `T21 male - D21 male`,
+         #Target,
+         #EntrezGeneSymbol, Organism,
+         everything()) %>%
+  select(AptName, TargetFullName) %>%
+  unique() %>%
+  left_join(soma.analysisData_long, by = c("AptName", "TargetFullName")) %>%
+  ggplot(aes(x = Karyotype_Sex, y = log2(Abundance))) +
+  geom_boxplot() +
+  facet_wrap(~TargetFullName, scales = "free", ncol = 2, nrow = 4) +
+  theme_bw()
+
+# T21 males resemble T21 and D21 females:
+# - T cell surface antigen CD2
+# - Shadow of prion protein
+# - Fc_MOUSE
+# - Growth hormone variant
+
+# T21 females resemble T21 and D21 males:
+# - Alpha-1B-glycoprotein
+# - Glutamate receptor ionotrophic, delta-2
+# - IGM
+
+```
+
+```{r}
+fit.anmlSMP.contrasts.df <- fit.anmlSMP.contrasts %>% rbindlist() %>%
+  group_by(contrast) %>%
+  mutate(Q = p.adjust(p.value, method = "BH")) %>%
+  ungroup() %>%
+  mutate(SigQ05 = ifelse(Q<0.05, "Yes", "No"),
+         SigQ10 = ifelse(Q<0.10, "Yes", "No"))
+
+fit.anmlSMP.emmeans.df <- fit.anmlSMP.emmeans %>% rbindlist() %>%
+  rename(`Estimated group mean` = emmean)
+
+fit.anmlSMP.contrasts.df
+fit.anmlSMP.emmeans.df
+```
+
+
+
+```{r}
+
+```
+
+```{r}
+tidy1.model3_T21 <- tidy1.model[[3]] %>% filter(term=="T21") %>%
+  mutate(`Samples normalized to reference` = "No") %>%
+  dplyr::select(`Samples normalized to reference`, everything()) %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  left_join(features1, by="AptName")
+tidy1.model3_Age <- tidy1.model3 %>% filter(term=="Age") %>%
+  mutate(`Samples normalized to reference` = "No") %>%
+  dplyr::select(`Samples normalized to reference`, everything()) %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  left_join(features1, by="AptName")
+tidy1.model3_Female <- tidy1.model3 %>% filter(term=="Female") %>%
+  mutate(`Samples normalized to reference` = "No") %>%
+  dplyr::select(`Samples normalized to reference`, everything()) %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  left_join(features1, by="AptName")
+
+tidy2.model3_T21 <- tidy2.model3 %>% filter(term=="T21") %>%
+  mutate(`Samples normalized to reference` = "Yes") %>%
+  dplyr::select(`Samples normalized to reference`, everything()) %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  left_join(features2, by="AptName")
+tidy2.model3_Age <- tidy2.model3 %>% filter(term=="Age") %>%
+  mutate(`Samples normalized to reference` = "Yes") %>%
+  dplyr::select(`Samples normalized to reference`, everything()) %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  left_join(features2, by="AptName")
+tidy2.model3_Female <- tidy2.model3 %>% filter(term=="Female") %>%
+  mutate(`Samples normalized to reference` = "Yes") %>%
+  dplyr::select(`Samples normalized to reference`, everything()) %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  left_join(features2, by="AptName")
+
+sig1.model3_T21 <- tidy1.model3_T21 %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>% filter(Q<0.10) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2))
+
+sig2.model3_T21 <- tidy2.model3_T21 %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>% filter(Q<0.10) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2))
+
+sig1.model3_Age <- tidy1.model3_Age %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>% filter(Q<0.10) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2))
+
+sig2.model3_Age <- tidy2.model3_Age %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>% filter(Q<0.10) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2))
+
+sig1.model3_T21 %>% filter(grepl("HIV", TargetFullName)==TRUE)
+sig2.model3_T21 %>% filter(grepl("HIV", TargetFullName)==TRUE)
+
+sig1.model3_Age %>% filter(grepl("HIV", TargetFullName)==TRUE)
+sig2.model3_Age %>% filter(grepl("HIV", TargetFullName)==TRUE)
+
+sig1.model3_T21
+sig2.model3_T21
+
+tidy1.model3_T21 %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2)) %>%
+  filter(grepl("hyro", TargetFullName)==TRUE)
+
+tidy2.model3_T21 %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2)) %>%
+  filter(grepl("antigen", TargetFullName)==TRUE)
+
+tidy1.model3_T21 %>% dplyr::select(-c(std.error, statistic)) %>% arrange(Q) %>%
+  dplyr::select(-c(SeqId, SeqIdVersion, Dilution, PlateScale.Reference, CalReference,
+                   Cal.P0026511,
+                   Cal.P0026510,
+                   Cal.P0026509,
+                   CalQcRatio.P0026511.170255,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   Cal.P0026508,
+                   CalQcRatio.P0026510.170255,
+                   Cal.P0026507,
+                   CalQcRatio.P0026509.170255,
+                   ColCheck,
+                   CalQcRatio.P0026508.170255,
+                   CalQcRatio.P0026507.170255,
+                   QcReference.170255,
+                   Dilution2)) %>%
+  filter(grepl("Anti", TargetFullName)==TRUE |
+           grepl("anti", TargetFullName)==TRUE)
+```
+
+
+
+
+```{r}
+set.seed(1234)
+glance.model <- list()
+for ( i in 1:length(model) ){
+  glance.model[[i]] <- map2(.x = fit.model[[i]], .y = data_split, .f = ~glance(x = .x, data = .y)) %>%
+    bind_rows(.id="AptName")
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " glance() complete.", sep=""))
+  }
+}
+
+set.seed(1234)
+augment.model <- list()
+for ( i in 1:length(model) ){
+  augment.model[[i]] <- map2(.x = fit.model[[i]], .y = data_split, .f = ~augment_columns(x = .x, data = .y)) %>%
+    bind_rows(.id="AptName")
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " augment() complete.", sep=""))
+  }
+}
+
+results.model1 <- tidy.model[[1]] %>%
+  left_join(features, by="AptName")
+results.model2 <- tidy.model[[2]] %>%
+  left_join(features, by="AptName")
+results.model3 <- tidy.model[[3]] %>%
+  left_join(features, by="AptName")
+results.model4 <- tidy.model[[4]] %>%
+  left_join(features, by="AptName")
+
+results.model1 %>% filter(grepl("HIV", TargetFullName)) %>%
+  filter(term != "(Intercept)")
+results.model2 %>% filter(grepl("HIV", TargetFullName)) %>%
+  filter(term != "(Intercept)")
+results.model3 %>% filter(grepl("HIV", TargetFullName)) %>%
+  filter(term != "(Intercept)")
+results.model4 %>% filter(grepl("HIV", TargetFullName)) %>%
+  filter(term != "(Intercept)")
+
+
+results.model1 %>% filter(grepl("CD40LG", AptName)) %>%
+  filter(term != "(Intercept)")
+results.model2 %>% filter(grepl("CD40LG", AptName)) %>%
+  filter(term != "(Intercept)")
+results.model3 %>% filter(grepl("CD40LG", AptName)) %>%
+  filter(term != "(Intercept)")
+results.model4 %>% filter(grepl("CD40LG", AptName)) %>%
+  filter(term != "(Intercept)")
+
+
+
+```
+
+
+
+```{r}
+model <- list( as.formula("log2(Abundance) ~ Karyotype_Sex + Age"),
+               as.formula("log2(Abundance) ~ Karyotype_Sex + Age + Karyotype_Sex + Age"),
+               as.formula("log2(Abundance) ~ T21 + Age + Male"),
+               as.formula("log2(Abundance) ~ T21 + Age + Male + T21*Age"),
+               as.formula("log2(Abundance) ~ T21 + Age + Male + T21*Male"),
+               as.formula("log2(Abundance) ~ T21 + Age + Male + T21*Age + T21*Male") ) #,
+              #as.formula("log2(Abundance) ~ T21 + Age + Male + T21*Age + T21*Male+ T21*Age*Male") )
+
+data_split <- split(soma.analysisData_long01, soma.analysisData_long01$AptName)
+
+#update_seq<-c(1, 10, seq(from=0, to=1000, by=10)[-c(1:2)] )
+update_seq<-seq(from=0, to=6, by=1)[-c(1)]
+
+set.seed(1234)
+fit.model<-list()
+for ( i in 1:length(model) ){
+  fit.model[[i]]<- map(data_split, ~lm(formula = model[[i]], data = .))
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " lm() complete.", sep=""))
+  }
+}
+
+set.seed(1234)
+tidy.model<-list()
+for ( i in 1:length(model) ){
+  tidy.model[[i]]<-map2(.x = fit.model[[i]], .y = data_split, .f = ~tidy(x = .x, data = .y)) %>%
+    bind_rows(.id="AptName")
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " tidy() complete.", sep=""))
+  }
+}
+
+set.seed(1234)
+glance.model<-list()
+for ( i in 1:length(model) ){
+  glance.model[[i]]<-map2(.x = fit.model[[i]], .y = data_split, .f = ~glance(x = .x, data = .y)) %>%
+    bind_rows(.id="AptName")
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " glance() complete.", sep=""))
+  }
+}
+
+set.seed(1234)
+augment.model<-list()
+for ( i in 1:length(model) ){
+  augment.model[[i]]<-map2(.x = fit.model[[i]], .y = data_split, .f = ~augment_columns(x = .x, data = .y)) %>%
+    bind_rows(.id="AptName")
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " augment() complete.", sep=""))
+  }
+}
+```
+
+
+
+
+```{r}
+results<-tidy.model %>%
+  rbindlist(idcol = "Model")
+results
+
+results.model6<-tidy.model[[6]] %>% filter(term!="(Intercept)")
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(Q<0.10)
+# CBR3 21q22.12 
+# NRF2 pathway
+# NRF2 is part of a group of transcription factors called ***nuclear receptors***. It is activated under oxidative stress conditions and subsequently activates several antioxidative genes and proteins.
+# https://www.wikipathways.org/index.php/Pathway:WP2884 <- Great figure
+# CBR3 is an acute phase protein in the NRF2 pathway
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(Q<0.10) %>%
+  arrange(desc(estimate))
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(Q<0.10) %>%
+  arrange(estimate)
+
+
+# RRM1 This gene encodes the large and catalytic subunit of ribonucleotide reductase, an enzyme essential for the conversion of ribonucleotides into deoxyribonucleotides. A pool of available deoxyribonucleotides is important for DNA replication during S phase of the cell cycle as well as multiple DNA repair processes. Alternative splicing results in multiple transcript variants. [provided by RefSeq, Dec 2015]
+# 
+# Emerging themes
+# DNA repair; immunoglobulins and nuclear receptors; proteosome/ribosome; trypsin/serine...
+# Ribonucleases
+# 
+# KIRR2
+# 
+# PIP
+# HRSP12
+# Platelet glycoprotein Ib alpha chain
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("mmunoglobulin", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+results.model6 %>%
+  filter(term=="T21:Age") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("mmunoglobulin", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("ibonuclease", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("ribosom", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("omplement", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+results.model6 %>%
+  filter(term=="T21:Age") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("omplement", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("uclear", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("tegrin", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("etino", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate))) %>%
+  filter(Q<0.10)
+
+# KIR2DL4 is the only immunoglobuin-related protein with increased expression; interacts with ARRB2 which is thought to dampen cellular responses to hormones...
+# ARRB2 Gene - GeneCards | ARRB2 Protein | ARRB2 Antibodywww.genecards.org › cgi-bin › carddisp › gene=ARRB2
+# Entrez Gene Summary for ARRB2 Gene Members of arrestin/beta-arrestin protein family are thought to participate in agonist-mediated desensitization of G-protein-coupled receptors and cause specific dampening of cellular responses to stimuli such as hormones, neurotransmitters, or sensory signals.
+
+
+results.model6 %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(grepl("restin", TargetFullName)==TRUE) %>%
+  arrange(desc(abs(estimate)))
+
+# This protein initiates membrane attack complex formation by binding the C5b-C6 subcomplex and inserts into the phospholipid bilayer, serving as a membrane anchor.
+# 
+# Entrez Gene Summary for C7 Gene 
+# This gene encodes a serum glycoprotein that forms a membrane attack complex together with complement components C5b, C6, C8, and C9 as part of the terminal complement pathway of the innate immune system. The protein encoded by this gene contains a *****cholesterol-dependent cytolysin/membrane attack complex/perforin-like (CDC/MACPF) domain***** and belongs to a large family of structurally related molecules that form pores involved in host immunity and bacterial pathogenesis. *****This protein initiates membrane attack complex formation by binding the C5b-C6 subcomplex and inserts into the phospholipid bilayer, serving as a membrane anchor.***** Mutations in this gene are associated with a rare disorder called C7 deficiency. [provided by RefSeq, Nov 2016]
+# 
+# Complement Factor H
+# Glycoprotein that plays an essential role in maintaining a well-balanced immune response by modulating complement activation. Acts as a soluble inhibitor of complement, where its binding to self markers such as glycan structures prevents complement activation and amplification on cell surfaces (PubMed:21285368, PubMed:25402769). Accelerates the decay of the complement alternative pathway (AP) C3 convertase C3bBb, thus preventing local formation of more C3b, the central player of the complement amplification loop (PubMed:19503104). ******As a cofactor of the serine protease factor I, CFH also regulates proteolytic degradation of already-deposited C3b****** (PubMed:18252712, PubMed:28671664). In addition, *****mediates several cellular responses through interaction with specific receptors.***** For example, interacts with CR3/ITGAM receptor and thereby mediates the adhesion of human neutrophils to different pathogens. In turn, these pathogens are phagocytosed and destroyed (PubMed:9558116, PubMed:20008295). CFAH_HUMAN,P08603
+# 
+# Molecular function for C8G Gene
+# UniProtKB/Swiss-Prot Function:
+# C8 is a constituent of the membrane attack complex. C8 binds to the C5B-7 complex, forming the C5B-8 complex. C5-B8 binds C9 and acts as a catalyst in the polymerization of C9. ***The gamma subunit seems to be able to bind retinol.*** CO8G_HUMAN,P07360
+# GENATLAS Biochemistry:
+# complement component 8,gamma-1 globulin,complexing with other late components of the cascade to form the membrane attacks complex,gamma,(lipocalin family,Kernel group),associating with CD59,potential regulator of the complex helping to protect host cells from lysis
+# GWAS testosterone measurement
+# Interacts with AIRE protein!!!
+#   
+# UniProtKB/Swiss-Prot Summary for AIRE Gene
+# Transcription factor playing an essential role to promote self-tolerance in the thymus by regulating the expression of a wide array of self-antigens that have the commonality of being tissue-restricted in their expression pattern in the periphery, called tissue restricted antigens (TRA) (PubMed:26084028). Binds to G-doublets in an A/T-rich environment; the preferred motif is a tandem repeat of 5'-ATTGGTTA-3' combined with a 5'-TTATTA-3' box. *****Binds to nucleosomes (By similarity).***** Binds to chromatin and **interacts selectively with histone H3 that is not methylated at 'Lys-4', not phosphorylated at 'Thr-3' and not methylated at 'Arg-2'.*** **Functions as a sensor of histone H3 modifications that are important for the epigenetic regulation of gene expression.** Mainly expressed by medullary thymic epithelial cells (mTECs), induces the expression of thousands of tissue-restricted proteins, which are presented on major histocompatibility complex class I (MHC-I) and MHC-II molecules to developing T-cells percolating through the thymic medulla (PubMed:26084028). Also induces self-tolerance through other mechanisms such as the regulation of the mTEC differentiation program. Controls the medullary accumulation of thymic dendritic cells and the development of regulatory T-cell through the regulation of XCL1 expression. Regulates the production of CCR4 and CCR7 ligands in medullary thymic epithelial cells and alters the coordinated maturation and migration of thymocytes. In thimic B-cells, allows the presentation of licensing-dependent endogenous self-anitgen for negative selection. In secondary lymphoid organs, induces functional inactivation of CD4(+) T-cells. Expressed by a distinct bone marrow-derived population, induces self-tolerance through a mechanism that does not require regulatory T-cells and is resitant to innate inflammatory stimuli (By similarity). AIRE_HUMAN,O43918
+
+
+# CR2
+# complement decay-accelerating factor measurement	
+# rs12134133  
+# Alzheimer's disease, fasting blood insulin measurement
+# Interacts (via Sushi domain 1 and 2) with C3 (PubMed:11387479, PubMed:21527715). Interacts with CD19 (PubMed:1702139). Part of a complex composed of CD19, CR2/CD21, CD81 and IFITM1/CD225 in the membrane of mature B-cells (PubMed:1383329). (Microbial infection) Interacts with Epstein-Barr virus gp350 protein.
+# CR2 (Complement C3d Receptor 2) is a Protein Coding gene. Diseases associated with CR2 include Immunodeficiency, Common Variable, 7 and Systemic Lupus Erythematosus 9. Among its related pathways are Immune response Lectin induced complement pathway and Hematopoietic cell lineage. Gene Ontology (GO) annotations related to this gene include protein homodimerization activity and transmembrane signaling receptor activity. An important paralog of this gene is CSMD3.
+# Receptor for complement C3, for the Epstein-Barr virus on human B-cells and T-cells and for HNRNPU (PubMed:7753047). Participates in B lymphocytes activation (PubMed:7753047).
+
+
+# Heterogeneous Nuclear Ribonucleoprotein U
+# UniProtKB/Swiss-Prot Summary for HNRNPU Gene
+# DNA- and RNA-binding protein involved in several cellular processes such as nuclear chromatin organization, telomere-length regulation, transcription, mRNA alternative splicing and stability, Xist-mediated transcriptional silencing and mitotic cell progression (PubMed:10490622, PubMed:18082603, PubMed:19029303, PubMed:22325991, PubMed:25986610, PubMed:28622508). Plays a role in the regulation of interphase large-scale gene-rich chromatin organization through chromatin-associated RNAs (caRNAs) in a transcription-dependent manner, and thereby maintains genomic stability (PubMed:1324173, PubMed:8174554, PubMed:28622508). Required for the localization of the long non-coding Xist RNA on the inactive chromosome X (Xi) and the subsequent initiation and maintenance of X-linked transcriptional gene silencing during X-inactivation (By similarity). Plays a role as a RNA polymerase II (Pol II) holoenzyme transcription regulator (PubMed:8174554, PubMed:9353307, PubMed:10490622, PubMed:15711563, PubMed:19617346, PubMed:23811339). Promotes transcription initiation by direct association with the core-TFIIH basal transcription factor complex for the assembly of a functional pre-initiation complex with Pol II in a actin-dependent manner (PubMed:10490622, PubMed:15711563). Blocks Pol II transcription elongation activity by inhibiting the C-terminal domain (CTD) phosphorylation of Pol II and dissociates from Pol II pre-initiation complex prior to productive transcription elongation (PubMed:10490622). Positively regulates CBX5-induced transcriptional gene silencing and retention of CBX5 in the nucleus (PubMed:19617346). Negatively regulates glucocorticoid-mediated transcriptional activation (PubMed:9353307). Key regulator of transcription initiation and elongation in embryonic stem cells upon leukemia inhibitory factor (LIF) signaling (By similarity). Involved in the long non-coding RNA H19-mediated Pol II transcriptional repression (PubMed:23811339). Participates in the circadian regulation of the core clock component ARNTL/BMAL1 transcription (By similarity). Plays a role in the regulation of telomere length (PubMed:18082603). Plays a role as a global pre-mRNA alternative splicing modulator by regulating U2 small nuclear ribonucleoprotein (snRNP) biogenesis (PubMed:22325991). Plays a role in mRNA stability (PubMed:17174306, PubMed:17289661, PubMed:19029303). Component of the CRD-mediated complex that promotes MYC mRNA stabilization (PubMed:19029303). Enhances the expression of specific genes, such as tumor necrosis factor TNFA, by regulating mRNA stability, possibly through binding to the 3'-untranslated region (UTR) (PubMed:17174306). Plays a role in mitotic cell cycle regulation (PubMed:21242313, PubMed:25986610). Involved in the formation of stable mitotic spindle microtubules (MTs) attachment to kinetochore, spindle organization and chromosome congression (PubMed:21242313). Phosphorylation at Ser-59 by PLK1 is required for chromosome alignement and segregation and progression through mitosis (PubMed:25986610). Contributes also to the targeting of AURKA to mitotic spindle MTs (PubMed:21242313). Binds to double- and single-stranded DNA and RNA, poly(A), poly(C) and poly(G) oligoribonucleotides (PubMed:1628625, PubMed:8068679, PubMed:8174554, PubMed:9204873, PubMed:9405365). Binds to chromatin-associated RNAs (caRNAs) (PubMed:28622508). Associates with chromatin to scaffold/matrix attachment region (S/MAR) elements in a chromatin-associated RNAs (caRNAs)-dependent manner (PubMed:7509195, PubMed:1324173, PubMed:9204873, PubMed:9405365, PubMed:10671544, PubMed:11003645, PubMed:11909954, PubMed:28622508). Binds to the Xist RNA (PubMed:26244333). Binds the long non-coding H19 RNA (PubMed:23811339). Binds to SMN1/2 pre-mRNAs at G/U-rich regions (PubMed:22325991). Binds to small nuclear RNAs (snRNAs) (PubMed:22325991). Binds to the 3'-UTR of TNFA mRNA (PubMed:17174306). Binds (via RNA-binding RGG-box region) to the long non-coding Xist RNA; this binding is direct and bridges the Xist RNA and the inactive chromosome X (Xi) (By similarity). Also negatively regulates embryonic stem cell differentiation upon LIF signaling (By similarity). Required for embryonic development (By similarity). Binds to brown fat long non-coding RNA 1 (Blnc1); facilitates the recruitment of Blnc1 by ZBTB7B required to drive brown and beige fat development and thermogenesis (By similarity). HNRPU_HUMAN,Q00839
+# (Microbial infection) Negatively regulates immunodeficiency virus type 1 (HIV-1) replication by preventing the accumulation of viral mRNA transcripts in the cytoplasm.
+
+# MMP1
+# Proteins in this family are involved in the breakdown of extracellular matrix in normal physiological processes, such as embryonic development, reproduction, and tissue remodeling, as well as in disease processes, such as arthritis and metastasis. The encoded preproprotein is proteolytically processed to generate the mature protease. This secreted protease breaks down the interstitial collagens, including types I, II, and III.
+# Cleaves collagens of types I, II, and III at one site in the helical domain. Also cleaves collagens of types VII and X (PubMed:2557822, PubMed:2153297, PubMed:1645757). In case of HIV infection, interacts and cleaves the secreted viral Tat protein, leading to a decrease in neuronal Tat's mediated neurotoxicity (PubMed:16807369).
+# 
+# TIFF1 = CHR 21
+```
+
+```{r}
+results.model6 %>%
+  filter(term=="T21:Age") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(Q<0.10)
+# NTF-2	 Monoclonal antibodies to NTF2 inhibit nuclear protein import by preventing nuclear translocation of the GTPase Ran. (PMID: 10679025) Steggerda SM … Paschal BM Molecular biology of the cell 2000 3 4 2
+# 
+# SPINK2  As a strong inhibitor of acrosin, it is required for normal spermiogenesis. It *****probably hinders premature activation of proacrosin and other proteases*****, thus preventing the cascade of events leading to spermiogenesis defects (PubMed:28554943). ****May be involved in the regulation of serine protease-dependent germ cell apoptosis (By similarity). It also inhibits trypsin.****
+# 
+# # https://jlb.onlinelibrary.wiley.com/doi/full/10.1189/jlb.3RU0215-074R
+# CD5L, a soluble protein belonging to the SRCR superfamily, is expressed mostly by macrophages in lymphoid and inflamed tissues. **********The expression of this protein is transcriptionally controlled by LXRs, members of the nuclear receptor family that play major roles in lipid homeostasis.**********  Research undertaken over the last decade has uncovered critical roles of CD5L as a PRR of bacterial and fungal components and in the control of key mechanisms in inflammatory responses, with involvement in processes, such as infection, atherosclerosis, and cancer. In this review, we summarize the current knowledge of CD5L, its roles *****at the intersection between lipid homeostasis and immune response*****, and its potential use as a diagnostic biomarker in a variety of diseases, such as TB and liver cirrhosis.
+# by L Sanjurjo - ‎2015 - ‎Cited by 45 - ‎Related articles
+# 
+# 
+# The protein encoded by this gene is a type I transmembrane protein, belonging to the CD2 subfamily of the immunoglobulin superfamily. This encoded protein is expressed on Natural killer (NK), T, and B lymphocytes. It undergoes tyrosine phosphorylation and associates with the Src homology 2 domain-containing protein (SH2D1A) as well as with SH2 domain-containing phosphatases (SHPs). It functions as a coreceptor in the process of NK cell activation. It can also mediate inhibitory signals in NK cells from X-linked lymphoproliferative patients. Alternative splicing results in multiple transcript variants encoding distinct isoforms.[provided by RefSeq, May 2010]
+# 
+# L-Serine | NutriScience Innovationsnutriscienceusa.com › l-serine
+# In addition, serine also facilitates the creation of immunoglobulin and antibodies, which are both indispensible for a robust immune system. This amino acid is ...
+# Cleavage of human immunoglobulins by serine proteinase ...pubmed.ncbi.nlm.nih.gov › ...
+# The serine proteinase (SP) released into the environment by most strains of S. aureus cleaves human IgG, IgM and IgA of both subclasses--IgA 1 and IgA 2.
+# by L Prokesová - ‎1992 - ‎Cited by 76 - ‎Related articles
+```
+
+```{r}
+soma.analysisData_long01 %>%
+  filter(grepl("HIV", TargetFullName)==TRUE)
+# TargetFullName = "gp41 C34 peptide, HIV"
+# Target "C34 gp41 HIV Fragment"
+# AptName = "NonHuman.4792.51"
+# EntrezGeneSymbol: Human-virus
+# Organism: isolate LW123
+# UniProt ID: Q70626
+
+fwrite(features, "/Users/jessica/Downloads/092120_SomaScan_FeatureTable.csv")
+
+soma.analysisData_long01 %>%
+  select(RecordID) %>%
+  unique()
+
+gp41 <- soma.analysisData_long01 %>%
+  filter(grepl("HIV", TargetFullName)==TRUE) %>%
+  select(RecordID, Abundance) %>%
+  rename(gp41_Abundance = Abundance) %>%
+  unique() %>%
+  full_join(soma.analysisData_long01, by="RecordID") %>%
+  select(RecordID, gp41_Abundance, everything())
+gp41
+
+gp41 <- soma.analysisData_long01 %>%
+  filter(Organism=="isolate LW123") %>%
+  select(RecordID, Abundance) %>%
+  rename(gp41_Abundance = Abundance) %>%
+  unique() %>%
+  full_join(soma.analysisData_long01, by="RecordID") %>%
+  select(RecordID, gp41_Abundance, everything())
+gp41
+
+
+
+
+
+summary(gp41$Abundance)
+
+tidy(lm(log2(gp41_Abundance) ~ T21 + Age + Female, data=gp41)) %>% select(-c(std.error, statistic)) %>% filter(term!="(Intercept)")
+
+tidy(lm(log2(gp41_Abundance) ~ T21 + Age + T21*Age, data=gp41)) %>% select(-c(std.error, statistic)) %>% filter(term!="(Intercept)")
+
+tidy(lm(log2(gp41_Abundance) ~ T21 + Age + Female + T21*Female, data=gp41)) %>% select(-c(std.error, statistic)) %>% filter(term!="(Intercept)")
+
+tidy(lm(log2(gp41_Abundance) ~ T21 + Age + Female + Age*Female, data=gp41)) %>% select(-c(std.error, statistic)) %>% filter(term!="(Intercept)")
+
+tidy(lm(log2(gp41_Abundance) ~ T21 + Age + Female + T21*Female, data=gp41)) %>% select(-c(std.error, statistic)) %>% filter(term!="(Intercept)")
+
+tidy(lm(log2(gp41_Abundance) ~ T21 + Age + Female + T21*Female + T21*Female, data=gp41)) %>% select(-c(std.error, statistic)) %>%
+  filter(term!="(Intercept)")
+
+tidy(lm(log2(gp41_Abundance) ~ T21*Age*Female, data=gp41)) %>% select(-c(std.error, statistic)) %>%
+  filter(term!="(Intercept)")
+
+```
+
+```{r}
+results.model6 %>%
+  filter(term=="T21:Male") %>%
+  mutate(Q = p.adjust(p.value, method="BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by="AptName") %>%
+  filter(Q<0.10)
+```
+
+```{r}
+  filter(term == "T21:Female") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  mutate(Q = p.adjust(P, method="BH")) %>%
+  arrange(Q)
+
+results.T21bySex %>% filter(Q<0.10) %>% select(-c(SE, Statistic)) %>%
+  left_join(features, by="AptName")
+# KLK3.8468.19 Prostate-specific antigen (log2FC=1.001540, Q=1.70e-05)
+# Kallikreins are a subgroup of serine proteases having diverse physiological functions. Growing evidence suggests that many kallikreins are implicated in carcinogenesis and some have potential as novel cancer and other disease biomarkers. The gene is one of the fifteen kallikrein subfamily members located in a cluster on chromosome 19. It encodes a single-chain glycoprotein, a protease which is synthesized in the epithelial cells of the prostate gland, and is present in seminal plasma. It is thought to function normally in the liquefaction of seminal coagulum, presumably by hydrolysis of the high molecular mass seminal vesicle protein. The serum level of this protein, called PSA in the clinical setting, is useful in the diagnosis and monitoring of prostatic carcinoma. Alternate splicing of this gene generates several transcript variants encoding different isoforms. [provided by RefSeq, Dec 2019]
+
+# PZP.6580.29 Pregnancy zone protein (log2FC = -1.96, Q=1.14e-03)
+# The protein encoded by this gene is highly expressed in late-pregnancy serum and is similar in structure to alpha-2-macroglobulin. The encoded protein, which acts as a homotetramer, inhibits the activity of all four classes of proteinases. This protein contains cleavage sites for several proteinases. Upon binding of a proteinase, the conformation of this protein changes to trap the proteinase, limiting its activity. This protein appears to be elevated in the sera of presymptomatic Alzheimer's disease patients. [provided by RefSeq, Dec 2016]
+
+tidy.T21bySex %>%
+  filter(Protein == "KLK3.8468.19" & term!="(Intercept)") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  mutate(Q = p.adjust(P, method="BH"))
+
+tidy.T21bySex %>%
+  filter(Protein == "PZP.6580.29" & term!="(Intercept)") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  mutate(Q = p.adjust(P, method="BH"))
+
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+#
+
+standard_colors <- c("#333333", "#009b4e")
+
+
+augment.T21bySex01<-augment.T21bySex %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  mutate(log2Abundance = log2(Abundance),
+         Group = ifelse(T21==0 & Female==0, "D21 Male",
+                        ifelse(T21==1 & Female==0, "T21 Male",
+                               ifelse(T21==0 & Female==1, "D21 Female",
+                                      ifelse(T21==1 & Female==1, "T21 Female", NA)))) %>% as.factor() )
+augment.T21bySex01$Group <- factor(augment.T21bySex01$Group,
+                                   levels = c("D21 Male", "T21 Male", "D21 Female", "T21 Female"))
+
+augment.T21bySex01 %>% filter(Protein == "KLK3.8468.19") %>%
+  select(Group, .fitted) %>%
+  ggplot(aes(x=Group, y=.fitted), fill=Group, color=Group) +
+  ggtitle("Prostate Stimulating Antigen (KLK3.8468.19)") +
+  ggforce::geom_sina( size = 0.75) +
+  geom_boxplot( notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5) +
+  stat_summary(fun.y=mean, geom="point", shape=9, size=2, color="black", fill=NA) +
+  #scale_color_manual(values=c("light grey", "light blue", "grey", "blue")) +
+  #scale_fill_manual(values=c(NA ,NA, NA, NA)) +
+  #geom_hline(yintercept = mean.REF, linetype="dashed", color="black") +
+  theme(legend.position = "none",
+        legend.title = element_blank(), legend.direction="horizontal",
+        axis.text = element_text(color="black", size = 12)) +
+  xlab("") +
+  ylab("log2(Abundance)") +
+  #labs(title="",
+  #     subtitle = paste("log2FC = ", log2FC, ", Q = ", Q, sep=""),
+  #     caption = "") +
+  theme(legend.position = "none",
+        plot.caption = element_text(hjust=0, size=8))
+
+augment.T21bySex01 %>% filter(Protein == "PZP.6580.29") %>%
+  select(Group, .fitted) %>%
+  ggplot(aes(x=Group, y=.fitted), fill=Group, color=Group) +
+  ggtitle("Pregnancy zone protein (PZP.6580.29)") +
+  ggforce::geom_sina( size = 0.75) +
+  geom_boxplot( notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5) +
+  stat_summary(fun.y=mean, geom="point", shape=9, size=2, color="black", fill=NA) +
+  #scale_color_manual(values=c("light grey", "light blue", "grey", "blue")) +
+  #scale_fill_manual(values=c(NA ,NA, NA, NA)) +
+  #geom_hline(yintercept = mean.REF, linetype="dashed", color="black") +
+  theme(legend.position = "none",
+        legend.title = element_blank(), legend.direction="horizontal",
+        axis.text = element_text(color="black", size = 12)) +
+  xlab("") +
+  ylab("log2(Abundance)") +
+  #labs(title="",
+  #     subtitle = paste("log2FC = ", log2FC, ", Q = ", Q, sep=""),
+  #     caption = "") +
+  theme(legend.position = "none",
+        plot.caption = element_text(hjust=0, size=8))
+```
+
+```{r}
+data.KLK3<-soma.analysisData_long %>% filter(Protein=="KLK3.8468.19")
+data.PZP<-soma.analysisData_long %>% filter(Protein=="PZP.6580.29")
+
+AIC(lm(log2(Abundance) ~ T21 + Age + Female, data=data.KLK3),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female, data=data.KLK3),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Age, data=data.KLK3),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age, data=data.KLK3),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female, data=data.KLK3))
+AIC(lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female, data=data.KLK3),
+    lmerTest::lmer(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female + (1|Site.of.Blood.Collection), REML=FALSE, data=data.KLK3))
+
+AIC(lm(log2(Abundance) ~ T21 + Age + Female, data=data.PZP),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female, data=data.PZP),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Age, data=data.PZP),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age, data=data.PZP),
+    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female, data=data.PZP),
+    lmerTest::lmer(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female + (1|Site.of.Blood.Collection), REML=FALSE, data=data.PZP))
+
+AIC(lm(log2(Abundance) ~ T21 + Age + Female + T21*Female, data=data.PZP),
+    lmerTest::lmer(log2(Abundance) ~ T21 + Age + Female + T21*Female + (1|Site.of.Blood.Collection), REML=FALSE, data=data.PZP))
+
+# Best for KLK3:   lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female, data=data.KLK3)
+best_fit.KLK3<-lm(log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age + T21*Age*Female, data=data.KLK3)
+
+# Best for PZP:    lm(log2(Abundance) ~ T21 + Age + Female + T21*Female, data=data.PZP)
+best_fit.PZP<-lm(log2(Abundance) ~ T21 + Age + Female + T21*Female, data=data.PZP)
+
+best_fit.KLK3 %>% tidy() %>% filter(term!="(Intercept)")
+best_fit.PZP %>% tidy() %>% filter(term!="(Intercept)")
+
+temp<-best_fit.KLK3 %>%
+  augment() %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  mutate(Group = ifelse(T21==0 & Female==0, "D21 Male",
+                        ifelse(T21==1 & Female==0, "T21 Male",
+                               ifelse(T21==0 & Female==1, "D21 Female",
+                                      ifelse(T21==1 & Female==1, "T21 Female", NA)))) %>% as.factor() )
+temp$Group <- factor(temp$Group,
+                                   levels = c("D21 Male", "T21 Male", "D21 Female", "T21 Female"))
+temp %>%
+  select(Group, .fitted) %>%
+  ggplot(aes(x=Group, y=.fitted), fill=Group, color=Group) +
+  ggtitle("Pregnancy zone protein (KLK3.8468.19)") +
+  ggforce::geom_sina( size = 0.75) +
+  geom_boxplot( notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5) +
+  stat_summary(fun.y=mean, geom="point", shape=9, size=2, color="black", fill=NA) +
+  #scale_color_manual(values=c("light grey", "light blue", "grey", "blue")) +
+  #scale_fill_manual(values=c(NA ,NA, NA, NA)) +
+  #geom_hline(yintercept = mean.REF, linetype="dashed", color="black") +
+  theme(legend.position = "none",
+        legend.title = element_blank(), legend.direction="horizontal",
+        axis.text = element_text(color="black", size = 12)) +
+  xlab("") +
+  #ylab("log2(Abundance)") +
+  #labs(title="",
+  #     subtitle = paste("log2FC = ", log2FC, ", Q = ", Q, sep=""),
+  #     caption = "") +
+  theme(legend.position = "none",
+        plot.caption = element_text(hjust=0, size=8))
+
+temp<-best_fit.PZP %>%
+  augment() %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  mutate(Group = ifelse(T21==0 & Female==0, "D21 Male",
+                        ifelse(T21==1 & Female==0, "T21 Male",
+                               ifelse(T21==0 & Female==1, "D21 Female",
+                                      ifelse(T21==1 & Female==1, "T21 Female", NA)))) %>% as.factor() )
+temp$Group <- factor(temp$Group,
+                                   levels = c("D21 Male", "T21 Male", "D21 Female", "T21 Female"))
+temp %>%
+  select(Group, .fitted) %>%
+  ggplot(aes(x=Group, y=.fitted), fill=Group, color=Group) +
+  ggtitle("Pregnancy zone protein (PZP.6580.29)") +
+  ggforce::geom_sina( size = 0.75) +
+  geom_boxplot( notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5) +
+  stat_summary(fun.y=mean, geom="point", shape=9, size=2, color="black", fill=NA) +
+  #scale_color_manual(values=c("light grey", "light blue", "grey", "blue")) +
+  #scale_fill_manual(values=c(NA ,NA, NA, NA)) +
+  #geom_hline(yintercept = mean.REF, linetype="dashed", color="black") +
+  theme(legend.position = "none",
+        legend.title = element_blank(), legend.direction="horizontal",
+        axis.text = element_text(color="black", size = 12)) +
+  xlab("") +
+  #ylab("log2(Abundance)") +
+  #labs(title="",
+  #     subtitle = paste("log2FC = ", log2FC, ", Q = ", Q, sep=""),
+  #     caption = "") +
+  theme(legend.position = "none",
+        plot.caption = element_text(hjust=0, size=8))
+```
+
+#### Fit linear mixed model for each analyte with log2(Conc) as the outcome and the comorb as predictor
+```{r}
+set.seed(1234)
+
+data_split <- split(soma.analysisData_long, soma.analysisData_long$AptName)
+
+model.NoIntx <- map(data_split, ~lm(formula = log2(Abundance) ~ T21 + Age + Female, data = .))
+tidy.NoIntx<-map2(.x = model.NoIntx, .y = data_split, .f = ~tidy(x = .x, data = .y)) %>%
+ bind_rows(.id="AptName")
+
+model.T21byAge <- map(data_split, ~lm(formula = log2(Abundance) ~ T21 + Age + Female + T21*Age, data = .))
+tidy.T21byAge<-map2(.x = model.T21byAge, .y = data_split, .f = ~tidy(x = .x, data = .y)) %>%
+ bind_rows(.id="AptName")
+
+model.T21bySex <- map(data_split, ~lm(formula = log2(Abundance) ~ T21 + Age + Female + T21*Female, data = .))
+tidy.T21bySex<-map2(.x = model.T21bySex, .y = data_split, .f = ~tidy(x = .x, data = .y)) %>%
+ bind_rows(.id="AptName")
+
+model.T21bySex_T21byAge <- map(data_split, ~lm(formula = log2(Abundance) ~ T21 + Age + Female + T21*Female + T21*Age, data = .))
+tidy.T21bySex_T21byAge<-map2(.x = model.T21bySex_T21byAge, .y = data_split, .f = ~tidy(x = .x, data = .y)) %>%
+ bind_rows(.id="AptName")
+
+model.T21byAgeBySex <- map(data_split, ~lm(formula = log2(Abundance) ~ T21 + Age + Female + T21*Age + T21*Female + T21*Age*Female , data = .))
+tidy.T21byAgeBySex <- map2(.x = model.T21byAgeBySex, .y = data_split, .f = ~tidy(x = .x, data = .y)) %>%
+ bind_rows(.id="AptName")
+```
+
+```{r}
+tidy.NoIntx %>% left_join(features, by="AptName") %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  #filter(grepl("HIV", TargetFullName)) %>%
+  filter(Organism!="Human" & term=="T21") %>%
+  arrange(p.value)
+
+tidy.NoIntx %>% left_join(features, by="AptName") %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  #filter(grepl("HIV", TargetFullName)) %>%
+  filter(Organism!="Human" & term=="T21") %>%
+  arrange(desc(abs(estimate)))
+
+
+
+tidy.T21byAge %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  #filter(grepl("HIV", TargetFullName)) %>%
+  filter(Organism!="Human" & term=="T21") %>%
+  arrange(desc(abs(estimate)))
+tidy.T21byAge %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  #filter(grepl("HIV", TargetFullName)) %>%
+  filter(Organism!="Human" & term=="T21:Age") %>%
+  arrange(desc(abs(estimate)))
+
+
+tidy.T21bySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  #filter(grepl("HIV", TargetFullName)) %>%
+  filter(Organism!="Human" & term=="T21") %>%
+  arrange(desc(abs(estimate)))
+tidy.T21bySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  #filter(grepl("HIV", TargetFullName)) %>%
+  filter(Organism!="Human" & term=="T21:Female") %>%
+  arrange(desc(abs(estimate)))
+
+
+tidy.T21bySex_T21byAge %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21")
+tidy.T21byAgeBySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21:Age")
+tidy.T21byAgeBySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21:Female")
+
+
+tidy.T21bySex_T21byAge %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21")
+tidy.T21byAgeBySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21:Age")
+tidy.T21byAgeBySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21:Female")
+tidy.T21byAgeBySex %>% left_join(features, by="AptName") %>% filter(grepl("HIV", TargetFullName)) %>%
+  select(-c(std.error, statistic)) %>% filter(term!="(Intercept)") %>%
+  filter(Organism!="Human" & term=="T21:Age:Female")
+
+
+```
+
+```{r}
+# augment.T21bySex_T21byAge<-map2(.x = model.T21bySex_T21byAge, .y = data_split, .f = ~augment_columns(x = .x, data = .y)) %>%
+#  bind_rows(.id="Protein")
+# glance.T21bySex_T21byAge<-map2(.x = model.T21bySex_T21byAge, .y = data_split, .f = ~glance(x = .x, data = .y)) %>%
+#   bind_rows(.id="Protein")
+
+features %>%
+  group_by(Organism) %>%
+  summarise(N=n())
+
+features.human<-features %>%
+  filter(Organism=="Human")
+
+#########################################################
+## View results of model that includes only T21*Female ##
+#########################################################
+tidy.T21bySex %>%
+  filter(term=="T21:Female") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  left_join(features, by=c("AptName")) %>%
+  #filter(Organism=="Human") %>%
+  mutate(Q = p.adjust(P, method="BH")) %>%
+  select(Term, log2FC, P, Q, everything()) %>%
+  arrange(Q) %>%
+  filter(Q<0.10) %>%
+  select(-c(SE, Statistic))
+
+######################################################
+## View results of model that includes only T21*Age ##
+######################################################
+tidy.T21byAge %>%
+  filter(term=="T21:Age") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  left_join(features, by=c("AptName")) %>%
+  #filter(Organism=="Human") %>%
+  mutate(Q = p.adjust(P, method="BH")) %>%
+  select(AptName, Term, log2FC, P, Q, everything()) %>%
+  arrange(Q) %>%
+  filter(Q<0.10) %>%
+  select(-c(SE, Statistic))
+
+tidy.T21byAge %>%
+  filter(term=="T21") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  left_join(features, by=c("AptName")) %>%
+  filter(Organism=="Human") %>%
+  mutate(Q = p.adjust(P, method="BH")) %>%
+  select(AptName, Term, log2FC, P, Q, everything()) %>%
+  arrange(Q) %>%
+  filter(Q<0.10) %>%
+  select(-c(SE, Statistic))
+
+tidy.T21byAge %>%
+  filter(term=="T21") %>%
+  rename(Term = term, log2FC = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  left_join(features, by=c("AptName")) %>%
+  mutate(Q = p.adjust(P, method="BH")) %>%
+  select(AptName, Term, log2FC, P, Q, everything()) %>%
+  arrange(Q) %>%
+  filter(Q<0.10) %>%
+  select(-c(SE, Statistic)) %>%
+  filter(Organism!="Human")
+
+# *****WTF***** gp41 C34 peptide, HIV Human-virus (UniProt = Q70626)
+# log2FC = 0.2094187, Q = 1.148553e-02
+# https://www.uniprot.org/uniprot/Q70626
+# "The membrane proximal external region (MPER) present in gp41 is a *****tryptophan-rich region***** recognized by the antibodies 2F5, Z13, and 4E10. MPER seems to play a role in fusion.UniRule annotation"
+# "The sequence of V3 determines which coreceptor, CCR5 and/or CXCR4 (corresponding to R5/macrophage, X4/T cell and R5X4/T cell and macrophage tropism), is used to trigger the fusion potential of the Env complex, and hence which cells the virus can infect."
+
+tidy.T21byAge
+```
+
+```{r}
+features %>%
+  filter(grepl("uclear", TargetFullName))
+
+features %>%
+  filter(grepl("latelet", TargetFullName))
+
+
+```
+
+#### HIV follow-up...
+```{r}
+set.seed(1234)
+
+temp1<-soma.analysisData_long %>%
+  filter(Protein == "NonHuman.4792.51") %>%
+  select(RecordID, Protein, Abundance) %>%
+  unique() %>%
+  mutate(log2_gp160 = log2(Abundance)) %>%
+  select(RecordID, log2_gp160)
+data.gp160<-soma.analysisData_long %>%
+  filter(Protein != "NonHuman.4792.51") %>%
+  full_join(temp1, by="RecordID") %>%
+  select(RecordID, log2_gp160, T21, Age, Female, Race, Ethnicity, Site.of.Blood.Collection, Protein, Abundance)
+data.gp160
+data.gp160_T21<-data.gp160 %>% filter(T21==1)
+data.gp160_D21<-data.gp160 %>% filter(T21==0)
+
+data_split <- split(data.gp160, data.gp160$Protein)
+model_gp160.D21 <- map(data_split.D21, ~lm(formula = log2_gp160 ~ log2(Abundance) + Age + Female, data = .))
+tidy_gp160.D21<-map2(.x = model_gp160.D21, .y = data_split.D21, .f = ~tidy(x = .x, data = .y)) %>%
+  bind_rows(.id="Protein")
+
+
+
+data_split.D21 <- split(data.gp160_D21, data.gp160_D21$Protein)
+model_gp160.D21 <- map(data_split.D21, ~lm(formula = log2_gp160 ~ log2(Abundance) + Age + Female, data = .))
+
+tidy_gp160.D21<-map2(.x = model_gp160.D21, .y = data_split.D21, .f = ~tidy(x = .x, data = .y)) %>%
+  bind_rows(.id="Protein")
+
+results_gp160.D21 <- tidy_gp160.D21 %>% filter(term=="log2(Abundance)") %>%
+  rename(Term = term, Estimate = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  mutate(Q = p.adjust(P, "BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by=c("Protein"="AptName"))
+results_gp160.D21
+
+results_gp160.D21 %>%
+  select(#Protein,
+         TargetFullName,
+         #EntrezGeneSymbol,
+         Organism, Estimate, P, Q) %>%
+  arrange(Q) %>%
+  filter(Q<0.05)
+
+results_gp160.D21 %>%
+  #select(#Protein,
+  #       TargetFullName,
+         #EntrezGeneSymbol,
+  #       Organism, UniProt, Estimate, P, Q) %>%
+  arrange(desc(abs(Estimate))) %>%
+  filter(Q<0.05)
+# Organism = "Human", Type = "Non-cleavable":
+# NonCleavable.4666.236
+# NonCleavable.4666.225
+# NonCleavable.4666.232
+# NonCleavable.4666.230
+
+# Mitochondrial glutamate carrier 2	GHC2	Q9H1K4	83733	SLC25A18	Human	
+# Tumor necrosis factor receptor superfamily member 10B	TRAIL R2	O14763	8795	TNFRSF10B	Human	
+# Transcriptional repressor CTCF	CTCF	P49711	10664	CTCF	Human	
+# ATP-citrate synthase	ACLY	P53396	47	ACLY	Human	
+# Ephrin-A4	Ephrin-A4	P52798	1945	EFNA4	Human	
+# Anaphase-promoting complex subunit 10	APC10	Q9UM13	10393	ANAPC10	Human
+
+
+data_split.T21 <- split(data.gp160_T21, data.gp160_T21$Protein)
+model_gp160.T21 <- map(data_split.T21, ~lm(formula = log2_gp160 ~ log2(Abundance) + Age + Female, data = .))
+
+tidy_gp160.T21<-map2(.x = model_gp160.T21, .y = data_split.T21, .f = ~tidy(x = .x, data = .y)) %>%
+  bind_rows(.id="Protein")
+
+results_gp160.T21 <- tidy_gp160.T21 %>% filter(term=="log2(Abundance)") %>%
+  rename(Term = term, Estimate = estimate, SE = std.error, Statistic = statistic, P = p.value) %>%
+  mutate(Q = p.adjust(P, "BH")) %>%
+  arrange(Q) %>%
+  left_join(features, by=c("Protein"="AptName"))
+results_gp160.T21
+
+results_gp160.T21 %>%
+  select(#Protein,
+         TargetFullName,
+         #EntrezGeneSymbol,
+         Organism, Estimate, P, Q) %>%
+  arrange(Q) %>%
+  filter(Q<0.05)
+
+results_gp160.T21 %>%
+  #select(#Protein,
+  #       TargetFullName,
+         #EntrezGeneSymbol,
+  #       Organism, UniProt, Estimate, P, Q) %>%
+  arrange(desc(abs(Estimate))) %>%
+  filter(Q<0.05)
+
+
+data.gp160
+
+data.gp160 %>%
+  ggplot(aes(x=factor(T21), y=log2_gp160), fill=factor(T21), color=factor(T21)) +
+  ggtitle("gp160") +
+  ggforce::geom_sina( size = 0.75) +
+  geom_boxplot( notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5) +
+  #stat_summary(fun.y=mean, geom="point", shape=9, size=2, color="black", fill=NA) +
+  #scale_color_manual(values=c("light grey", "light blue", "grey", "blue")) +
+  #scale_fill_manual(values=c(NA ,NA, NA, NA)) +
+  #geom_hline(yintercept = mean.REF, linetype="dashed", color="black") +
+  theme(legend.position = "none",
+        legend.title = element_blank(), legend.direction="horizontal",
+        axis.text = element_text(color="black", size = 12)) +
+  xlab("") +
+  ylab("log2(Abundance)") +
+  #labs(title="",
+  #     subtitle = paste("log2FC = ", log2FC, ", Q = ", Q, sep=""),
+  #     caption = "") +
+  theme(legend.position = "none",
+        plot.caption = element_text(hjust=0, size=8))
+```
+
+#### Non-cleavable proteins...
+```{r}
+tidy.NoIntx %>%
+  left_join(features, by=c("Protein"="AptName")) %>%
+  filter(Type == "Non-cleavable") %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, "BH")) %>%
+  arrange(Q) %>%
+  select(Protein, term, estimate, p.value, Q, everything())
+
+tidy.NoIntx %>%
+  left_join(features, by=c("Protein"="AptName")) %>%
+  filter(Type == "Non-cleavable") %>%
+  filter(term=="T21") %>%
+  mutate(Q = p.adjust(p.value, "BH")) %>%
+  arrange(Q) %>%
+  select(Protein, term, estimate, p.value, Q, everything()) %>%
+  select(Protein, SeqId, SeqIdVersion, SomaId)
+
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6277005/
+# Aptamers are short oligonucleotides, which have binding affinity to a single protein.
+# eventually identifying a single oligomer, an “aptamer,” with high affinity for a protein epitope.
+# Sequence Variation	Single amino-acid changes in the aptamer binding site can alter the affinity of binding, and thus spuriously alter the measured abundance.	35% of aptamers display altered binding affinity due to SNPs [3].
+```
+
+```{r}
+```
+
+

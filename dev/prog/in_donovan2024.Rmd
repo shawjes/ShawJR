@@ -1,0 +1,108 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### in_donovan2024_p4c_meta
+```{r}
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_meta <- fread("HTP_Metadata_v0.5_Synapse.txt")
+
+in_donovan2024_p4c_meta
+
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_meta, 
+       "in_donovan2024_p4c_meta.csv.gz")
+```
+
+#### in_donovan2024_p4c_soma
+```{r}
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_soma <- fread("HTP_SOMAscan_Proteomics_Synapse.txt")
+
+in_donovan2024_p4c_soma
+
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_soma, "in_donovan2024_p4c_soma.csv.gz")
+```
+
+#### in_donovan2024_p4c_cytof_panel
+```{r}
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_cytof_panel <- openxlsx::read.xlsx("HTP_CyTOF_CD45posCD66low_Antibody_Panel.xlsx", startRow = 2) %>%
+  `rownames<-`(NULL)
+
+in_donovan2024_p4c_cytof_panel
+
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_cytof_panel, "in_donovan2024_p4c_cytof_panel.csv.gz")
+```
+
+#### in_donovan2024_p4c_cytof_cluster_dict
+```{r}
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_cytof_cluster_dict <- fread("HTP_CyTOF_CD45posCD66low_FlowSOM_cluster_dictionary.txt")
+
+in_donovan2024_p4c_cytof_cluster_dict
+
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_cytof_cluster_dict,
+       "in_donovan2024_p4c_cytof_cluster_dict.csv")
+```
+
+#### in_donovan2024_p4c_cytof_cluster_pct
+```{r}
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_cytof_cluster_pct <- fread("HTP_CyTOF_CD45posCD66low_FlowSOM_cluster_percentage_Synapse.txt")
+
+in_donovan2024_p4c_cytof_cluster_pct
+
+in_donovan2024_p4c_cytof_cluster_pct
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_cytof_cluster_pct,
+       "in_donovan2024_p4c_cytof_cluster_pct.csv.gz")
+```
+
+#### in_donovan2024_p4c_metab
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_metab <- fread("HTP_Plasma_Metabolomics_Synapse.txt")
+
+in_donovan2024_p4c_metab
+
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_metab,
+       "in_donovan2024_p4c_metab.csv.gz")
+```
+
+#### in_donovan2024_p4c_rna_fpkm
+```{r}
+setwd(dir.donovan2024_source)
+in_donovan2024_p4c_rna_fpkm <- fread("HTP_WholeBlood_RNAseq_FPKMs_Synapse.txt.gz")
+
+in_donovan2024_p4c_rna_fpkm
+
+setwd(dir.indata)
+fwrite(in_donovan2024_p4c_rna_fpkm, "in_donovan2024_p4c_rna_fpkm.csv.gz")
+```
+

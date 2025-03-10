@@ -1,0 +1,3 @@
+model_formula,cohort,nobs,r.squared,adj.r.squared,sigma,statistic,p.value,df,df.residual
+Age ~ sumZ_Cluster_1 + sumZ_Cluster_2 + ... + sumZ_Cluster_8,T21 only,316,0.74662049413887,0.740017770859101,6.14750646761197,113.077659399503,7.90878052996851e-87,8,307
+Age ~ sumZ_Cluster_1 + sumZ_Cluster_2 + ... + sumZ_Cluster_8,D21 only,103,0.821754314445548,0.806584468866446,6.63378686107395,54.1702491406755,6.92270835266724e-32,8,94

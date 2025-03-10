@@ -1,0 +1,91 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read aidata
+```{r}
+setwd(dir.aidata)
+ai_p4c_meta <- fread("ai_p4c_meta.csv.gz")
+ai_p4c_soma <- fread("ai_p4c_soma.csv.gz")
+ai_proteomic_clock_proteins_clusters <- fread("ai_proteomic_clock_proteins_clusters.csv.gz")
+ai_p4c_soma_aptamer_chromosomes <- fread("ai_p4c_soma_aptamer_chromosomes.csv.gz")
+
+ai_p4c_meta
+ai_p4c_soma
+ai_proteomic_clock_proteins_clusters
+ai_p4c_soma_aptamer_chromosomes
+```
+
+#### ar_p4c_soma_t21only
+```{r}
+ar_p4c_soma_t21only <- ai_p4c_soma %>%
+  mutate(Aptamer_in_P4C = 1) %>%
+  full_join(ai_p4c_soma_aptamer_chromosomes, by = "Aptamer") %>%
+  dplyr::select(LabID, Sample_type, Platform, Aptamer, GeneSymbol, UniProt, `chromosome(s)`, everything()) %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  full_join(ai_proteomic_clock_proteins_clusters, by = c("Aptamer")) %>%
+  mutate(Cluster = paste0("Cluster ", Lehallier2019_ClusterID),
+         Cluster = factor(Cluster,
+                          levels = c("Cluster 7",
+                                     "Cluster 6", 
+                                     "Cluster 3",
+                                     "Cluster 4", 
+                                     "Cluster 2", 
+                                     "Cluster 1",
+                                     "Cluster 5",
+                                     "Cluster 8")),
+         ggtitle = Cluster) %>%
+  mutate(T21 = case_when(Karyotype == "T21" ~ 1,
+                         Karyotype == "Control" ~ 0,
+                         .default = NA),
+         Female = case_when(Sex == "Female" ~ 1,
+                            Sex == "Male" ~ 0,
+                            .default = NA),
+         Karyotype_Sex = paste(Karyotype, Sex, sep = " "),
+         Karyotype_Sex = factor(Karyotype_Sex, levels = c("D21 Female", "D21 Male", "T21 Female", "T21 Male")),
+         Karyotype_XY = gsub("Female", "XX", Karyotype_Sex),
+         Karyotype_XY = gsub("Male", "XY", Karyotype_XY)) %>%
+  mutate(Cluster = case_when(is.na(Cluster) ~ "Cluster Other", .default = Cluster)) %>%
+  mutate(Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", `chromosome(s)`, ", ", Cluster, ")"),
+         UniProt_Aptamer_Chr_Cluster = paste0(UniProt, "|", Aptamer, " (Chr", `chromosome(s)`, ", ", Cluster, ")")) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster, everything()) %>%
+  mutate(# P01275|GCG.4891.50 (Chr2, Cluster 2)
+          UniProt_Aptamer_Chr_Cluster = paste0(UniProt, "|", Aptamer, " (Chr", `chromosome(s)`, ", ", Cluster, ")"),
+         # GCG.4891.50 (Chr2, Cluster 2)
+         Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", `chromosome(s)`, ", ", Cluster, ")")) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster,
+                Aptamer, `chromosome(s)`, everything()) %>%
+  dplyr::rename(`Chromosome(s)` = `chromosome(s)`) %>%
+  mutate(Aptamer_in_Lehallier2019 = case_when(is.na(Aptamer_in_Lehallier2019) ~ 0, .default = Aptamer_in_Lehallier2019),
+         Aptamer_in_P4C = case_when(is.na(Aptamer_in_P4C) ~ 0, .default = Aptamer_in_P4C)) %>%
+  dplyr::select(Aptamer, starts_with("Aptamer_in"), UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster, everything()) %>%
+  filter(Karyotype == "T21");
+
+ar_p4c_soma_t21only
+```
+
+```{r}
+setwd(dir.ardata)
+fwrite(ar_p4c_soma_t21only, "ar_p4c_soma_t21only.csv.gz")
+```

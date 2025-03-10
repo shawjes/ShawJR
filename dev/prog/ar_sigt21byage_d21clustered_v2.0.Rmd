@@ -1,0 +1,712 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# KEEP SCRIPT
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_loess_predicted_values <- fread("ar_sigt21byage_loess_predicted_values.csv.gz");
+
+head(ar_sigt21byage_loess_predicted_values)
+
+ar_sigt21byage_loess_predicted_values %>%
+  select(#LabID, 
+         Karyotype, Sex, Karyotype_Sex) %>%
+  unique()
+```
+
+#### Prepare matrix of predicted values for input to hierarchical clustering
+```{r}
+colnames(ar_sigt21byage_loess_predicted_values)
+head(ar_sigt21byage_loess_predicted_values)
+
+loess_prediction.D21.matrix <- ar_sigt21byage_loess_predicted_values %>%
+  # IMPORTANT CHANGE ADDED IN V2.0:
+  filter(Karyotype == "Control") %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID,
+                predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+
+head(as.data.frame(loess_prediction.D21.matrix))
+```
+
+#### Read ardata for clustering among D21s of protein trajectories with significant T21*Age interaction
+```{r}
+# Dissimilarity matrix:
+set.seed(1234)
+d_newclusters.D21s <- dist(loess_prediction.D21.matrix,
+                           method = "euclidean");
+# Hierarchical clustering using Complete Linkage:
+set.seed(1234)
+hc1_newclusters.D21s <- hclust(d_newclusters.D21s,
+                               method = "complete");
+
+```
+
+#### Decide how many T21-by-Age Clusters make sense
+```{r}
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 4, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 6, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 7, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 8, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 9, border = 1:9);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 10, border = 1:10);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 11, border = 1:11);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 12, border = 1:12);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 13, border = 1:13);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 14, border = 1:14);
+# After filtering T21-by-Age results by PadjBH<0.05 instead of PadjBH<0.10, we need 14 T21-by-Age Clusters in order to get separation of the two branches of the middle area of the tree.
+```
+
+#### Hierarchically cluster the age-dependent trajectories of proteins with significant T21-by-Age interaction into k=6 clusters
+```{r}
+k_hc1_newclusters.D21s <- 6
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s, 
+            border = 1:k_hc1_newclusters.D21s);
+```
+
+#### Use the cuttree function to assign aptamers to k=12 T21-by-Age Clusters ('ar_sigt21byage_d21clustered')
+```{r echo=T, results='hide'}
+k_hc1_newclusters.D21s <- 6
+set.seed(1234)
+tmp.ar_sigt21byage_d21clustered <- cutree(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s) %>%
+    as.data.frame() %>%
+    `colnames<-`("T21byAge_Cluster") %>%
+    rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(k = k_hc1_newclusters.D21s) %>%
+    ungroup() %>%
+  left_join(ar_sigt21byage_loess_predicted_values, # Important note: Unlike the matrix input for clustering, this ardata contains both T21+D21.
+            by = "UniProt_Aptamer_Chr_Cluster") %>%
+  mutate(T21byAge_Cluster = case_when(T21byAge_Cluster == 1 ~ "A",
+                                      T21byAge_Cluster == 2 ~ "B",
+                                      T21byAge_Cluster == 3 ~ "C",
+                                      T21byAge_Cluster == 4 ~ "D",
+                                      T21byAge_Cluster == 5 ~ "E",
+                                      T21byAge_Cluster == 6 ~ "F" #,
+                                      # T21byAge_Cluster == 7 ~ "G",
+                                      # T21byAge_Cluster == 8 ~ "H",
+                                      # T21byAge_Cluster == 9 ~ "I",
+                                      # T21byAge_Cluster == 10 ~ "J",
+                                      # T21byAge_Cluster == 11 ~ "K",
+                                      # T21byAge_Cluster == 12 ~ "L",
+                                      # T21byAge_Cluster == 13 ~ "M",
+                                      # T21byAge_Cluster == 14 ~ "N"
+                                      ))
+
+ar_sigt21byage_d21clustered_v2.0 <- tmp.ar_sigt21byage_d21clustered %>%
+  dplyr::select(T21byAge_Cluster, UniProt_Aptamer_Chr_Cluster) %>%
+  unique() %>%
+  group_by(T21byAge_Cluster) %>%
+  summarise(N_Cluster_Aptamers = n()) %>%
+  ungroup() %>%
+  full_join(tmp.ar_sigt21byage_d21clustered, by = "T21byAge_Cluster") 
+
+#left_join( fread(paste0(dir.ardata,
+  #                        "/ar_sigt21byage_loess_predicted_values.csv.gz")),
+  #           by = "UniProt_Aptamer_Chr_Cluster" )
+
+head(ar_sigt21byage_d21clustered_v2.0)
+```
+
+#### ar_sigt21byage_d21clustered_v2.0
+```{r}
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_d21clustered_v2.0, "ar_sigt21byage_d21clustered_v2.0.csv.gz")
+```
+
+```{r}
+ar_sigt21byage_d21clustered_v2.0 %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster) %>%
+  unique() %>%
+  group_by(T21byAge_Cluster) %>%
+  summarise(N = n())
+
+ar_sigt21byage_d21clustered_v2.0 %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster, Lehallier2019_ClusterID) %>%
+  unique() %>%
+  group_by(T21byAge_Cluster, Lehallier2019_ClusterID) %>%
+  summarise(N = n())
+```
+
+```{r}
+ar_sigt21byage_aptamer_clusters <- ar_sigt21byage_d21clustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, T21byAge_Cluster) %>%
+  unique()
+
+ar_sigt21byage_aptamer_clusters
+
+ar_sigt21byage_aptamer_clusters %>%
+  split(., .$T21byAge_Cluster)
+```
+
+
+
+#### ARCHIVE BELOW - NOT USING AS OF 2/22/2025
+
+
+```{r}
+# ar_sigt21byage_d21clustered.split <- ar_sigt21byage_d21clustered %>% split(., .$T21byAge_Cluster) 
+# 
+# gg_trajectory_bykt_sigt21byage_cluster <- list()
+# gg_trajectory_byktsex_sigt21byage_cluster <- list()
+# for ( i in 1:length(ar_sigt21byage_d21clustered.split) ) {
+#   gg_trajectory_bykt_sigt21byage_cluster[[i]] <- ar_sigt21byage_d21clustered.split[[i]] %>%
+#     ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+#     geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+#     scale_colour_manual(values = c(RedBlue)) +
+#     scale_fill_manual(values = c(RedBlue)) +
+#     geom_hline(yintercept = 0, linetype = "dashed") +
+#     theme(aspect.ratio = 1.0,
+#         legend.position = "bottom") +
+#     ylab("Relative abundance (Zlog10)") +
+#     #facet_wrap(~T21byAge_Cluster, ncol=4) +
+#     ggtitle(paste0("T21-by-Age Cluster ", names(ar_sigt21byage_d21clustered.split)[[i]])) +
+#     theme(aspect.ratio = 1.0,
+#           legend.position = "bottom",
+#           legend.title = element_blank());
+#   save_as <- paste0("f_trajectory_bykt_sigt21byage_cluster_",
+#                     names(ar_sigt21byage_d21clustered.split)[[i]]);
+#   setwd(dir.output)
+#   ggsave(gg_trajectory_bykt_sigt21byage_cluster[[i]],
+#        filename = paste0(save_as, ".png"),
+#        width = 5, height = 5, units = "in")
+# 
+#   gg_trajectory_byktsex_sigt21byage_cluster[[i]] <- ar_sigt21byage_d21clustered.split[[i]] %>%
+#     ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+#     geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+#     scale_colour_manual(values = c("pink3",
+#                                  RedBlue[[1]],
+#                                  "navy",
+#                                  RedBlue[[2]])) +
+#     scale_fill_manual(values = c("pink3",
+#                                  RedBlue[[1]],
+#                                  "navy",
+#                                  RedBlue[[2]])) +
+#     geom_hline(yintercept = 0, linetype = "dashed") +
+#     theme(aspect.ratio = 1.0,
+#         legend.position = "bottom") +
+#     ylab("Relative abundance (Zlog10)") +
+#     #facet_wrap(~T21byAge_Cluster, ncol=4) +
+#     ggtitle(paste0("T21-by-Age Cluster ", names(ar_sigt21byage_d21clustered.split)[[i]])) +
+#     theme(aspect.ratio = 1.0,
+#           legend.position = "bottom",
+#           legend.title = element_blank());
+#   save_as <- paste0("f_trajectory_byktsex_sigt21byage_cluster_",
+#                     names(ar_sigt21byage_d21clustered.split)[[i]]);
+#   setwd(dir.output)
+#   ggsave(gg_trajectory_byktsex_sigt21byage_cluster[[i]],
+#        filename = paste0(save_as, ".png"),
+#        width = 5, height = 5, units = "in")
+# }
+```
+
+```{r}
+# gg_sigt21byage_d21clustered_bykaryotypesex <- ar_sigt21byage_d21clustered %>%
+#   mutate(Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+#          `T21-by-Age Cluster` = paste0("T21-by-Age Cluster ", `T21-by-Age Cluster`, "\n(N=", n_aptamers, " with FDR<0.05)"),
+#          Karyotype_Sex = factor(Karyotype_Sex, c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+#   arrange(Karyotype) %>%
+#   ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+#   geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+#   scale_colour_manual(values = c("pink3",
+#                                  RedBlue[[1]],
+#                                  "navy",
+#                                  RedBlue[[2]])) +
+#   scale_fill_manual(values = c("pink3",
+#                                  RedBlue[[1]],
+#                                  "navy",
+#                                  RedBlue[[2]])) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   theme(aspect.ratio = 1.0,
+#         legend.position = "bottom") +
+#   ylab("Relative abundance (Zlog10)") +
+#   facet_wrap(~`T21-by-Age Cluster`, ncol = 4);
+```
+
+
+
+
+
+
+#### Split ardata by UniProt_Aptamer_Chr_Cluster (used as uid used for convenience)
+```{r}
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split <- ar_p4c_soma_sigt21byage_d21only_clustering_input %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[1]] 
+```
+
+#### For each aptamer with significant T21*Age interaction, obtain Loess predicted values for each D21
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+tmp.loess_prediction_d21only.df <- list()
+tmp.loess_prediction_d21only_adjsex.df <- list()
+tmp.loess_prediction_d21only_adjagebysex.df <- list()
+tmp.loess_prediction_d21xxonly.df <- list()
+tmp.loess_prediction_d21xyonly.df <- list()
+
+for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+#for ( i in 1:2 ){
+  set.seed(1234)
+  
+  # loess_prediction_d21only
+  model_formula.now <- "Zlog10_relative_abundance ~ Age"
+  tmp.loess_prediction_d21only <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    loess(as.formula(model_formula.now),
+          data = .,
+          iterations = 1000);
+  
+  tmp.loess_prediction_d21only.df[[i]] <- data.frame(predicted_Zlog10_relative_abundance =
+                                                       tmp.loess_prediction_d21only$fitted,
+                                                     residual_Zlog10_relative_abundance =
+                                                       tmp.loess_prediction_d21only$resid,
+                                                     loess_id = "loess_prediction_d21only",
+                                                     UniProt_Aptamer_Chr_Cluster =
+                                                       names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]],
+                                                     loess_model_formula = model_formula.now,
+                                                     nobs = tmp.loess_prediction_d21only$n,
+                                                     rse = tmp.loess_prediction_d21only$s,
+                                                     
+                                                     LabID =
+                                                       ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$LabID,
+                                                     T21 = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$T21,
+                                                     Age = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Age,
+                                                     Female = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Female,
+                                                     Zlog10_relative_abundance =
+                                                       ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Zlog10_relative_abundance) %>%
+    dplyr::select(loess_id, loess_model_formula, UniProt_Aptamer_Chr_Cluster, nobs, rse,
+                  LabID, T21, Age, Female,
+                  Zlog10_relative_abundance,
+                  predicted_Zlog10_relative_abundance, residual_Zlog10_relative_abundance,
+                  everything());
+
+  # loess_prediction_d21only_adjsex
+  model_formula.now <- "Zlog10_relative_abundance ~ Age + Female"
+  tmp.loess_prediction_d21only_adjsex <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    loess(as.formula(model_formula.now), data = .,
+          iterations = 1000);
+  tmp.loess_prediction_d21only_adjsex.df[[i]] <- data.frame(predicted_Zlog10_relative_abundance =
+                                                              tmp.loess_prediction_d21only_adjsex$fitted,
+                                                            residual_Zlog10_relative_abundance = tmp.loess_prediction_d21only_adjsex$resid,
+                                                             loess_id = "loess_prediction_d21only_adjsex",
+                                                             UniProt_Aptamer_Chr_Cluster =
+                                                               names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]],
+                                                             loess_model_formula = model_formula.now,
+                                                             nobs = tmp.loess_prediction_d21only_adjsex$n,
+                                                             rse = tmp.loess_prediction_d21only_adjsex$s,
+                                                             LabID = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$LabID,
+                                                             T21 = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$T21,
+                                                             Age = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Age,
+                                                             Female = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Female,
+                                                             Zlog10_relative_abundance =
+                                                       ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Zlog10_relative_abundance) %>%
+    dplyr::select(loess_id, loess_model_formula, UniProt_Aptamer_Chr_Cluster, nobs, rse,
+                  LabID, T21, Age, Female,
+                  Zlog10_relative_abundance,
+                  predicted_Zlog10_relative_abundance, residual_Zlog10_relative_abundance,
+                  everything());
+
+  # loess_prediction_d21only_adjagebysex
+  model_formula.now <- "Zlog10_relative_abundance ~ Age + Female + Age*Female"
+  tmp.loess_prediction_d21only_adjagebysex <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    loess(as.formula(model_formula.now), data = .,
+          iterations = 1000);
+  tmp.loess_prediction_d21only_adjagebysex.df[[i]] <- data.frame(predicted_Zlog10_relative_abundance =
+                                                                   tmp.loess_prediction_d21only_adjagebysex$fitted,
+                                                                 residual_Zlog10_relative_abundance =
+                                                                   tmp.loess_prediction_d21only_adjagebysex$resid,
+                                                                 loess_id = "loess_prediction_d21only_adjagebysex",
+                                                                 UniProt_Aptamer_Chr_Cluster =
+                                                                   names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]],
+                                                                 loess_model_formula = model_formula.now,
+                                                                 nobs = tmp.loess_prediction_d21only_adjagebysex$n,
+                                                                 rse = tmp.loess_prediction_d21only_adjagebysex$s,
+                                                                 LabID = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$LabID,
+                                                                 T21 = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$T21,
+                                                                 Age = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Age,
+                                                                 Female = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Female,
+                                                                 Zlog10_relative_abundance = 
+                                                                   ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]$Zlog10_relative_abundance) %>%
+    dplyr::select(loess_id, loess_model_formula, UniProt_Aptamer_Chr_Cluster, nobs, rse,
+                  LabID, T21, Age, Female,
+                  Zlog10_relative_abundance,
+                  predicted_Zlog10_relative_abundance, residual_Zlog10_relative_abundance,
+                  everything());
+
+  # loess_prediction_d21xxonly
+  model_formula.now <- "Zlog10_relative_abundance ~ Age"
+  ardata.now <-  ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    dplyr::filter(Female == 1)
+  tmp.loess_prediction_d21xxonly <- ardata.now %>%
+    loess(as.formula(model_formula.now), data = .,
+          iterations = 1000);
+  tmp.loess_prediction_d21xxonly.df[[i]] <- data.frame(predicted_Zlog10_relative_abundance = tmp.loess_prediction_d21xxonly$fitted,
+                                                       residual_Zlog10_relative_abundance = tmp.loess_prediction_d21xxonly$resid,
+                                                       loess_id = "loess_prediction_d21xxonly",
+                                                     UniProt_Aptamer_Chr_Cluster =
+                                                       names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]],
+                                                     loess_model_formula = model_formula.now,
+                                                     nobs = tmp.loess_prediction_d21xxonly$n,
+                                                     rse = tmp.loess_prediction_d21xxonly$s,
+                                                     LabID = ardata.now$LabID,
+                                                     T21 = ardata.now$T21,
+                                                     Age = ardata.now$Age,
+                                                     Female = ardata.now$Female,
+                                                     Zlog10_relative_abundance =
+                                                       ardata.now$Zlog10_relative_abundance) %>%
+    dplyr::select(loess_id, loess_model_formula, UniProt_Aptamer_Chr_Cluster, nobs, rse,
+                  LabID, T21, Age, Female,
+                  Zlog10_relative_abundance,
+                  predicted_Zlog10_relative_abundance, residual_Zlog10_relative_abundance,
+                  everything());
+
+  # loess_prediction_d21xyonly
+  model_formula.now <- "Zlog10_relative_abundance ~ Age"
+  ardata.now <-  ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    dplyr::filter(Female == 0)
+  tmp.loess_prediction_d21xyonly <- ardata.now %>%
+    loess(as.formula(model_formula.now), data = .,
+          iterations = 1000);
+  tmp.loess_prediction_d21xyonly.df[[i]] <- data.frame(predicted_Zlog10_relative_abundance = tmp.loess_prediction_d21xyonly$fitted,
+                                                     residual_Zlog10_relative_abundance = tmp.loess_prediction_d21xyonly$resid,
+                                                     loess_id = "loess_prediction_d21xyonly",
+                                                     UniProt_Aptamer_Chr_Cluster =
+                                                       names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]],
+                                                     loess_model_formula = model_formula.now,
+                                                     nobs = tmp.loess_prediction_d21xyonly$n,
+                                                     rse = tmp.loess_prediction_d21xyonly$s,
+                                                     LabID = ardata.now$LabID,
+                                                     T21 = ardata.now$T21,
+                                                     Age = ardata.now$Age,
+                                                     Female = ardata.now$Female,
+                                                     Zlog10_relative_abundance =
+                                                       ardata.now$Zlog10_relative_abundance) %>%
+    dplyr::select(loess_id, loess_model_formula, UniProt_Aptamer_Chr_Cluster, nobs, rse,
+                  LabID, T21, Age, Female,
+                  Zlog10_relative_abundance,
+                  predicted_Zlog10_relative_abundance, residual_Zlog10_relative_abundance,
+                  everything());
+}
+
+ai_loess_prediction_d21only <- tmp.loess_prediction_d21only.df %>% rbindlist()
+ai_loess_prediction_d21only_adjsex <- tmp.loess_prediction_d21only_adjsex.df %>% rbindlist() 
+ai_loess_prediction_d21only_adjagebysex <- tmp.loess_prediction_d21only_adjagebysex.df %>% rbindlist()
+ai_loess_prediction_d21xyonly <- tmp.loess_prediction_d21xyonly.df %>% rbindlist()
+ai_loess_prediction_d21xxonly <- tmp.loess_prediction_d21xxonly.df %>% rbindlist()
+
+rm(tmp.loess_prediction_d21only.df,
+tmp.loess_prediction_d21only_adjsex.df,
+tmp.loess_prediction_d21only_adjagebysex.df,
+tmp.loess_prediction_d21xyonly.df,
+tmp.loess_prediction_d21xxonly.df); gc()
+
+ai_loess_prediction_d21only %>% head()
+ai_loess_prediction_d21only_adjsex %>% head()
+ai_loess_prediction_d21only_adjagebysex %>% head()
+ai_loess_prediction_d21xyonly %>% head()
+ai_loess_prediction_d21xxonly %>% head()
+```
+
+#### f_loess_prediction_d21only_model_rse
+```{r}
+f_loess_prediction_d21only_model_rse <- rbind(ai_loess_prediction_d21only,
+                                               ai_loess_prediction_d21only_adjsex,
+                                               ai_loess_prediction_d21only_adjagebysex,
+                                               ai_loess_prediction_d21xyonly,
+                                               ai_loess_prediction_d21xxonly) %>%
+  dplyr::select(loess_id, loess_model_formula, UniProt_Aptamer_Chr_Cluster, nobs, rse) %>%
+  unique() %>%
+  mutate(loess_model_formula = paste0(" ", "", loess_model_formula),
+         loess_model_formula = gsub("~", "~\n", loess_model_formula),
+         gg_xlab = "Residual standard error (RSE)",
+         gg_ylab = "Count (N)",
+         gg_title = "LOESS model selection across 4,062 aptamer models by RSE minimization",
+         gg_subtitle = "Cohort: D21s only");
+setwd(dir.ddata)
+fwrite(f_loess_prediction_d21only_model_rse, "f_loess_prediction_d21only_model_rse.csv");
+
+gg_loess_prediction_d21only_model_rse <- f_loess_prediction_d21only_model_rse %>%
+  mutate(loess_model_formula = paste0(" ", "", loess_model_formula),
+         loess_model_formula = gsub("~", "~\n", loess_model_formula)) %>%
+  ggplot(aes(x = rse)) + 
+  geom_histogram() +
+  facet_wrap(~loess_model_formula) +
+  theme(aspect.ratio = 0.4) +
+  xlab(unique(f_loess_prediction_d21only_model_rse$gg_xlab)) +
+  ylab(unique(f_loess_prediction_d21only_model_rse$gg_ylab)) +
+  ggtitle(unique(f_loess_prediction_d21only_model_rse$gg_title),
+          subtitle = unique(f_loess_prediction_d21only_model_rse$gg_subtitle))
+
+save_as <- "f_loess_prediction_d21only_model_rse"
+setwd(dir.output)
+ggsave(gg_loess_prediction_d21only_model_rse,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 3, units = "in")
+```
+
+```{r}
+ar_loess_prediction_d21only_adjsex <- ai_loess_prediction_d21only_adjsex
+
+setwd(dir.ardata)
+fwrite(ar_loess_prediction_d21only_adjsex, "ar_loess_prediction_d21only_adjsex.csv.gz")
+```
+
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+tmp <- list()
+for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+  set.seed(1234)
+  tmp[[i]] <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    mutate(predicted_Zlog10_relative_abundance = (loess(Zlog10_relative_abundance ~ Age + Female,
+                                                        iterations = 1000,
+                                                        data =  ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]))$fitted);
+  names(tmp)[[i]] <- names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]]
+}
+
+loess_prediction.D21.matrix <- tmp %>%
+  rbindlist() %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID, predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+
+# Dissimilarity matrix:
+set.seed(1234)
+d_newclusters.D21s <- dist(loess_prediction.D21.matrix,
+                           method = "euclidean");
+# Hierarchical clustering using Complete Linkage:
+set.seed(1234)
+hc1_newclusters.D21s <- hclust(d_newclusters.D21s,
+                               method = "complete");
+```
+
+#### Decide how many T21-by-Age Clusters make sense
+```{r}
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 4, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 8, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 9, border = 1:9);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 10, border = 1:10);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 11, border = 1:11);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 12, border = 1:12);
+
+k_hc1_newclusters.D21s <- 12
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s, border = 1:k_hc1_newclusters.D21s);
+```
+
+```{r}
+tmp <- cutree(hc1_newclusters.D21s, k = seq(1:16)) %>%
+    as.data.frame() %>%
+  `colnames<-`(c(paste0("k", names(.), "_T21byAge_Cluster"))) %>%
+  rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+  gather(key = "k", value = "T21byAge_Cluster", starts_with("k")) %>%
+  mutate(k = gsub("k", "", k),
+         k = gsub("_T21byAge_Cluster", "", k),
+         k = as.numeric(k))
+
+tmp %>%
+  filter(k >= 2) %>%
+  group_by(k, T21byAge_Cluster) %>%
+  summarise(N = n()) %>%
+  ungroup()
+```
+
+#### Use the cuttree function to assign aptamers to k=12 T21-by-Age Clusters ('ar_sigt21byage_d21clustered')
+```{r echo=T, results='hide'}
+k_hc1_newclusters.D21s <- 12
+set.seed(1234)
+
+tmp <- cutree(hc1_newclusters.D21s, k = seq(1:16)) %>%
+    as.data.frame() %>%
+  `colnames<-`(c(paste0("k", names(.), "_T21byAge_Cluster"))) %>%
+  dplyr::select(-c(contains("k1_"))) %>%
+  rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+  left_join( fread(paste0(dir.ardata,
+                          "/ar_sigt21byage_loess_predicted_values.csv.gz")),
+             by = "UniProt_Aptamer_Chr_Cluster" ) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, `Chromosome(s)`, Chromosome,
+                starts_with("k"),
+                Lehallier2019_ClusterID) %>%
+  unique() %>%
+  mutate(Chr21 = case_when(Chromosome == 21 | grepl("21", `Chromosome(s)`)==TRUE ~ 1,
+                           .default = 0)) %>%
+  filter(Chr21 == 1)
+
+tmp %>%
+  gather(key = "k", value = "T21byAge_Cluster", contains("T21byAge_Cluster")) %>%
+  mutate(k = gsub("k", "", k),
+         k = gsub("_T21byAge_Cluster", "", k),
+         k = as.numeric(k)) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, `Chromosome(s)`, Chromosome, k, T21byAge_Cluster) %>%
+  unique() %>%
+  mutate(Chr21 = case_when(Chromosome == 21 | grepl("21", `Chromosome(s)`)==TRUE ~ 1,
+                           .default = 0)) %>%
+  filter(Chr21 == 1) %>% select(UniProt_Aptamer_Chr_Cluster) %>% unique() %>% nrow() #[1] 7
+
+tmp %>%
+  gather(key = "k", value = "T21byAge_Cluster", contains("T21byAge_Cluster")) %>%
+  mutate(k = gsub("k", "", k),
+         k = gsub("_T21byAge_Cluster", "", k),
+         k = as.numeric(k)) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, `Chromosome(s)`, Chromosome, k, T21byAge_Cluster) %>%
+  unique() %>%
+  mutate(Chr21 = case_when(Chromosome == 21 | grepl("21", `Chromosome(s)`)==TRUE ~ 1,
+                           .default = 0)) %>%
+  dplyr::select(#UniProt_Aptamer_Chr_Cluster, 
+                Chr21, k, T21byAge_Cluster) %>%
+  unique() %>%
+  group_by(k, Chr21) %>%
+  summarise(N_sigT21byAgeChr21_Clusters = n())
+# Note: With 12 total T21-by-Age Clusters, our 7 Chr21-encoded aptamers with significant T21-by-Age interaction end up in 4 of 12 T21-by-Age Clusters.
+```
+
+```{r}
+k_hc1_newclusters.D21s <- 12
+set.seed(1234)
+ar_sigt21byage_d21clustered <- cutree(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s) %>%
+    as.data.frame() %>%
+    `colnames<-`("T21byAge_Cluster") %>%
+    rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(k = k_hc1_newclusters.D21s) %>%
+    ungroup() %>%
+  left_join( fread(paste0(dir.ardata,
+                          "/ar_sigt21byage_loess_predicted_values.csv.gz")),
+             by = "UniProt_Aptamer_Chr_Cluster" )
+
+head(ar_sigt21byage_d21clustered)
+```
+
+```{r}
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_d21clustered, "ar_sigt21byage_d21clustered.csv.gz")
+```
+
+```{r}
+ar_sigt21byage_d21clustered %>%
+  filter(T21byAge_Cluster == 1) %>%
+  #filter(T21 == 1) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Sex, fill = Sex)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  facet_wrap(~Karyotype)
+
+ar_sigt21byage_d21clustered %>%
+  filter(T21byAge_Cluster == 1) %>%
+  #filter(T21 == 1) %>%
+  ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance, color = Sex, fill = Sex)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  facet_wrap(~Karyotype)
+
+ar_sigt21byage_d21clustered %>%
+  filter(T21byAge_Cluster == 1) %>%
+  #filter(T21 == 1) %>%
+  ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance, color = Sex, fill = Sex)) +
+  geom_point() +
+  geom_line(aes(y = predicted_Zlog10_relative_abundance)) +
+  theme(aspect.ratio = 1.0) +
+  facet_wrap(~Karyotype)
+```
+
+#### ARCHIVE / IMPLEMENT LATER:
+```{r}
+#install.packages("NbClust")
+# library(NbClust)
+# data(wine)
+# 
+# NbClust(wine, method = 'complete', index = 'all')$Best.nc
+# 
+# loess_prediction.D21.matrix %>% head()
+# NbClust(loess_prediction.D21.matrix,
+#         method = 'complete', index = 'all')$Best.nc
+
+```
+
+
+```{r}
+# Silhouette Coefficient: Measures how well each data point is assigned to its cluster by comparing its distance to its own cluster with its distance to the nearest neighboring cluster. 
+# Elbow Method: Plots the within-cluster sum of squares (WCSS) against the number of clusters, where the "elbow" point on the graph indicates the optimal number of clusters. 
+# Calinski-Harabasz Index: A metric that favors clusters with high intra-cluster compactness and large inter-cluster separation, with higher values indicating better clustering. 
+# Gap Statistic: Compares the within-cluster variation of a clustering solution with the expected variation under a null distribution, helping to identify the optimal number of clusters. 
+```
+
+```{r}
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC7062043/
+# - "To estimate protein trajectories during aging, plasma proteins levels were z-scored and LOESS (locally estimated scatterplot smoothing) regression was fitted for each plasma factor. To group proteins with similar trajectories, pairwise differences between LOESS estimates were calculated based on the Euclidian distance and hierarchical clustering was performed using the complete method. To understand the biological functions of each cluster, we queried Reactome, KEGG and GO databases, as described above."
+# - "To quantitatively understand the proteomic changes occurring throughout life, we developed the software tool Differential Expression - Sliding Window ANalysis (DE-SWAN) (Fig. 3a). This algorithm analyzes protein levels within a window of 20 years and compares two groups in parcels of 10 years (e.g. 35–45y compared with 45–55y), while sliding the window in increments of 1 year from young to old."
+# - "Sliding Enrichment Pathway Analysis (SEPA)
+# - "To determine the biological meaning of group of plasma proteins, we ranked the top 100 proteins based on the product of -log10(p-values) and beta age (or beta sex) and queried three of the most comprehensive biological annotation and pathway databases: Gene ontology - GO46, Kyoto Encyclopedia of Genes and Genomes – KEGG47 and Reactome48. Using these databases, we tested enrichment for pathways in the top 10 to top 100 proteins in increments of 1 protein. The 2,925 proteins measured in this study cover 90% of the human GOs, Reactome and KEGG terms containing more than 8 genes (Supplementary Figure 4)."
+# - "To analyze each incremental list of proteins, we used the R topGO package49 for GO analysis and the R clusterProfiler package50 for KEGG and Reactome analyses. As input of SEPA, we used Gene Symbols provided by SomaLogic Inc. (Supplementary Table 1). The 2,925 proteins measured by SomaScan served as the background set of proteins against which to test for over-representation. Since several individual proteins (33 out of 2,925) were mapped to multiple Gene Symbols, we kept only the 1st Gene Symbol provided by Somalogic to prevent false positive enrichment. For KEGG and Reactome analysis, clusterProfiler requires EntrezID as input. Therefore, we mapped Gene Symbols to EntrezID using the org.Hs.eg.db package51. Again, to avoid false positive enrichment, only the 1st EntrezID was used when Gene Symbols were mapped to multiple EntrezID. Q-values were estimated using Benjamini–Hochberg approach45 for the different databases taken separately. For GO analysis, q-values were calculated for the three GOs classes (molecular function, cellular component, biological process) independently. To identify the most biologically meaningful terms and pathways, we reported only those with 20–500 proteins measured by the SomaScan assay. In addition, we focused on pathways consistently highly significant (q<0.05 for at least 20 different incremental list of proteins) and kept the top ten pathways per condition (e.g. for each wave of aging proteins). Ranking was performed based on the minimum fdr across the incremental lists of proteins. SEPA can be viewed as an extension of the GSEA approach52, with more control for true and false positives."
+```
+

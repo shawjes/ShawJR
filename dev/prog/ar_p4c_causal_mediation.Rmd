@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# https://imai.fas.harvard.edu/research/files/mediationR.pdf
+# 8.3.1 Estimation of Causal Mediation Effects
+library("mediation")
+data("jobs")
+
+# The Baron–Kenny Procedure with the Interaction Term
+set.seed(1234)
+model.m <- lm(job_seek ~ age + sex,
+              data = jobs)
+model.y <- lm(depress2 ~ age + sex + age*sex,
+              data = jobs)
+out <- mediate(model.m,
+                 model.y,
+                 sims = 1000,
+                 boot = TRUE,
+                 #INT = TRUE, 
+                 treat = "sex", 
+                 mediator = "age");
+summary(out)
+```
+

@@ -1,0 +1,13 @@
+Variable	Example	Description
+LabID	HTP0677B	Human Trisome Project sample/biospecimen identifier
+Sample_type	Whole blood	Type of sample taken/extracted from biospecimen
+Platform	RNAseq_polyA	Description of assay platform/strategy
+EnsemblID	ENSG00000121410.12	Ensembl gene identifier
+Gene_name	A1BG	Gene name/Symbol
+Chr	chr19	Chromosome
+Gene_type	protein_coding	 Gene class
+Units	Gene-level FPKM	Description of measurement units
+Value	1.319083834	Measurement value
+Data_contact	email address	Contact for queries about data set
+Date_exported	11102021	Date of data set preparation/export
+Script	HTP_data_Synapse_v0.1.R	Data preparation script

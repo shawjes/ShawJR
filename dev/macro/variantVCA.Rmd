@@ -1,0 +1,269 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### setupVCA.step1.GLN
+```{r}
+setupVCA.step1.GLN <- function(work_folder) {
+  library(logr)
+  library(data.table)
+  library(openxlsx)
+  library(tibble)
+  library(lme4)
+  library(broom)
+  #library(broomextra)
+  library(haven)
+  library(arsenal)
+  library(furrr)
+  library(purrr)
+  library(compiler)
+  library(readr)
+  library(callr)
+  
+  work_folder %>% dir.create()
+  
+  dir.functions <- gsub(paste0("/", basename(work_folder)), '', work_folder) %>%
+    paste0(., '/functions');
+  dir.functions %>% dir.create();
+  
+  paste(work_folder, '/ddata', sep = '') %>% dir.create();
+  paste(work_folder, '/ardata_csv_gz', sep = '') %>% dir.create();
+  paste(work_folder, '/analysisData', sep = '') %>% dir.create();
+  paste(work_folder, '/augment', sep = '') %>% dir.create();
+  paste(work_folder, '/Out_AllGLN_gz', sep = '') %>% dir.create();
+  paste(work_folder, '/logs', sep = '') %>% dir.create();
+  paste(work_folder, '/sessionInfo', sep = '') %>% dir.create();
+  
+  "if (grepl(':', work_folder) == FALSE) {
+  
+  # Create objects to store the pathnames that will be referenced throughout the analysis:
+  select <- dplyr::select
+  filter <- dplyr::filter
+  `%notin%` <- Negate(`%in%`)
+  
+  work_folder <- work_folder
+  
+  dir.functions <- gsub(paste0('/', basename(work_folder)), '', work_folder) %>% paste0(., '/functions');
+  
+  #### Define the directories referenced in this script and the path to EFS copy of TLF Tracker:
+  dir.docs <- '/.../docs'
+  file.tlf_tracker <- paste(dir.docs, 'TLF Tracker.xlsx', sep = "/");
+  
+  dir.prod <- '/.../.../prod'
+  dir.prod.ddata <- paste(dir.prod, 'ddata', sep = '/')
+  
+  dir.prod.ardata <- '/.../.../ardata'
+  dir.ardata_csv_gz <- paste(work_folder, 'ardata_csv_gz', sep = '');
+  dir.analysisData <- paste(work_folder, '/analysisData', sep = '');
+  dir.out.AllGLN.gz <- paste(work_folder, '/Out_AllGLN_gz', sep = '');
+  dir.logs <- paste(work_folder, '/logs', sep = '');
+  dir.sessionInfo <- paste(work_folder, '/sessionInfo', sep = '');
+  
+}
+
+if (grepl(':', work_folder)==TRUE) {
+  
+  # Create objects to store the pathnames that will be referenced throughout the analysis:
+  
+  # [ Code I probably won't need - Illumina/Windows specifit ]
+  
+}" %>%
+  cat(.,
+      file = paste0(dir.functions, '/setupVCA_GLN.R'),
+      sep = '/n');
+}
+```
+
+#### setupVCA.step2.GLN
+```{r}
+setupVCA.step2.GLN <- function(work_folder) {
+  source(paste0(gsub(paste0('/', basename(work_folder)), '', work_folder) %>% paste0(., '/functions'), '/setupVCA_GLN.R'))
+}
+```
+
+#### setupVCA
+```{r}
+#### Create directories for storing intermediate output files and initialize objects to store  directory paths
+#### (Objects created by this function are referenced by other functions defined in this script)
+setupVCA <- function(panel, work_folder) {
+    setupVCA.step1.GLN(work_folder = work_folder)
+    setupVCA.step2.GLN(work_folder = work_folder)
+}
+```
+
+#### prepareData.GLN
+```{r}
+# Note: To be run AFTER setupVCA()
+prepareData.GLN <- function(basename) {
+  exists.analysisData <- 
+    if (file.exists(paste0(dir.ardata_csv_gz, "/", basename, ".csv.gz"))==FALSE) {
+      setwd(dir.prod.ardata)
+      a_small_variants_gln <- haven::read_sas()
+    
+      # ...
+  }
+}
+```
+
+#### prepareData
+```{r}
+prepareData <- function(basename) {
+  if (grepl("gln", basename)==TRUE) {
+    prepareData.GLN(basename = basename)
+  }
+}
+```
+
+#### loadRData
+```{r}
+loadRData <- function(fileName) {
+  load(fileName)
+  out <- get (ls()[ls() != "fileName"])
+  return(out)
+}
+```
+
+#### VCAbyVariant.step1
+```{r}
+VCAbyVariant.step1 <- function(data) {
+  
+  library(dplyr)
+  library(tidyr)
+  library(data.table)
+  library(furrr)
+  library(purrr)
+  select <- dplyr::select
+  filter <- dplyr::filter
+  library(VCA)
+  
+  "/dev/shm/Out_byVariant" %>% dir.create()
+  "/dev/shm/Out_byVariant/logs" %>% dir.create()
+  "dev/shm/Out_byVariant/estimates" %>% dir.create()
+  
+  dir.out.vca.byVariant <- "/dev/shm/Out_byVariant"
+  
+  quietly.fitVCAreml = purrr::quietly(.f = VCA::fitVCA);
+  variant_type <- gsub("a_small_variants_", "", data$dataset_name[1])
+  variant.now <- data$chrposrefalt[1]
+  
+  # Split variant-specific dataframe by modelID:
+  data.split <- split(data, data$modelID) %>% lapply(as.data.frame)
+  
+  set.seed(1234)
+  fitted <- furrr::future_map(data.split,
+                              ~try(quietly.fitVCAreml(vaf ~ site_instr/op,
+                                                      Data = .,
+                                                      "reml",
+                                                      #scale = TRUE,
+                                                      quiet = FALSE)),
+                              .options = furrr_options(seed = TRUE));
+  
+  warnings.OK <- try(fitted[sapply(fitted,class) != "try-error"] #%>% 
+                       # ...
+                       # ...
+                       # ...
+                       );
+  
+  messages.OK <- try(fitted[sapply(fitted,class) != "try-error"] #%>% 
+                       # ...
+                       # ...
+                       # ...
+                       );
+  
+    warnings.tryError <- try(fitted[sapply(fitted,class) == "try-error"] #%>% 
+                       # ...
+                       # ...
+                       # ...
+                       );
+  
+    messages.tryError <- try(fitted[sapply(fitted,class) == "try-error"] #%>% 
+                       # ...
+                       # ...
+                       # ...
+                       );
+  
+  fitted.warnings <- try(rbind(warnings.OK, warnings.tryError))
+  fitted.messages <- try(rbind(messages.OK, messages.tryError))
+  fitted.warnings_messages <- try(fitted.warnings #%>%
+                                    )
+  # ...
+  # ...
+  # ...
+  # ...
+  # ...
+  # ...
+  # ...
+  # ...
+  
+  try(save(fitted.resid[sapply(fitted.resid, class) != "data.frame"],
+           file = paste0(dir.out.vca.byVariant, "/rstudent/", variant_type, "_", variant.now, "rstudent.RData"), compress = FALSE));
+}
+```
+
+#### VCAbyVariant.step1.cmp
+```{r}
+VCAbyVariant.step1.cmp <- compiler::cmpfun(VCAbyVariant.step1)
+
+VCAbyVariant.step2 <- function() {
+  dir.out.vca.byVariant <- "/dev/shm/Out_byVariant"
+  
+  files.rstudent <- paste0()
+  files.estimates <- paste0()
+  names(files.rstudent) <- files.rstudent
+  names(files.estimates) <- files.estimates
+  
+  combined.estimates <- furrr::future_map(files.estimates,
+                                          ~fread(.)) %>%
+    rbindlist(idcol = "filename");
+  combined.rstudent <- furrr::future_map(files.rstudent,
+                                         ~fread(.)) %>%
+    rbindlist(idcol = "filename")
+  
+  setwd(dir.out.AllGLN.gz)
+  fwrite(combined.estimates, "AllGLN_SDestimates.csv.gz")
+  fwrite(combined.rstudent, "AllGLN_rstudent.csv.gz")
+}
+
+VCAbyVariant.step2.cmp <- compiler::cmpfun(VCAbyVariant.step2);
+
+VCAbyVariant <- function(data) {
+  invisible(furrr::future_map(data,
+                              ~VCAbyVariant.step1.cmp(data = .),
+                              .options = furrr_options(seed = TRUE)))
+  VCAbyVariant.step2.cmp()
+}
+```
+
+#### runVCA_GLN.R
+```{r}
+plan(multisession, workers = 7);
+combinedTidy <- combineCSV.cmp(outdir = "")
+plan(sequential)
+```
+
+#### VCFtoCSV.R
+```{r}
+
+```
+
+#### 
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

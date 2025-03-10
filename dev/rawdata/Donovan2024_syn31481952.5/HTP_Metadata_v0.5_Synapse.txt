@@ -1,0 +1,1011 @@
+ParticipantID	LabID	Karyotype	Sex	Age	Weight_kg	Height_cm	Sample_source_code	Event_name	Race	Ethnicity	Data_contact	Date_exported	Script
+HTP0274	HTP0274A	T21	Male	17.5	45.3	157	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0591	HTP0591A	T21	Male	31.9	72.8	153.7	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0330	HTP0330A	T21	Male	6.1	16.8	101.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0278	HTP0278A	T21	Male	7.6	22.5	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0052	HTP0052A	T21	Female	28.7	51.3	133.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0052	HTP0052A2	T21	Female	29.9	50.9	134.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0052	HTP0052A3	T21	Female	31	49.7	133	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0678	HTP0678B	Control	Female	17.1	45	155	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0709	HTP0709B	Control	Female	29.1	58.4	159.5	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0236	HTP0236A	T21	Male	10.4	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0236	HTP0236A2	T21	Male	11.3	34.19501134	152	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0491	HTP0491A	T21	Male	6.5	20.5	106.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0158	HTP0158B	Control	Female	36.6	NA	NA	4	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0292	HTP0292B	Control	Female	59.2	56.4	160.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0279	HTP0279B	Control	Male	11.5	51	NA	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0599	HTP0599A	T21	Female	36.6	68.7	144.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0464	HTP0464A	T21	Male	22.7	94.8	147	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0682	HTP0682A	T21	Female	7.2	22.6796	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0544	HTP0544A	T21	Male	38.1	60.690659	163.83	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0181	HTP0181B	Control	Female	56.9	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0541	HTP0541A	T21	Male	29.7	88.722668	162.56	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0467	HTP0467A	T21	Female	32.5	75.2	146	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0467	HTP0467A2	T21	Female	33.6	77.5643	145	8	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0222	HTP0222A	T21	Female	26.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0508	HTP0508B	Control	Male	29	93.4	184.5	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0508	HTP0508B2	Control	Male	29.9	96.3	185.5	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0241	HTP0241A	T21	Female	16.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0241	HTP0241A2	T21	Female	17.9	48.43537415	147	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0241	HTP0241A3	T21	Female	18.9	46.810733	147.32	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0558	HTP0558A	T21	Male	13.4	19.9581	114.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0470	HTP0470A	T21	Female	4.2	17.6	104	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0504	HTP0504B	Control	Female	29.1	83.4	160.2	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0657	HTP0657A	T21	Male	16.9	45	148	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0014	HTP0014B	Control	Male	68.3	61.4	150	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0710	HTP0710A	T21	Female	21.6	62.8	147.1	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0206	HTP0206B	Control	Male	15.8	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0277	HTP0277A	T21	Female	35.2	49	142.2	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0277	HTP0277A2	T21	Female	36.2	46.16780045	141	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0277	HTP0277A3	T21	Female	37.2	NA	141.1	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0471	HTP0471A	T21	Female	9	26.04	119	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0358	HTP0358B	Control	Female	35.9	85	170.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0358	HTP0358B2	Control	Female	37	85.3	171.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0438	HTP0438A	T21	Female	19.9	46.89342404	146	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0197	HTP0197A	T21	Male	7.4	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0566	HTP0566A	T21	Male	13.7	39.68933	148.59	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0640	HTP0640A	T21	Male	26.1	63.8	167.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0204	HTP0204A	T21	Male	13.1	65.5	155	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0204	HTP0204A2	T21	Male	14.3	73.6	163	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0204	HTP0204A3	T21	Male	15.4	84	165.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0361	HTP0361B	Control	Male	10.6	33.2	145.3	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0361	HTP0361B2	Control	Male	11.5	39.6	153.5	1	Visit 2	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0579	HTP0579A	T21	Male	2.5	10.9	81.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0092	HTP0092B	Control	Female	24.1	80.3	173	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0092	HTP0092B2	Control	Female	25.2	80.3	171	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0092	HTP0092B3	Control	Female	26.1	92	172.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0492	HTP0492B	Control	Male	4.8	22.3	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0651	HTP0651A	T21	Male	31.2	73.6	168.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0280	HTP0280B	Control	Male	9.5	41.3	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0152	HTP0152B	Control	Female	56.1	97.2	167	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0152	HTP0152B2	Control	Female	57.3	106.8	165.4	1	Visit 2	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0129	HTP0129A	T21	Female	22.7	55.8	139.7	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0596	HTP0596A	T21	Female	28.3	68.8	144.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0503	HTP0503B	Control	Female	29.6	66.2	169.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0050	HTP0050A	T21	Female	20.7	61.4	150	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0050	HTP0050A2	T21	Female	22	58.9	147.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0050	HTP0050A3	T21	Female	22.8	59.6	149.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0050	HTP0050A4	T21	Female	24	61.1	147.3	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0355	HTP0355B	Control	Male	12.3	35.7	144.8	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0228	HTP0228A	T21	Male	56.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0044	HTP0044B	Control	Male	34.7	83.6	177.7	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0044	HTP0044B2	Control	Male	35.8	91.4	177.7	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0044	HTP0044BX	Control	Male	36.2	91.4	177.7	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0044	HTP0044B3	Control	Male	36.9	86	177.8	1	Visit 4	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0044	HTP0044B4	Control	Male	37.4	86.5	178.3	1	Visit 5	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0584	HTP0584A	T21	Male	29.3	83.2	159.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0073	HTP0073A	T21	Male	53.6	76.5	160	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0073	HTP0073A2	T21	Male	54.7	70.1	158.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0271	HTP0271B	Control	Male	11.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0643	HTP0643A	T21	Male	29.7	60.9	148.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0096	HTP0096B	Control	Male	24.5	77.6	179	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0096	HTP0096B2	Control	Male	25.6	80.8	181	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0096	HTP0096B3	Control	Male	26.5	85.2	179	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0110	HTP0110B	Control	Female	2.3	12.5	90.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0110	HTP0110B2	Control	Female	4.3	17.2	104.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0060	HTP0060B	Control	Female	18.7	80.1	180	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0060	HTP0060B2	Control	Female	21.9	80.5	181	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0090	HTP0090B	Control	Male	23.8	76.3	175.5	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0090	HTP0090B2	Control	Male	24.8	80.5	175.6	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0090	HTP0090B3	Control	Male	25.8	86.5	175.6	1	Visit 3	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0094	HTP0094B	Control	Female	44.6	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0024	HTP0024B	Control	Female	76.5	76.4	162.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0268	HTP0268A	T21	Female	22.7	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0382	HTP0382A	T21	Male	39.5	79.36507937	167	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0045	HTP0045A	T21	Female	29	71	150.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0045	HTP0045A2	T21	Female	31.2	79.4	149	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0690	HTP0690A	T21	Female	2.8	14.515	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0463	HTP0463A	T21	Female	28.3	80.45351474	155	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0463	HTP0463A2	T21	Female	29.2	76.022081	154.305	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0360	HTP0360A	T21	Male	4.2	12.3	90.8	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0404	HTP0404A	T21	Female	12.5	76.43	145	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0713	HTP0713A	T21	Male	4.2	16.9	95.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0564	HTP0564A	T21	Male	14.2	51.3	160	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0120	HTP0120B	Control	Female	80.4	57.7	159.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0084	HTP0084A	T21	Male	34.2	136.1	167.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0084	HTP0084A2	T21	Male	35	134	167.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0084	HTP0084A3	T21	Male	36.6	136.3	167.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0608	HTP0608A	T21	Female	32.5	93.8	156.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0511	HTP0511B	Control	Female	37.1	87.4	173.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0132	HTP0132B	Control	Male	54.7	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0685	HTP0685A	T21	Male	4.4	NA	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0103	HTP0103A	T21	Female	0.5	6.7	64	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0103	HTP0103A2	T21	Female	1.6	7.99	71.8	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0103	HTP0103A3	T21	Female	2.6	10.4	80.25	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0039	HTP0039B	Control	Female	29.8	53.5	160	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0068	HTP0068B	Control	Male	52.2	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0068	HTP0068B2	Control	Male	53.8	130.2	179.8	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0433	HTP0433A	T21	Female	33.4	60.87	146	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0618	HTP0618A	T21	Female	37	70.1	137.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0237	HTP0237A	T21	Male	5.7	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0312	HTP0312A	T21	Female	33.7	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0312	HTP0312A2	T21	Female	35.7	74.1	147.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0482	HTP0482A	T21	Male	19.3	76.11	163	3	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0226	HTP0226A	T21	Male	50.4	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0226	HTP0226A2	T21	Male	51.4	NA	NA	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0226	HTP0226A3	T21	Male	52.4	122.7421	161.29	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0402	HTP0402A	T21	Male	35.9	87.82	156	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0081	HTP0081A	T21	Female	7.9	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0457	HTP0457B	Control	Female	7.3	23.2	126	3	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0221	HTP0221A	T21	Male	28.7	NA	NA	2	Visit 1	American Indian or Alaska Native	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0635	HTP0635A	T21	Male	1.5	10.4	76.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0476	HTP0476A	T21	Female	11.1	33.1	125	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0669	HTP0669B	Control	Female	14.6	61.6	157.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0435	HTP0435A	T21	Male	35.2	106.3038549	155	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0435	HTP0435A2	T21	Male	36.2	105.5963	156.21	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0089	HTP0089B	Control	Female	46.6	84.8	161.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0531	HTP0531A	T21	Female	3.5	13.2	96	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0028	HTP0028B	Control	Male	71	96.5	178.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0445	HTP0445A	T21	Female	38.8	73.12	142	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0552	HTP0552A	T21	Male	17	74.8427	151.13	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0201	HTP0201A	T21	Female	2.5	NA	NA	4	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0336	HTP0336A	T21	Female	8.7	26	108.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0313	HTP0313A	T21	Male	21.5	67.4	158	1	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0416	HTP0416A	T21	Male	26.9	59.06	159	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0122	HTP0122B	Control	Female	60.1	65	164.6	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0049	HTP0049B	Control	Female	12.3	52.8	170.5	1	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0049	HTP0049B2	Control	Female	13.6	55.1	171.4	1	Visit 2	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0049	HTP0049B3	Control	Female	14.6	55.1	171.4	1	Visit 3	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0126	HTP0126B	Control	Female	46.8	70.3	153.6	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0126	HTP0126B2	Control	Female	48	73.8	154.5	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0126	HTP0126B3	Control	Female	49	76.8	154.4	1	Visit 3	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0126	HTP0126B4	Control	Female	49	76.9	156	1	Visit 4	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0032	HTP0032A	T21	Female	21	61.1	146.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0284	HTP0284A	T21	Female	2.6	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0516	HTP0516A	T21	Male	39.1	72.1	155.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0516	HTP0516A2	T21	Male	40.2	71.6	156.7	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0019	HTP0019B	Control	Female	55.5	72.8	166.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0019	HTP0019B2	Control	Female	56.9	77.6	166	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0019	HTP0019B3	Control	Female	57.7	74.2	165.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0019	HTP0019B4	Control	Female	58.8	77.2	165.5	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0515	HTP0515A	T21	Male	13.1	42	149	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0540	HTP0540A	T21	Female	14.5	61.235	144.78	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0339	HTP0339A	T21	Male	16.1	59.4	159.2	1	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0200	HTP0200A	T21	Female	4.3	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0200	HTP0200A2	T21	Female	6.4	NA	NA	7	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0650	HTP0650A	T21	Female	45.7	99.2	155.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0576	HTP0576B	Control	Female	11.2	71	160	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0080	HTP0080A	T21	Female	33.8	68.9	152.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0080	HTP0080A2	T21	Female	34.8	70.1	152	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0080	HTP0080A3	T21	Female	35.8	73.3	152.3	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0559	HTP0559B	Control	Male	10.8	46.3	127.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0674	HTP0674B	Control	Female	29.3	67.6	157.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0502	HTP0502B	Control	Male	27.1	85.1	187.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0061	HTP0061B	Control	Female	20.6	65.6	172	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0061	HTP0061B2	Control	Female	22.2	61.1	172	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0321	HTP0321A	T21	Female	14	83.6	145.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0661	HTP0661A	T21	Male	28.4	74.2	165.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0258	HTP0258A	T21	Male	14	NA	NA	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0655	HTP0655B	Control	Male	15.8	61.597844	170.18	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0578	HTP0578A	T21	Male	25.7	68.4	160	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0458	HTP0458A	T21	Male	20	59.31972789	168	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0458	HTP0458A2	T21	Male	20.9	67.403826	169.545	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0004	HTP0004B	Control	Female	57.8	89.5	169.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0119	HTP0119A	T21	Female	50.9	48.3	146	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0119	HTP0119A2	T21	Female	52.2	49	146.2	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0119	HTP0119A3	T21	Female	53.1	55.3	145.2	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0532	HTP0532A	T21	Male	30.6	54.3	150	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0496	HTP0496B	Control	Female	53	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0423	HTP0423A	T21	Male	23.9	72.38095238	159	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0109	HTP0109A	T21	Female	46.7	64.6	146.3	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0109	HTP0109A2	T21	Female	47.7	63.6	146.2	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0109	HTP0109A3	T21	Female	49	61.7	147	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0100	HTP0100B	Control	Female	32.5	53.3	157.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0100	HTP0100B2	Control	Female	33.5	49.3	157.8	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0100	HTP0100B3	Control	Female	34.7	49.6	157.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0369	HTP0369A	T21	Female	13.1	40.8	141.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0530	HTP0530A	T21	Female	39.6	66.6	148	1	Visit 1	American Indian or Alaska Native	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0127	HTP0127B	Control	Female	6.3	22.6	119.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0127	HTP0127B2	Control	Female	8.2	28.4	133.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0450	HTP0450A	T21	Male	15.4	54.8	167	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0614	HTP0614A	T21	Male	1.2	7.4	68.6	6	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0216	HTP0216B	Control	Female	16.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0216	HTP0216B2	Control	Female	17.2	67.12018141	163	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0700	HTP0700B	Control	Male	23.4	92.623562	180	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0652	HTP0652A	T21	Female	35.1	109.3	159.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0143	HTP0143A	T21	Female	9.5	28	122.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0371	HTP0371B	Control	Female	36	55.5	164.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0459	HTP0459A	T21	Male	13.7	43.54	147	3	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0165	HTP0165A	T21	Female	8.7	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0165	HTP0165A2	T21	Female	9.8	26.30385488	127	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0165	HTP0165A3	T21	Female	10.8	NA	135	7	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0293	HTP0293A	T21	Male	6.2	19.2	107.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0142	HTP0142B	Control	Female	55.5	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0147	HTP0147B	Control	Female	38.6	62.6	166.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0147	HTP0147B2	Control	Female	39.9	63.8	166.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0147	HTP0147B3	Control	Female	40.9	65.8	166.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0249	HTP0249A	T21	Female	33.1	55.7	154.3	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0249	HTP0249A2	T21	Female	34	56.8707483	150	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0249	HTP0249A3	T21	Female	35	NA	NA	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0034	HTP0034B	Control	Female	23.8	58.5	156.8	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0034	HTP0034B2	Control	Female	23.9	59.4	158	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0034	HTP0034B3	Control	Female	25.1	58.4	157	1	Visit 3	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0034	HTP0034B4	Control	Female	26	60.1	156.9	1	Visit 4	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0372	HTP0372B	Control	Female	26.9	77.8	160	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0688	HTP0688A	T21	Female	16.7	NA	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0610	HTP0610A	T21	Female	17	64.8	153.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0229	HTP0229A	T21	Male	35.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0582	HTP0582B	Control	Female	33.1	79.5	160	6	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0261	HTP0261A	T21	Male	22	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0261	HTP0261A2	T21	Male	22.9	82.99319728	166	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0085	HTP0085B	Control	Male	32.9	97.5	180	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0085	HTP0085B2	Control	Male	33.7	97.3	180.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0085	HTP0085BX	Control	Male	35.3	98.7	181	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0085	HTP0085B4	Control	Male	35.5	99.3	181.8	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0430	HTP0430A	T21	Male	13.9	61.78	154	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0176	HTP0176A	T21	Female	20.8	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0644	HTP0644A	T21	Male	28.7	57.8	158.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0638	HTP0638A	T21	Female	32.7	70.1	146	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0395	HTP0395A	T21	Male	35.2	70.65759637	167	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0276	HTP0276A	T21	Male	39.7	NA	NA	2	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0272	HTP0272A	T21	Male	43.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0306	HTP0306A	T21	Male	23.2	84	155.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0306	HTP0306A2	T21	Male	24.2	82	155.2	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0306	HTP0306A3	T21	Male	25.3	86.7	157.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0212	HTP0212A	T21	Male	22.2	60	158	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0238	HTP0238A	T21	Male	39.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0238	HTP0238A2	T21	Male	40.5	68.75283447	168	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0238	HTP0238A3	T21	Male	41.5	68.129574	167.64	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0005	HTP0005A	T21	Male	34.6	64.6	170	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0005	HTP0005A2	T21	Male	35.1	63.4	167.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0005	HTP0005A3	T21	Male	36.5	67.9	167	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0005	HTP0005A4	T21	Male	37.6	70.5	167	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0627	HTP0627A	T21	Female	21.1	75.5	144.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0418	HTP0418A	T21	Male	3.8	14.87528345	90	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0624	HTP0624A	T21	Female	28.1	74.7	146.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0621	HTP0621A	T21	Female	21.4	56.6	147.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0340	HTP0340A	T21	Female	18.6	72.4	151.9	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0340	HTP0340A2	T21	Female	19.6	73.4	152.6	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0256	HTP0256A	T21	Male	27.6	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0529	HTP0529B	Control	Female	33.4	79.1	172.3	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0499	HTP0499B	Control	Female	53.4	69.1	151	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0681	HTP0681A	T21	Female	5.2	24.494	116	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0374	HTP0374A	T21	Male	25.5	75.46485261	162.6	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0636	HTP0636A	T21	Male	32.8	52.5	156.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0348	HTP0348A	T21	Female	17.2	64.3	136	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0348	HTP0348A2	T21	Female	18	63.1	141.5	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0667	HTP0667A	T21	Male	24.1	71.9	156.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0477	HTP0477A	T21	Male	3.4	12.61	86	3	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0477	HTP0477A2	T21	Male	4.5	NA	NA	8	Visit 2	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0554	HTP0554A	T21	Male	23.1	104.96127	160.02	6	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0175	HTP0175A	T21	Male	22.2	97.25	175.9	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0175	HTP0175A2	T21	Male	24.3	103.9	175	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0535	HTP0535A	T21	Male	23.6	74.5	157.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0406	HTP0406A	T21	Female	9.2	26.12244898	122	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0462	HTP0462A	T21	Male	38.6	77.3	159	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0590	HTP0590A	T21	Male	16.8	90.1	152.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0520	HTP0520B	Control	Female	7.6	23.4	122.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0162	HTP0162B	Control	Male	43.4	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0033	HTP0033B	Control	Female	59	93.8	175.6	1	Visit 1	Other	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0626	HTP0626A	T21	Male	14.2	52.9	158.75	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0545	HTP0545A	T21	Male	18.1	68.673885	164.465	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0283	HTP0283A	T21	Male	7.2	NA	NA	2	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0098	HTP0098B	Control	Female	53.5	NA	154.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0098	HTP0098B2	Control	Female	54.9	56.6	156.2	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0098	HTP0098B3	Control	Female	56	55.3	156.4	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0185	HTP0185B	Control	Male	11.3	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0294	HTP0294B	Control	Male	4.2	15.6	104.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0673	HTP0673B	Control	Female	22.8	50.6	154.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0572	HTP0572A	T21	Male	24.4	90.3	163.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0466	HTP0466B	Control	Female	10.9	36.11	148	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0291	HTP0291A	T21	Male	23	64.8	157.8	1	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0291	HTP0291A2	T21	Male	25.1	63.7	157.8	1	Visit 2	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0347	HTP0347B	Control	Female	14	NA	NA	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0347	HTP0347B2	Control	Female	14.8	73.4	155.6	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0446	HTP0446A	T21	Female	31.7	98.41269841	150	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0568	HTP0568A	T21	Male	28.3	68	155.6	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0025	HTP0025A	T21	Female	23.9	73.1	157.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0025	HTP0025A2	T21	Female	24.2	72.4	158.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0025	HTP0025A3	T21	Female	25.7	71.9	157	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0025	HTP0025A4	T21	Female	26.6	77.1	157	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0381	HTP0381A	T21	Male	25.4	58.8	154	3	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0187	HTP0187B	Control	Female	47.7	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0155	HTP0155A	T21	Female	9.7	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0042	HTP0042B	Control	Male	35.1	79.5	180	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0042	HTP0042B2	Control	Male	36.2	83.2	180	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0042	HTP0042B3	Control	Male	36.4	82.5	180	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0555	HTP0555B	Control	Female	47.3	80.195131	156.21	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0407	HTP0407A	T21	Male	43.5	67.84580499	169	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0701	HTP0701B	Control	Male	10.6	63.684369	153	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0062	HTP0062B	Control	Female	17.9	69.7	170.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0062	HTP0062B2	Control	Female	20.5	73.5	171	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0629	HTP0629A	T21	Female	7	19.9	113	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0214	HTP0214B	Control	Female	20.6	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0214	HTP0214B2	Control	Female	21.6	58.97	164	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0214	HTP0214B3	Control	Female	22.6	53.796055	164.465	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0357	HTP0357A	T21	Male	3.8	17.4	103.1	1	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0224	HTP0224A	T21	Male	14.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0269	HTP0269A	T21	Female	27.1	NA	NA	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0479	HTP0479A	T21	Male	3.7	11.70068027	84	3	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0479	HTP0479A2	T21	Male	4.9	13.69849	95	8	Visit 2	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0500	HTP0500B	Control	Female	28.1	79	161.5	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0373	HTP0373A	T21	Male	56.7	74.3	148	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0282	HTP0282A	T21	Female	10.5	NA	NA	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0617	HTP0617A	T21	Male	30.5	79.7	155.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0417	HTP0417B	Control	Female	15.9	67.66439909	173	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0383	HTP0383A	T21	Female	18.5	82	144	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0600	HTP0600A	T21	Male	10.8	54.5	146	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0323	HTP0323A	T21	Male	3.8	15.4	97.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0091	HTP0091B	Control	Female	39	60.6	177.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0286	HTP0286A	T21	Female	6.6	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0441	HTP0441A	T21	Male	9.8	29.11564626	127	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0227	HTP0227A	T21	Female	52.1	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0223	HTP0223A	T21	Male	34.9	63	155	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0275	HTP0275A	T21	Male	29.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0304	HTP0304B	Control	Female	70.3	85.6	154.1	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0125	HTP0125B	Control	Female	26.9	51.7	160.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0125	HTP0125B2	Control	Female	28.1	51.6	161.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0125	HTP0125B3	Control	Female	28.9	52	160.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0672	HTP0672A	T21	Male	17.2	59	170	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0079	HTP0079B	Control	Male	27.3	76.8	180	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0079	HTP0079B2	Control	Male	28.4	73.7	180.3	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0079	HTP0079BX	Control	Male	28.6	73.5	180.3	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0079	HTP0079B3	Control	Male	29.4	78.7	180.4	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0154	HTP0154A	T21	Male	10.7	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0676	HTP0676A	T21	Female	19.3	64	148	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0427	HTP0427A	T21	Male	6	17.59637188	94	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0114	HTP0114B	Control	Male	30.2	99.6	175	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0255	HTP0255B	Control	Female	30.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0393	HTP0393A	T21	Female	39.8	65.3	151	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0671	HTP0671B	Control	Male	8.5	NA	NA	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0307	HTP0307B	Control	Female	28.9	73.7	161.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0307	HTP0307B2	Control	Female	30.9	80.1	162.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0443	HTP0443A	T21	Male	17	79	175	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0443	HTP0443A2	T21	Male	17.9	86.3	163.8	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0399	HTP0399A	T21	Male	32.1	81.65	166	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0399	HTP0399A2	T21	Male	33.1	79.2	165.1	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0319	HTP0319A	T21	Female	19.5	50.8	142	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0319	HTP0319A2	T21	Female	21.6	52	144.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0380	HTP0380A	T21	Male	25.8	82.4	163	3	Visit 1	Native Hawaiian or Other Pacific Islander	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0325	HTP0325A	T21	Male	13.4	54.5	150.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0472	HTP0472A	T21	Male	1	9.795918367	68	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0128	HTP0128B	Control	Female	42.4	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0711	HTP0711A	T21	Female	16	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0196	HTP0196A	T21	Male	27.1	82.1	167.6	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0196	HTP0196A2	T21	Male	29.2	77.1107	175	7	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0461	HTP0461A	T21	Female	12.5	49.9	135	3	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0631	HTP0631A	T21	Female	33	68.2	150.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0320	HTP0320A	T21	Female	32.6	73.4	160	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0320	HTP0320A2	T21	Female	33.7	64.6	161.7	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0320	HTP0320A3	T21	Female	34.6	NA	NA	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0542	HTP0542A	T21	Male	27.8	120.83701	165.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0400	HTP0400A	T21	Male	14.9	61.42	154	3	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0573	HTP0573B	Control	Male	19.1	96.9	185.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0179	HTP0179A	T21	Male	26.5	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0211	HTP0211A	T21	Male	27.7	NA	NA	2	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0211	HTP0211A2	T21	Male	28.7	66.75736961	152	3	Visit 2	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0211	HTP0211A3	T21	Male	29.7	70.12538	154.305	6	Visit 3	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0712	HTP0712A	T21	Female	26.3	35.6	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0247	HTP0247A	T21	Male	21.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0247	HTP0247A2	T21	Male	22.5	69.93197279	157	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0484	HTP0484A	T21	Male	5.6	15.60090703	97	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0490	HTP0490A	T21	Male	1.7	9.36	75.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0490	HTP0490A2	T21	Male	1.8	9.36	75.8	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0490	HTP0490A3	T21	Male	1.9	NA	NA	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0311	HTP0311B	Control	Female	8.3	23.4	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0687	HTP0687A	T21	Female	16.4	43.0913	149.86	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0514	HTP0514A	T21	Female	3.6	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0006	HTP0006B	Control	Female	67.6	64.3	168	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0006	HTP0006B2	Control	Female	68.1	65	169	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0332	HTP0332A	T21	Male	24.4	47.9	156	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0332	HTP0332A2	T21	Male	26.3	49.4	158.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0046	HTP0046B	Control	Female	69.7	73.5	162.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0017	HTP0017A	T21	Female	21.3	54.1	153.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0017	HTP0017A2	T21	Female	21.8	55.1	153	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0017	HTP0017A3	T21	Female	22.7	56	154	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0017	HTP0017A4	T21	Female	23.6	56.6	153	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0017	HTP0017A5	T21	Female	24.7	54.9	154.4	1	Visit 5	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0589	HTP0589A	T21	Female	19	68.4	141.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0605	HTP0605A	T21	Male	17.5	40.9	146.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0616	HTP0616A	T21	Male	19	79.7	158.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0547	HTP0547A	T21	Female	26	69.671788	142.24	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0385	HTP0385A	T21	Male	25.6	86.34920635	160	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0385	HTP0385A2	T21	Male	26.8	85.9	155	8	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0359	HTP0359B	Control	Female	7.9	20.3	105	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0362	HTP0362A	T21	Female	15.3	57.6	153.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0137	HTP0137B	Control	Female	41.8	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0642	HTP0642A	T21	Female	25.2	63.7	146	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0215	HTP0215A	T21	Male	15.9	67.6	160.65	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0104	HTP0104B	Control	Female	35.6	NA	160	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0104	HTP0104B2	Control	Female	36.6	NA	160	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0104	HTP0104B3	Control	Female	37.6	63.2	162.3	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0263	HTP0263A	T21	Female	11.4	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0263	HTP0263A2	T21	Female	12.4	43.71882086	145	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0088	HTP0088B	Control	Female	57.8	97.5	173.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0574	HTP0574A	T21	Male	42.4	77.7	153.7	6	Visit 1	Black or African-American	Prefer not to answer	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0240	HTP0240A	T21	Male	39.1	NA	NA	2	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0335	HTP0335A	T21	Female	56.6	67.9	145	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0335	HTP0335A2	T21	Female	57.6	60.1	143.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0335	HTP0335A3	T21	Female	58.9	59.5	147.3	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0387	HTP0387A	T21	Female	33.3	90.17	147	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0156	HTP0156B	Control	Male	42.6	86.4	180.3	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0112	HTP0112A	T21	Female	34.7	61.4	148.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0112	HTP0112A2	T21	Female	36	63.1	148.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0112	HTP0112A3	T21	Female	36	63.6	148.7	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0112	HTP0112A4	T21	Female	36.9	61.6	150.6	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0419	HTP0419A	T21	Male	20.8	100.4988662	154	3	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0281	HTP0281A	T21	Female	16.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0281	HTP0281A2	T21	Female	17.2	NA	NA	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0480	HTP0480A	T21	Female	21.9	67.22	147	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0027	HTP0027A	T21	Male	38.1	80.3	168.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0027	HTP0027A2	T21	Male	38.6	81.4	167.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0646	HTP0646A	T21	Male	17.1	63.6	154.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0314	HTP0314B	Control	Female	29.3	71.6	160.4	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0314	HTP0314B2	Control	Female	30.3	68.1	160.5	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0314	HTP0314B3	Control	Female	31.2	71.7	162	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0235	HTP0235A	T21	Female	33	NA	NA	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0429	HTP0429B	Control	Female	11.5	41.63265306	148	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0429	HTP0429B2	Control	Female	12.5	NA	NA	7	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0489	HTP0489B	Control	Male	23.7	83.5	175.5	1	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0422	HTP0422A	T21	Female	11.3	24	122	3	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0246	HTP0246B	Control	Female	21.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0246	HTP0246B2	Control	Female	22.5	64.94331066	170	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0134	HTP0134B	Control	Female	53.3	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0234	HTP0234A	T21	Male	35.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0501	HTP0501A	T21	Male	4	13.8	95	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0633	HTP0633A	T21	Male	33.1	63.4	158.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0296	HTP0296A	T21	Male	55.1	57.8	156.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0288	HTP0288B	Control	Male	9.2	24.6	127.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0549	HTP0549A	T21	Female	20.6	83.82387	144.78	6	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0483	HTP0483A	T21	Female	21.9	69.4	145	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0563	HTP0563A	T21	Female	8.7	38.6	121.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0493	HTP0493B	Control	Male	8.7	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0703	HTP0703A	T21	Male	3.5	15.96645	91.8	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0390	HTP0390A	T21	Female	15.5	35.2	141	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0077	HTP0077B	Control	Male	42.2	112.2	182	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0077	HTP0077B2	Control	Male	43.3	107.5	182.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0077	HTP0077B3	Control	Male	44.2	96.3	182.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0077	HTP0077B4	Control	Male	44.5	98.1	182	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0560	HTP0560A	T21	Male	50.1	106.7	165.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0231	HTP0231B	Control	Female	28.3	NA	NA	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0556	HTP0556A	T21	Male	28.3	92.4	159.4	6	Visit 1	More than one race	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0302	HTP0302B	Control	Female	41.6	NA	NA	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0300	HTP0300A	T21	Female	30.8	95	140.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0300	HTP0300A2	T21	Female	31.8	94.5	139.7	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0300	HTP0300A3	T21	Female	32.7	81.5	139.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0300	HTP0300A4	T21	Female	32.8	80.7	140.4	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0697	HTP0697A	T21	Male	15.8	44.4521	152.4	8	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0078	HTP0078B	Control	Male	26.5	74.6	175.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0078	HTP0078B2	Control	Male	27.7	64.3	174	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0078	HTP0078B3	Control	Male	28.6	71.7	177.8	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0680	HTP0680A	T21	Male	5.9	NA	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0108	HTP0108B	Control	Male	68.9	90.6	178	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0525	HTP0525A	T21	Female	34.2	75.4	145.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0533	HTP0533B	Control	Male	37.1	134.8	180.339999	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0675	HTP0675B	Control	Female	26.1	52.3	157.1	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0413	HTP0413A	T21	Female	22.5	85.5	150	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0299	HTP0299B	Control	Female	66.5	54.3	163.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0565	HTP0565A	T21	Male	22.5	101.96756	154.94	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0363	HTP0363A	T21	Male	5.7	17.6	101	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0133	HTP0133B	Control	Male	42.4	NA	NA	5	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0260	HTP0260A	T21	Female	24.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0534	HTP0534A	T21	Male	36.9	55.3	150	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0666	HTP0666A	T21	Male	17.4	61.2	167.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0452	HTP0452A	T21	Female	16.6	60.40816327	138	3	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0015	HTP0015A	T21	Male	28.5	140.1	154.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0015	HTP0015A2	T21	Male	28.9	140.3	154.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0015	HTP0015A3	T21	Male	30.3	148	154.9	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0015	HTP0015A4	T21	Male	31.2	149.6	154.9	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0567	HTP0567B	Control	Female	23	77.6	170.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0317	HTP0317B	Control	Male	69.1	75.8	174.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0315	HTP0315A	T21	Female	28.3	66.4	150	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0315	HTP0315A2	T21	Female	29.2	65.8	149.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0315	HTP0315A3	T21	Female	29.3	65.4	149	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0315	HTP0315A4	T21	Female	30	67.6	149	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0315	HTP0315A5	T21	Female	30.3	67.1	150	1	Visit 5	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0338	HTP0338B	Control	Male	27.5	68.1	175.1	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0338	HTP0338BX	Control	Male	28.1	NA	NA	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0338	HTP0338B2	Control	Male	28.6	66.9	175	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0338	HTP0338B3	Control	Male	29.3	70.1	174.5	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0184	HTP0184A	T21	Male	20.5	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0691	HTP0691B	Control	Female	44.6	NA	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0244	HTP0244A	T21	Male	5.3	14	94.6	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0607	HTP0607A	T21	Male	23.9	53.4	139.7	6	Visit 1	Prefer not to answer	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0403	HTP0403A	T21	Male	13.4	39.2	139	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0454	HTP0454A	T21	Male	21.7	60.861678	160	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0488	HTP0488A	T21	Male	5.4	20.2	107.3	1	Visit 1	American Indian or Alaska Native	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0488	HTP0488A2	T21	Male	5.4	20.2	107.3	1	Visit 2	American Indian or Alaska Native	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0488	HTP0488A3	T21	Male	5.5	20.2	107.3	1	Visit 3	American Indian or Alaska Native	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0376	HTP0376B	Control	Female	24	70.29478458	176	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0557	HTP0557B	Control	Female	40.1	73.6	163.8	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0447	HTP0447B	Control	Female	15.6	54.4	165	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0447	HTP0447B2	Control	Female	16.5	53.8	166.4	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0421	HTP0421A	T21	Male	13.7	42.91	145	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0444	HTP0444B	Control	Female	9	31.7	142	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0444	HTP0444B2	Control	Female	9.9	35.6	147.3	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0397	HTP0397A	T21	Male	38.7	83.71882086	154	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0035	HTP0035B	Control	Female	26.1	64.2	170	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0035	HTP0035BX	Control	Female	26.3	64.2	170	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0035	HTP0035B2	Control	Female	27.7	64.9	169.9	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0035	HTP0035B3	Control	Female	28.6	65.2	170.2	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0388	HTP0388A	T21	Female	37.5	73.19727891	135	3	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0663	HTP0663A	T21	Female	20.5	95.2	159.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0528	HTP0528B	Control	Female	24.7	53.4	157	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0518	HTP0518A	T21	Male	15.9	70	172.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0203	HTP0203A	T21	Male	7.1	24.6	116.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0686	HTP0686A	T21	Female	7.4	18.1437	107	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0145	HTP0145B	Control	Female	48.5	64.6	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0059	HTP0059B	Control	Male	23.5	58.2	168.3	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0059	HTP0059B2	Control	Male	24.7	60.1	168.5	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0059	HTP0059B3	Control	Male	25.9	56.6	167.6	1	Visit 3	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0689	HTP0689A	T21	Female	41	101.605	154.94	7	Visit 1	White	Prefer not to answer	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0346	HTP0346B	Control	Female	37.1	60.7	157.5	1	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0031	HTP0031B	Control	Female	46.3	74.1	167	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0105	HTP0105B	Control	Female	27.9	58	166	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0105	HTP0105B2	Control	Female	28.9	54	165.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0105	HTP0105B3	Control	Female	30	54.2	165.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0253	HTP0253A	T21	Female	31.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0714	HTP0714A	T21	Female	20.5	83	146	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0677	HTP0677B	Control	Male	28.7	80.4	179	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0658	HTP0658A	T21	Male	15.3	116.5	156.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0349	HTP0349B	Control	Female	10	NA	NA	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0349	HTP0349B2	Control	Female	10.8	53.8	144.5	1	Visit 2	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0401	HTP0401A	T21	Female	34.6	86.6	150	3	Visit 1	American Indian or Alaska Native	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0135	HTP0135B	Control	Female	49.2	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0146	HTP0146B	Control	Male	47.4	82.8	178.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0285	HTP0285B	Control	Female	8.7	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0270	HTP0270A	T21	Male	14.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0115	HTP0115A	T21	Male	1.8	10.1	79.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0163	HTP0163B	Control	Female	40.3	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0072	HTP0072B	Control	Female	59.3	66.7	176.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0072	HTP0072B2	Control	Female	60.4	65.9	176.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0707	HTP0707B	Control	Female	20.3	59	164	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0148	HTP0148B	Control	Male	40.4	83.9	170.5	1	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0148	HTP0148B2	Control	Male	41.7	87.5	170.5	1	Visit 2	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0148	HTP0148B3	Control	Male	42.7	82.7	170.5	1	Visit 3	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0364	HTP0364A	T21	Male	13.7	61.7	152.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0693	HTP0693A	T21	Female	15.8	41.18619	142.24	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0656	HTP0656A	T21	Female	7.6	NA	NA	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0612	HTP0612A	T21	Male	11.4	32.2	137.2	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0436	HTP0436A	T21	Female	32.8	58.06	148	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0398	HTP0398A	T21	Female	17.5	48.1	144	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0639	HTP0639A	T21	Male	27.3	82	163.2	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0020	HTP0020A	T21	Female	32.3	70.8	139.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0020	HTP0020A2	T21	Female	34.7	73.7	139.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0442	HTP0442A	T21	Female	8.5	28.94	119	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0442	HTP0442A2	T21	Female	9.5	34.6	128.9	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0365	HTP0365A	T21	Female	12.6	41.1	135.4	1	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0595	HTP0595B	Control	Female	34.3	74.6	175.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0030	HTP0030A	T21	Male	26.4	79.9	149	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0424	HTP0424A	T21	Female	4	23.31	98	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0414	HTP0414A	T21	Female	21.8	54.69387755	137	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0118	HTP0118B	Control	Male	44.3	72.5	172.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0118	HTP0118B2	Control	Male	45.5	72.8	172.8	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0118	HTP0118B3	Control	Male	46.7	71.5	173	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0684	HTP0684A	T21	Female	27.3	97.976	162.56	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0116	HTP0116A	T21	Male	8.7	32.7	120.3	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0116	HTP0116A2	T21	Male	10.9	44.2	135.5	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A	T21	Female	22.5	NA	NA	9	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A2	T21	Female	22.5	NA	NA	9	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A3	T21	Female	22.6	NA	NA	9	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A4	T21	Female	22.7	NA	NA	9	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A5	T21	Female	22.8	NA	NA	9	Visit 5	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A6	T21	Female	23.5	73.9	NA	9	Visit 6	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A7	T21	Female	23.7	75.7	NA	9	Visit 7	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A8	T21	Female	23.7	NA	NA	9	Visit 8	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A9	T21	Female	23.8	73	NA	9	Visit 9	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0297	HTP0297A10	T21	Female	23.9	NA	NA	9	Visit 10	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0316	HTP0316B	Control	Female	29.6	81.4	185	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0316	HTP0316B2	Control	Female	30.3	NA	NA	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0316	HTP0316B3	Control	Female	30.5	88.4	183.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0316	HTP0316B4	Control	Female	31.5	89.6	185.5	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0245	HTP0245A	T21	Female	30.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0706	HTP0706A	T21	Female	22.8	48.9	152.4	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0521	HTP0521B	Control	Female	38.4	76.6	166.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0396	HTP0396A	T21	Male	15.9	61.14	165	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0428	HTP0428A	T21	Male	27.5	74.8	157	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0257	HTP0257A	T21	Male	26.2	NA	NA	2	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0526	HTP0526B	Control	Female	26.9	77.2	168	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0526	HTP0526B2	Control	Female	27	78.7	166.5	1	Visit 2	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0683	HTP0683A	T21	Female	13.2	NA	145	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0586	HTP0586A	T21	Male	31.9	77.4	161.3	6	Visit 1	Prefer not to answer	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0408	HTP0408A	T21	Male	40.6	64.5	147	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0645	HTP0645A	T21	Male	28.4	47	152.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0524	HTP0524B	Control	Male	24.5	66.2	185.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0583	HTP0583A	T21	Female	6.2	24.5	111.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0679	HTP0679A	T21	Female	12.5	NA	NA	7	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0047	HTP0047B	Control	Male	37.4	85.7	178.5	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0047	HTP0047B2	Control	Male	38.7	87.1	178.4	1	Visit 2	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0047	HTP0047B3	Control	Male	39.7	87.1	178.4	1	Visit 3	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0001	HTP0001B	Control	Female	24.5	51	151.2	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0001	HTP0001BX	Control	Female	24.7	49.8	154	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0001	HTP0001B2	Control	Female	25.8	51	152.5	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0001	HTP0001B3	Control	Female	26.8	50.5	152	1	Visit 4	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0310	HTP0310A	T21	Male	10.8	29.3	127.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0036	HTP0036A	T21	Female	30.7	50.3	135.9	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0036	HTP0036A2	T21	Female	32.1	56.8	136.5	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0036	HTP0036A3	T21	Female	32.9	61.1	136.2	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0469	HTP0469A	T21	Female	16.7	84.82	154	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0575	HTP0575A	T21	Female	17.2	48.3	148.6	6	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0653	HTP0653B	Control	Male	13.9	45.08708	168.91	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0199	HTP0199B	Control	Female	68.9	78.7	156.2	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0451	HTP0451A	T21	Male	32.5	63.05	154	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0301	HTP0301A	T21	Female	22	NA	NA	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0301	HTP0301A2	T21	Female	23	65.4	159.8	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0301	HTP0301A3	T21	Female	24	69.2	163.9	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0071	HTP0071B	Control	Male	57.8	53.2	137	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0048	HTP0048B	Control	Female	38.1	93	177.3	1	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0048	HTP0048B2	Control	Female	39.4	98.7	176.5	1	Visit 2	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0048	HTP0048BX	Control	Female	39.4	98.7	176.5	1	Visit 3	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0048	HTP0048B3	Control	Female	40.4	98.7	176.5	1	Visit 4	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0497	HTP0497B	Control	Male	54.4	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0481	HTP0481B	Control	Male	2.8	14.24036281	97	3	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0481	HTP0481B2	Control	Male	4	16.6922	108	8	Visit 2	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0003	HTP0003A	T21	Male	24.7	87.2	165	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0581	HTP0581A	T21	Male	30.6	67	150.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0327	HTP0327A	T21	Male	6.5	21.7	117.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0318	HTP0318A	T21	Male	29.6	64	146	1	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0318	HTP0318A2	T21	Male	30.5	66.4	148.6	1	Visit 2	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0318	HTP0318A3	T21	Male	30.5	67.2	147.6	1	Visit 3	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0318	HTP0318A4	T21	Male	31.5	72.1	147.6	1	Visit 4	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0498	HTP0498B	Control	Male	11.9	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0018	HTP0018B	Control	Female	55.6	63.4	167.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0018	HTP0018B2	Control	Female	56.1	66.9	168.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0018	HTP0018B3	Control	Female	57	66.9	168.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0018	HTP0018B4	Control	Female	57.9	65	168.3	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0018	HTP0018B5	Control	Female	59	66.7	168	1	Visit 5	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0475	HTP0475A	T21	Female	22	55.4	145	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0386	HTP0386A	T21	Male	6.8	22.04081633	113	3	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0295	HTP0295A	T21	Male	51.2	66.2	164.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0512	HTP0512A	T21	Male	30	68.2	148.7	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0008	HTP0008B	Control	Female	40.9	63.4	166.4	1	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0702	HTP0702A	T21	Female	23.4	70.216099	141	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0252	HTP0252B	Control	Male	35.1	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0326	HTP0326A	T21	Female	30.2	47.8	143.8	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0326	HTP0326A2	T21	Female	31.1	42.2	144.9	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0326	HTP0326A3	T21	Female	31.2	40.8	144.5	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0326	HTP0326A4	T21	Female	32.1	40.8	144.5	1	Visit 4	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0209	HTP0209B	Control	Female	53.9	51.4	167.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0058	HTP0058B	Control	Male	32.7	117.2	188.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0058	HTP0058B2	Control	Male	33.8	117.9	188.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0058	HTP0058B3	Control	Male	34.9	117.9	188.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0136	HTP0136B	Control	Female	43.7	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0266	HTP0266A	T21	Female	6.7	26.5	NA	2	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0342	HTP0342A	T21	Female	13.6	31.2	124.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0425	HTP0425A	T21	Male	19.1	62.5	157	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0615	HTP0615B	Control	Male	9.2	53.5	154.9	6	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0664	HTP0664A	T21	Female	29.4	55.7	145.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0603	HTP0603A	T21	Female	12.7	23.8	125.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0420	HTP0420A	T21	Male	6.4	21.6	108	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0420	HTP0420A2	T21	Male	7.5	22.49818	115	8	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0298	HTP0298A	T21	Female	25.8	38.3	147.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0298	HTP0298A2	T21	Female	26.6	39.3	147	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0298	HTP0298A3	T21	Female	27.7	38	147	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0117	HTP0117B	Control	Female	50	67.6	180.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0546	HTP0546A	T21	Female	51.4	47.3	141	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0016	HTP0016B	Control	Male	68.7	99.2	184.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0225	HTP0225B	Control	Male	9.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0478	HTP0478A	T21	Female	40.3	48.6	139	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0601	HTP0601A	T21	Male	12	51.6	143.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0265	HTP0265A	T21	Male	8.9	NA	NA	2	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0620	HTP0620A	T21	Female	19.6	61.5	149.2	6	Visit 1	White	Prefer not to answer	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0289	HTP0289B	Control	Male	7.1	20	123.19	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0140	HTP0140B	Control	Female	50.7	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0095	HTP0095B	Control	Female	36.8	73	176.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0095	HTP0095B2	Control	Female	37.7	85.3	177.1	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0095	HTP0095B3	Control	Female	38.7	86.5	177.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0699	HTP0699B	Control	Female	6.6	22.40746	116	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0230	HTP0230A	T21	Female	38.6	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0230	HTP0230A2	T21	Female	39.6	90.26	152	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0230	HTP0230A3	T21	Female	40.5	86.908298	152.4	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0303	HTP0303A	T21	Female	30	63.9	143.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0303	HTP0303A2	T21	Female	30.9	65.4	144	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0303	HTP0303A3	T21	Female	32	66.5	141.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0622	HTP0622A	T21	Female	26	58.3	149.9	6	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0637	HTP0637A	T21	Female	20.1	63.3	147	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0124	HTP0124B	Control	Female	60	75.1	161.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0513	HTP0513B	Control	Female	32.4	132.7	164	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0334	HTP0334A	T21	Male	43.1	102.9	152.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0334	HTP0334A2	T21	Male	44.1	108.1	154.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0334	HTP0334A3	T21	Male	45	115.7	154.9	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0539	HTP0539A	T21	Female	42.8	76.2035	158.75	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0694	HTP0694A	T21	Female	20.2	52.9	147	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0021	HTP0021B	Control	Female	65.4	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0695	HTP0695B	Control	Male	3.5	14.33352	99.5	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0523	HTP0523B	Control	Female	23.3	79.7	176	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0523	HTP0523B2	Control	Female	23.6	78.7	177	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0523	HTP0523B3	Control	Female	24	77.7	178.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0659	HTP0659A	T21	Female	36.5	68.4	141.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0337	HTP0337A	T21	Male	22.2	80.2	161.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0337	HTP0337A2	T21	Male	23.4	84.1	161.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0150	HTP0150B	Control	Male	82.5	111.9	181.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0474	HTP0474A	T21	Male	29.6	80.55	175.26	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0692	HTP0692A	T21	Male	22.4	74.29843	162.56	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0213	HTP0213A	T21	Male	44.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0213	HTP0213A2	T21	Male	45.3	108.77	159	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0213	HTP0213A3	T21	Male	46.3	106.95708	160.655	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0377	HTP0377B	Control	Female	7.8	22.9	120.5	3	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0536	HTP0536A	T21	Female	32	NA	NA	9	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0588	HTP0588A	T21	Female	19.2	38.5	146	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0356	HTP0356B	Control	Male	6.1	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0264	HTP0264A	T21	Male	21.1	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0670	HTP0670A	T21	Female	30.7	72.6	141	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0259	HTP0259A	T21	Female	30.8	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0259	HTP0259A2	T21	Female	32.6	90.3	152.2	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0354	HTP0354A	T21	Male	6	16.3	102	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0705	HTP0705A	T21	Female	8.6	26.3084	122	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0220	HTP0220A	T21	Male	28.6	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0093	HTP0093A	T21	Male	2.1	10.8	78	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0432	HTP0432A	T21	Male	13.9	57.33	153	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0037	HTP0037B	Control	Female	68.5	95.5	155	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0064	HTP0064B	Control	Female	57.1	63	153.5	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0040	HTP0040B	Control	Female	27	50.5	162.9	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0040	HTP0040B2	Control	Female	28	49.4	162.8	1	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0040	HTP0040B3	Control	Female	28.9	50.1	162.8	1	Visit 3	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0040	HTP0040B4	Control	Female	29.7	50.2	163.5	1	Visit 4	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0040	HTP0040B5	Control	Female	29.9	51.4	164	1	Visit 5	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0465	HTP0465A	T21	Female	6.8	27.4829932	117	3	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0505	HTP0505B	Control	Female	70	88.3	167.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0341	HTP0341A	T21	Male	2.6	11	79.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0341	HTP0341A2	T21	Male	3.2	NA	NA	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0628	HTP0628B	Control	Female	4.8	20.6	110.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0013	HTP0013B	Control	Female	66.6	63.7	159	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0580	HTP0580A	T21	Female	31.8	87.8	142.2	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0510	HTP0510A	T21	Female	23	54.1	157.1	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0510	HTP0510A2	T21	Female	24.1	53.614618	152.4	8	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0696	HTP0696B	Control	Male	29.5	90.809192	196	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0538	HTP0538A	T21	Male	28.4	82.1002	152.4	6	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0067	HTP0067B	Control	Male	18.5	57.1	165.1	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0067	HTP0067B2	Control	Male	20.5	72.6	167	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0431	HTP0431A	T21	Female	19.9	64.5	145	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0431	HTP0431A2	T21	Female	20.9	72.2	146	6	Visit 2	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0378	HTP0378A	T21	Female	31.4	72.58	142	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0648	HTP0648B	Control	Male	11.9	62	160	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0082	HTP0082B	Control	Male	14.3	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0708	HTP0708A	T21	Male	17	59.2	153.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0273	HTP0273A	T21	Female	19.9	NA	NA	2	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0160	HTP0160A	T21	Female	9.3	NA	NA	4	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0138	HTP0138B	Control	Female	54.1	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0345	HTP0345A	T21	Female	52.7	57.2	153.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0345	HTP0345A2	T21	Female	53.7	67	152.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0561	HTP0561A	T21	Male	13.7	42.7284	139.065	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0593	HTP0593A	T21	Male	11.7	40.7	137.8	6	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0698	HTP0698B	Control	Male	18.2	58.694853	172	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0198	HTP0198A	T21	Male	34.1	87.2	152.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0198	HTP0198A2	T21	Male	35.3	86.9	155.2	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0198	HTP0198A3	T21	Male	36.3	91.2	154	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0604	HTP0604A	T21	Female	26.6	45	139.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0604	HTP0604A2	T21	Female	27.2	43.5	140	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0604	HTP0604A3	T21	Female	27.3	43.5	140	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0368	HTP0368A	T21	Male	15.2	53	150.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0248	HTP0248B	Control	Female	21.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0248	HTP0248B2	Control	Female	22.5	63.90022676	179	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0647	HTP0647A	T21	Male	7	27.94129	117.475	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0411	HTP0411A	T21	Female	18.7	90.72	158	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0233	HTP0233A	T21	Female	34.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0328	HTP0328A	T21	Female	41.2	69.3	148.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0328	HTP0328A2	T21	Female	42.2	69.9	150.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0328	HTP0328A3	T21	Female	43.1	64.3	149	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0649	HTP0649B	Control	Female	44.6	90.8	161.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0494	HTP0494A	T21	Female	7.1	55.7	118.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0394	HTP0394A	T21	Female	23.6	57.4	139.7	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0329	HTP0329A	T21	Female	18.5	41.2	141.6	1	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0329	HTP0329A2	T21	Female	19.5	39.2	148.2	1	Visit 2	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0410	HTP0410A	T21	Male	24	72.12	165	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0623	HTP0623A	T21	Female	28.1	73	145.4	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0654	HTP0654A	T21	Female	26.9	66.6781	157.48	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0704	HTP0704B	Control	Female	27.4	55.519706	153	8	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0324	HTP0324A	T21	Male	20.9	73.3	151.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0324	HTP0324A2	T21	Male	22	75.7	152.3	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0324	HTP0324A3	T21	Male	23.2	82.2	152.4	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0562	HTP0562A	T21	Female	15.4	89.8113	144.78	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0379	HTP0379A	T21	Female	35.4	44	145	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0379	HTP0379A2	T21	Female	36.4	43.8	144.1	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0057	HTP0057B	Control	Female	33.7	71.3	156	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0057	HTP0057B2	Control	Female	34.8	81.9	156	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0057	HTP0057B3	Control	Female	35.9	69.4	157.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0057	HTP0057B4	Control	Female	36	71.1	156	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0043	HTP0043B	Control	Male	37	57	179.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0043	HTP0043B2	Control	Male	38.2	57.5	179	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0043	HTP0043B3	Control	Male	39	57	178	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0043	HTP0043B4	Control	Male	39.2	58.2	178.4	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0102	HTP0102B	Control	Female	51.8	113.3	149	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0161	HTP0161B	Control	Female	38.6	NA	NA	4	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0151	HTP0151A	T21	Male	27.4	114.5	162	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0151	HTP0151A2	T21	Male	28.5	117.2	159.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0151	HTP0151A3	T21	Male	29.3	NA	NA	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0151	HTP0151A4	T21	Male	29.5	128	163	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0083	HTP0083B	Control	Male	45	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0101	HTP0101A	T21	Female	30.1	77.9	141.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0101	HTP0101A2	T21	Female	31.3	87	140.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0101	HTP0101A3	T21	Female	32.6	90.8	141.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0086	HTP0086B	Control	Male	52.5	71.7	181.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0106	HTP0106B	Control	Female	65.5	65	161.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0149	HTP0149B	Control	Female	53.2	64.1	168	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0063	HTP0063B	Control	Male	57.4	88	182.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0343	HTP0343B	Control	Male	46.2	75.7	172.1	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0434	HTP0434A	T21	Female	25.9	58.42	147	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0551	HTP0551B	Control	Female	18	66.3	163.83	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0113	HTP0113B	Control	Female	67	62	170	1	Visit 1	Other	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0066	HTP0066A	T21	Male	13.1	48.6	151	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0066	HTP0066A2	T21	Male	14.7	52.9	153	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0066	HTP0066A3	T21	Male	15.9	52.3	153.7	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0026	HTP0026B	Control	Female	53.8	82.7	170	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0026	HTP0026B2	Control	Female	55.6	81.1	170	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0026	HTP0026B3	Control	Female	56.5	78.6	169.8	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0668	HTP0668A	T21	Female	29.7	78.3	148	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0322	HTP0322B	Control	Male	29	79.7	181.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0322	HTP0322B2	Control	Male	30.1	78.2	181.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0322	HTP0322B3	Control	Male	31	77.4	182.3	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0322	HTP0322B4	Control	Male	31.1	NA	NA	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0267	HTP0267A	T21	Male	12.1	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0602	HTP0602A	T21	Female	13.5	65.5	149.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0217	HTP0217A	T21	Male	17.4	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0613	HTP0613A	T21	Female	10.3	25.8	122.6	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0453	HTP0453A	T21	Male	19.8	69.569161	163	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0495	HTP0495B	Control	Female	4.5	18	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0391	HTP0391A	T21	Male	26.8	65.75963719	158	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0370	HTP0370A	T21	Male	20.2	66.2	154	1	Visit 1	White	Unsure	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0571	HTP0571A	T21	Male	13.1	53.9	149.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0662	HTP0662A	T21	Female	26.1	68.2	149.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0290	HTP0290B	Control	Female	43.3	NA	172.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0054	HTP0054A	T21	Male	20.5	67.1	165.1	1	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0054	HTP0054A2	T21	Male	21.7	62.2	165.2	1	Visit 2	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0054	HTP0054A3	T21	Male	22.6	61.5	165.2	1	Visit 3	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0054	HTP0054A4	T21	Male	23.7	61.2	165.5	1	Visit 4	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0139	HTP0139A	T21	Male	21.3	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0194	HTP0194B	Control	Male	7.1	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0191	HTP0191A	T21	Male	17.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0183	HTP0183A	T21	Female	10.1	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0183	HTP0183A2	T21	Female	12.2	48.988	151	7	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0193	HTP0193B	Control	Male	5.3	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0611	HTP0611A	T21	Female	23.9	69.6	144.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0055	HTP0055B	Control	Male	35.9	102.2	178.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0055	HTP0055B2	Control	Male	37	106.8	179	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0055	HTP0055BX	Control	Male	37.4	NA	NA	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0055	HTP0055B3	Control	Male	38.2	109.4	179.3	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0570	HTP0570A	T21	Male	38.8	60.6	143.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0409	HTP0409A	T21	Female	21.2	50.35	145	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0023	HTP0023A	T21	Female	35.1	91.3	157.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0023	HTP0023A2	T21	Female	36.2	81.3	157.3	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0023	HTP0023A3	T21	Female	37.5	104.6	157.5	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0182	HTP0182B	Control	Female	42.1	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0366	HTP0366A	T21	Female	3	12.4	83	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0440	HTP0440A	T21	Male	20.9	65.32	149	3	Visit 1	White	Prefer not to answer	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0186	HTP0186A	T21	Male	11.7	38.55	138.43	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0449	HTP0449A	T21	Male	20.8	76.3	169	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0367	HTP0367A	T21	Male	13.6	114	154.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0352	HTP0352B	Control	Male	43.2	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0519	HTP0519A	T21	Male	2	8.9	76.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0344	HTP0344A	T21	Male	38.8	85.3	162.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0344	HTP0344A2	T21	Male	39.8	83.9	163.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0344	HTP0344A3	T21	Male	40.9	85.5	163.1	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0344	HTP0344A4	T21	Male	41	86.1	165	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0353	HTP0353B	Control	Female	41.2	NA	NA	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0022	HTP0022B	Control	Female	40.9	81.5	172.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0022	HTP0022B2	Control	Female	43.2	83	172.3	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0569	HTP0569A	T21	Male	22.9	61.2	151.1	6	Visit 1	Other	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0715	HTP0715A	T21	Female	5.6	17.2	101	3	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0242	HTP0242B	Control	Female	18.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0242	HTP0242B3	Control	Female	20.3	71.758313	170.815	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0130	HTP0130B	Control	Female	26.1	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0522	HTP0522A	T21	Male	13.5	NA	NA	9	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0543	HTP0543A	T21	Male	36.9	78.380762	161.29	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0587	HTP0587A	T21	Male	4.3	16.78	95.25	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0131	HTP0131B	Control	Female	56.9	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0606	HTP0606A	T21	Female	26.6	45.4	138.4	6	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0619	HTP0619A	T21	Female	37	57.4	144.1	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0641	HTP0641A	T21	Male	46.6	89.9	164.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0439	HTP0439A	T21	Male	40	65.8	161	3	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0439	HTP0439A2	T21	Male	40.8	61.8	162	1	Visit 2	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0012	HTP0012A	T21	Female	42.9	48.7	149.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0012	HTP0012A2	T21	Female	44	49.8	146.7	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0180	HTP0180A	T21	Male	20	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0180	HTP0180A2	T21	Male	22.1	56.699	159	7	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0527	HTP0527B	Control	Male	7.4	24	127	1	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0350	HTP0350A	T21	Male	21.6	83	160.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0634	HTP0634A	T21	Male	20.4	84	165.1	6	Visit 1	NA	NA	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0254	HTP0254A	T21	Male	31.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0254	HTP0254A2	T21	Male	33.8	76.2	155.6	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0553	HTP0553A	T21	Female	18.2	61.144251	155.575	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0038	HTP0038B	Control	Male	70.5	66	170	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0195	HTP0195A	T21	Male	8.6	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0195	HTP0195A2	T21	Male	9	NA	NA	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0597	HTP0597A	T21	Female	12.5	39	142.2	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0389	HTP0389A	T21	Female	20.1	85.91	142	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0056	HTP0056B	Control	Female	52.5	108.6	165	1	Visit 1	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0056	HTP0056B2	Control	Female	53.8	105.3	163.6	1	Visit 2	Black or African-American	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0660	HTP0660A	T21	Male	13	32	134	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0202	HTP0202B	Control	Male	61.3	82.3	180.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0250	HTP0250A	T21	Male	31	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0232	HTP0232A	T21	Female	25	NA	NA	2	Visit 1	More than one race	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0550	HTP0550A	T21	Female	15.2	54.068211	149.225	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0205	HTP0205B	Control	Female	42.6	112	166.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0205	HTP0205B2	Control	Female	43.8	83.8	169.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0205	HTP0205B3	Control	Female	44.9	77	169	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0632	HTP0632A	T21	Female	26.4	45.9	165.7	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0665	HTP0665A	T21	Female	23.4	56.3	142.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0473	HTP0473A	T21	Male	17.1	72.10884354	165	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0287	HTP0287B	Control	Male	53.6	NA	NA	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0405	HTP0405A	T21	Male	26.1	62.40362812	152	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0448	HTP0448A	T21	Male	21.5	60	160	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0087	HTP0087B	Control	Male	53	89.4	184.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0087	HTP0087B2	Control	Male	55.4	91.5	184	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0455	HTP0455B	Control	Female	7.3	28.4	127	3	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0065	HTP0065A	T21	Female	44.1	62.4	131.4	1	Visit 1	Other	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0208	HTP0208B	Control	Female	20.1	77.3	171	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0208	HTP0208B2	Control	Female	21.2	77.9	171.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0208	HTP0208B3	Control	Female	22.4	80.3	170.8	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0239	HTP0239A	T21	Female	32.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0107	HTP0107A	T21	Female	31.3	55.2	147	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0107	HTP0107A2	T21	Female	32.6	56.9	148.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0107	HTP0107A3	T21	Female	33.7	49.8	148	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0412	HTP0412A	T21	Male	20.7	54.14965986	152.4	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0051	HTP0051B	Control	Male	56.1	140.8	184	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0051	HTP0051B2	Control	Male	58.2	144.2	182	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0053	HTP0053A	T21	Female	25.1	48.5	140.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0053	HTP0053A2	T21	Female	26.3	50	143	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0053	HTP0053A3	T21	Female	27.4	53.5	140	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0375	HTP0375A	T21	Female	10.9	30.7	128.5	3	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0141	HTP0141A	T21	Male	21.9	NA	NA	5	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0426	HTP0426A	T21	Male	17.5	54.43	153	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0577	HTP0577A	T21	Female	28.4	88	149.8	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0041	HTP0041B	Control	Female	30.6	78	170.8	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0041	HTP0041B2	Control	Female	30.7	78	170.8	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0517	HTP0517A	T21	Male	2.7	11.6	84.4	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0594	HTP0594A	T21	Male	30.1	67.4	161.3	6	Visit 1	More than one race	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0218	HTP0218A	T21	Female	20.9	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0392	HTP0392A	T21	Male	32.4	98.79	160	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0392	HTP0392A2	T21	Male	33.3	101.605	161.29	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0487	HTP0487A	T21	Male	4.6	13.4	90.9	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0487	HTP0487A2	T21	Male	4.6	13.4	90.9	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0487	HTP0487A3	T21	Male	4.7	NA	NA	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0251	HTP0251A	T21	Female	33.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0251	HTP0251A2	T21	Female	34.3	106.4852608	146	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0251	HTP0251A3	T21	Female	35.3	104	146	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0351	HTP0351A	T21	Male	27	72.8	158	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0415	HTP0415A	T21	Female	8.3	34	116	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0166	HTP0166B	Control	Female	32.6	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0172	HTP0172B	Control	Male	43.9	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0486	HTP0486A	T21	Male	3.6	13.4	93.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0486	HTP0486A2	T21	Male	3.7	13.4	93.3	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0486	HTP0486A3	T21	Male	3.8	NA	NA	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0598	HTP0598A	T21	Female	18	62.6	143.5	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0070	HTP0070A	T21	Male	22.5	55.6	163.5	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0070	HTP0070A2	T21	Male	24	57.3	163.4	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0070	HTP0070A3	T21	Male	24.9	57.3	163.4	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0625	HTP0625A	T21	Male	40.1	69.3	168.3	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0111	HTP0111B	Control	Female	42.5	NA	172.7	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0111	HTP0111B2	Control	Female	44.5	68.6	173	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0456	HTP0456A	T21	Male	7.3	21.3	113	3	Visit 1	Asian	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0262	HTP0262A	T21	Female	13.3	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0262	HTP0262A2	T21	Female	14.3	53.78684807	151	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0592	HTP0592A	T21	Female	14.5	68	154.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0331	HTP0331A	T21	Male	23.1	114	162.6	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0331	HTP0331A2	T21	Male	24.1	89.5	161.5	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0331	HTP0331A3	T21	Male	25	107.6	161.2	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0506	HTP0506B	Control	Male	31.2	88.3	181.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0305	HTP0305B	Control	Male	72.5	120.2	173.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0219	HTP0219A	T21	Female	18.5	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0219	HTP0219A2	T21	Female	19.5	56.6893424	138	3	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0219	HTP0219A3	T21	Female	20.4	58.967	140.3096	6	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0460	HTP0460A	T21	Male	20.3	75.3	165	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0460	HTP0460A2	T21	Male	21.4	80.558005	165	8	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0029	HTP0029B	Control	Female	69.4	62.1	172.3	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0507	HTP0507A	T21	Male	8.2	26.3	114.2	1	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0630	HTP0630A	T21	Male	39.9	52	148	6	Visit 1	White	Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0485	HTP0485A	T21	Female	5.7	18.2	103.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0485	HTP0485A2	T21	Female	5.7	18.2	103.2	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0548	HTP0548A	T21	Female	46.2	82.281656	147.32	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0509	HTP0509B	Control	Female	32.8	51.3	161.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0509	HTP0509B2	Control	Female	33.8	51.6	159.6	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0609	HTP0609A	T21	Female	4	13.6	88.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0333	HTP0333A	T21	Female	29.5	76.6	151.2	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0333	HTP0333A2	T21	Female	30.3	79.9	148	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0333	HTP0333A3	T21	Female	30.5	79.8	149.4	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0333	HTP0333A4	T21	Female	31.4	80.7	151	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0537	HTP0537A	T21	Female	51.9	56.5	153.4	6	Visit 1	White	Prefer not to answer	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0468	HTP0468A	T21	Male	28.8	68.5	153	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0468	HTP0468A2	T21	Male	29.7	70.2	154.9	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0585	HTP0585A	T21	Female	16.5	53.6	149.9	6	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0243	HTP0243A	T21	Female	13.2	NA	NA	2	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0243	HTP0243A3	T21	Female	15.1	47.355043	139.7	6	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0437	HTP0437A	T21	Male	24.9	67.2	157	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0159	HTP0159B	Control	Male	42.5	NA	NA	4	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0123	HTP0123A	T21	Female	21.4	68.7	150	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0123	HTP0123A2	T21	Female	23.4	72.6	150	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0207	HTP0207A	T21	Female	23	45	144.4	1	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0207	HTP0207A2	T21	Female	24	44.7	145.7	1	Visit 2	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0207	HTP0207A3	T21	Female	24.1	44.4	144.6	1	Visit 3	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0207	HTP0207A4	T21	Female	25.2	44.4	144.5	1	Visit 4	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R
+HTP0384	HTP0384A	T21	Female	27.8	81.28	146	3	Visit 1	White	Not Hispanic or Latino	matthew.galbraith@cuanschutz.edu	06012022	HTP_data_Synapse_v0.1.R

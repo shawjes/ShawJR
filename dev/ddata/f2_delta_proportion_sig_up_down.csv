@@ -1,0 +1,366 @@
+Chromosome,term,"Delta Proportion
+(Observed - Expected)",direction,gg_direction
+1,T21,0.00546702681477528,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+2,T21,-0.00893928099221725,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+3,T21,-0.0112749519137853,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+4,T21,0.00122708043819043,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+5,T21,0.000942551161585016,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+6,T21,-0.00740849814557468,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+7,T21,-0.00237440064789847,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+8,T21,-0.00208987137129307,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+9,T21,0.0120019970734132,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+10,T21,0.0026892234728217,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+11,T21,0.00570208941121613,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+12,T21,0.00538803351156677,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+13,T21,0.00329739521499983,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+14,T21,0.00196294523846774,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+15,T21,-0.0127275083824932,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+16,T21,-0.0120993965831945,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+17,T21,0.00759601137503566,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+18,T21,0.00550537307846873,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+19,T21,-0.00552416274767852,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+20,T21,-0.00208987137129307,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+21,T21,0.0294104338649659,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+22,T21,-0.00620174122714179,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+23,T21,-0.00466098835193894,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+1,T21,0.00140963120999696,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+2,T21,-0.0138804226353754,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+3,T21,0.0200523214467134,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+4,T21,-0.0015112262521589,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+5,T21,0.0100325104134918,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+6,T21,-0.00524484405161028,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+7,T21,-0.00223509092756274,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+8,T21,-0.0137788275932134,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+9,T21,0.0119628162145687,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+10,T21,0.00172711571675302,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+11,T21,0.00125723864675403,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+12,T21,-0.0151122625215889,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+13,T21,0.0149471705780758,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+14,T21,-0.0104007924413289,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+15,T21,-0.00175251447729351,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+16,T21,0.00647668393782383,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+17,T21,0.00982932032916794,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+18,T21,-0.00667987402214772,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+19,T21,0.00473686884080056,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+20,T21,0.013181956720512,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+22,T21,-0.00435588743269328,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+23,T21,-0.0165980900132074,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+1,T21:Age,0.0252537367534489,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+2,T21:Age,-0.0192967867118702,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+3,T21:Age,0.000807586515703958,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+4,T21:Age,0.00620482313055715,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+5,T21:Age,0.00470692338855839,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+6,T21:Age,-0.0353525661527964,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+7,T21:Age,-0.000298513827586944,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+8,T21:Age,-0.0152615194353824,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+9,T21:Age,0.00575971769120877,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+10,T21:Age,0.0217888441118147,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+11,T21:Age,-0.0147497814452334,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+12,T21:Age,0.00906469221092135,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+13,T21:Age,0.00199631122198768,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+14,T21:Age,-0.00120205121644385,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+15,T21:Age,9.32855711209199e-05,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+16,T21:Age,0.022423185995437,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+17,T21:Age,-0.0110796605471332,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+18,T21:Age,-0.00580236252372119,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+19,T21:Age,-0.00539990191688522,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+20,T21:Age,0.0135450649267575,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+22,T21:Age,0.000727627454743172,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+23,T21:Age,0.0057330646708885,Up,"
+Upregulated proteins
+(Zlog10FC>0, PadjBH<0.10)
+"
+1,T21:Age,0.000650513724452489,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+2,T21:Age,-0.00608331697268198,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+3,T21:Age,0.000848264206024706,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+4,T21:Age,0.00295060790489767,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+5,T21:Age,-0.00760485754852001,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+6,T21:Age,-0.00733241713685755,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+7,T21:Age,0.0112675094536112,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+8,T21:Age,-0.0127734007107636,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+9,T21:Age,0.00167838942902749,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+10,T21:Age,-0.002048282416141,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+11,T21:Age,0.00917548007841731,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+12,T21:Age,0.00747148267335888,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+13,T21:Age,0.00530476336807482,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+14,T21:Age,0.00294029358121854,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+15,T21:Age,-0.00235415546317715,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+16,T21:Age,0.00929107163689028,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+17,T21:Age,0.00955070806053725,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+18,T21:Age,-0.00744302936665785,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+19,T21:Age,-0.011935450828418,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+20,T21:Age,-0.00288872196282291,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+21,T21:Age,8.99835824420339e-05,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+22,T21:Age,0.00404285921588378,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+23,T21:Age,-0.00329738258031657,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"
+24,T21:Age,0.00121566752880186,Down,"
+Downregulated proteins
+(Zlog10FC<0, PadjBH<0.10)
+"

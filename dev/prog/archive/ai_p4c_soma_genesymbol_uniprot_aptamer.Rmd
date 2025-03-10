@@ -1,0 +1,49 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define project directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read in_donovan2024_p4c_soma
+```{r}
+setwd(dir.indata)
+in_donovan2024_p4c_soma <- fread("in_donovan2024_p4c_soma.csv.gz");
+
+in_donovan2024_p4c_soma
+```
+
+#### ai_p4c_soma_genesymbol_uniprot_aptamer
+```{r}
+ai_p4c_soma_genesymbol_uniprot_aptamer <- in_donovan2024_p4c_soma %>%
+  dplyr::select(Aptamer, UniProt, GeneSymbol) %>%
+  mutate(GeneSymbol = case_when(GeneSymbol == "" ~ paste0("N/A (Aptamer: ", Aptamer, ")"),
+                                .default = GeneSymbol)) %>%
+  mutate(UniProt = case_when(UniProt == "" ~ paste0("N/A (Aptamer: ", Aptamer, ")"),
+                                .default = UniProt)) %>%
+  dplyr::select(Aptamer, UniProt, GeneSymbol) %>%
+  unique()
+
+setwd(dir.aidata)
+fwrite(ai_p4c_soma_genesymbol_uniprot_aptamer, "ai_p4c_soma_genesymbol_uniprot_aptamer.csv.gz")
+
+ai_p4c_soma_genesymbol_uniprot_aptamer
+```

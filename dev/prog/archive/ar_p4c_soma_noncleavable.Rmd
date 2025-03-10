@@ -1,0 +1,559 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#install.packages("devtools")
+library(devtools)
+# https://github.com/SomaLogic/SomaDataIO
+#devtools::install_github("SomaLogic/SomaDataIO")
+library(SomaDataIO)
+library(ggrepel)
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+#library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(tidyverse)
+#library(caret)
+#library(glmnet)
+```
+
+#### Setting and modifying theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 11), #size = 14
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+RedBlue <- c("#CD3333", "#1874CD")
+GrayBlue <- c("grey", "#2b8cbe")
+```
+
+```{r}
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+library(readxl)    
+read_excel_allsheets <- function(filename, tibble = FALSE) {
+    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+    x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X))
+    if(!tibble) x <- lapply(x, as.data.frame)
+    names(x) <- sheets
+    x
+}
+
+`%notin%` <- Negate(`%in%`)
+
+#select <- dplyr::select
+#filter <- dplyr::filter
+```
+
+#### ClusterProfiler
+```{r}
+library(clusterProfiler)
+# If you use clusterProfiler in published research, please cite:
+# G Yu, LG Wang, Y Han, QY He. clusterProfiler: an R package for comparing biological themes among gene clusters. OMICS: A Journal of Integrative Biology 2012, 16(5):284-287. doi:[10.1089/omi.2011.0118](http://dx.doi.org/10.1089/omi.2011.0118)
+
+# https://www.nature.com/articles/s41596-024-01020-z
+# Xu et al., 2024: 'Using clusterProfiler to characterize multiomics data'
+
+library(stringr)
+```
+
+```{r}
+# dd_tidy_Zlog10Abundance_modelB <- fread("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ddata/dd_tidy_Zlog10Abundance_modelB.csv.gz")
+
+ar_p4c_soma <- fread("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ardata/ar_p4c_soma.csv.gz")
+
+# dd_tidy_Zlog10Abundance_modelB
+ar_p4c_soma
+```
+
+```{r}
+ai_p4c_soma_noncleavable <- ar_p4c_soma %>%
+  mutate(I_noncleavable = case_when(grepl("NonCleavable", UniProt_Aptamer_Chr_Cluster) == TRUE ~ 1,
+                                  .default = 0)) %>%
+  filter(I_noncleavable == 1) %>%
+  rename(noncleavable_protein_id = UniProt_Aptamer_Chr_Cluster) %>%
+  select(LabID,
+         T21, Age, Female,
+         noncleavable_protein_id,
+         Z_log10_Abundance) %>%
+  unique()
+
+ai_p4c_soma_cleavable <- ar_p4c_soma %>%
+  mutate(I_noncleavable = case_when(grepl("NonCleavable", UniProt_Aptamer_Chr_Cluster) == TRUE ~ 1,
+                                  .default = 0)) %>%
+  filter(I_noncleavable == 0) %>%
+  rename(cleavable_protein_id = UniProt_Aptamer_Chr_Cluster,
+         chromosome_cleavable_protein = chromosome) %>%
+  select(LabID,
+         cleavable_protein_id,
+         chromosome_cleavable_protein,
+         Z_log10_Abundance) %>%
+  unique()
+
+ai_p4c_soma_noncleavable
+ai_p4c_soma_cleavable
+
+planned_triplets <- ai_p4c_soma_noncleavable %>% select(noncleavable_protein_id, LabID) %>% unique() %>%
+  mutate(dummy = 1) %>%
+  full_join(ai_p4c_soma_cleavable %>% select(cleavable_protein_id, LabID) %>% unique() %>%
+              mutate(dummy = 1),
+            by = c("dummy", "LabID")) %>%
+  select(-c(dummy))
+
+planned_triplets
+
+planned_triplets %>% nrow()
+ai_p4c_soma_noncleavable %>% nrow()
+ai_p4c_soma_cleavable %>% nrow()
+#[1] 7641216
+#[1] 1608
+#[1] 1910304
+
+ar_p4c_soma_noncleavable <- planned_triplets %>%
+  left_join(ai_p4c_soma_noncleavable, by = c("noncleavable_protein_id", "LabID")) %>%
+  rename(noncleavable_Z_log10_Abundance = Z_log10_Abundance) %>%
+  left_join(ai_p4c_soma_cleavable %>%
+              rename(cleavable_Z_log10_Abundance = Z_log10_Abundance),
+            by = c("cleavable_protein_id", "LabID")) %>%
+  select(noncleavable_protein_id, cleavable_protein_id, everything()) %>%
+  # mutate(protein_pair_id = paste0("pair", as.character(as.numeric(as.factor(paste(cleavable_protein_id, noncleavable_protein_id, sep = "_")))))) %>%
+  mutate(protein_pair_id = paste0(noncleavable_protein_id, " ~ ", cleavable_protein_id)) %>%
+  select(protein_pair_id, everything()) %>%
+  mutate(protein_pair_id = gsub("NA[|]", "", protein_pair_id),
+         protein_pair_id = gsub("ChrNA, ", "", protein_pair_id)) %>%
+  arrange(protein_pair_id) %>%
+  unique()
+
+ar_p4c_soma_noncleavable
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ardata")
+fwrite(ar_p4c_soma_noncleavable, "ar_p4c_soma_noncleavable.csv.gz")
+```
+
+```{r}
+ai_aptamer_info <- ar_p4c_soma %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, UniProt, Aptamer, GeneSymbol) %>%
+  unique() %>%
+  group_by(UniProt_Aptamer_Chr_Cluster) %>%
+  mutate(Aptamer = (stringr::str_match(UniProt_Aptamer_Chr_Cluster,
+                                       "[|]\\s*(.*?)\\s*[(]"))[[2]]) %>%
+  ungroup();
+
+ai_aptamer_info
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ardata")
+fwrite(ai_aptamer_info, "ai_aptamer_info.csv.gz")
+```
+
+#### Noncleavable, T21-only
+```{r}
+set.seed(1234)
+fit.noncleavable_intx_t21 <- ar_p4c_soma_noncleavable %>%
+  filter(T21 == 1) %>%
+  split(., .$protein_pair_id) %>%
+  map(~lm(noncleavable_Z_log10_Abundance ~ cleavable_Z_log10_Abundance, data = .))
+
+dd_tidy_noncleavable_intx_t21 <-  ar_p4c_soma_noncleavable %>%
+  filter(T21 == 1) %>%
+  split(., .$protein_pair_id) %>%
+  map2(.x = fit.noncleavable_intx_t21, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="protein_pair_id") %>%
+    filter(term!="(Intercept)") %>%
+  arrange(p.value) %>%
+  separate(protein_pair_id,
+           into = c("noncleavable_protein_id", "cleavable_protein_id"),
+           sep = "[~]",
+           extra = "merge",
+           remove = FALSE) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH"))
+
+ai_p4c_soma_anno <- ar_p4c_soma %>%
+  select(UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster,
+         Aptamer, GeneSymbol, UniProt, Target, TargetFullName, In_published_p4c_soma,
+         Variable, Cluster, In_st17,
+         In_biomart_anno, biomart_gene_name, biomart_gene_synonym, biomart_chr_scaffold, chromosome,
+         mean_log10Abundance.T21, sd_log10Abundance.T21,
+         mean_log10Abundance.D21, sd_log10Abundance.D21) %>%
+  unique()
+
+dd_noncleavable_up_corrScore <- dd_tidy_noncleavable_intx_t21 %>%
+  filter(Padj_BH < 0.10 & estimate > 0) %>%
+  group_by(cleavable_protein_id) %>%
+  mutate(Aptamer = (stringr::str_match(cleavable_protein_id,
+                                       "[|]\\s*(.*?)\\s*[(]"))[[2]]) %>%
+  ungroup() %>%
+  mutate(Aptamer = gsub("[|]", "", Aptamer),
+         Aptamer = gsub("[(]", "", Aptamer),
+         Aptamer = trimws(Aptamer)) %>%
+  left_join(ai_p4c_soma_anno %>%
+              mutate(Aptamer = gsub("[|]", "", Aptamer),
+                     Aptamer = gsub("[(]", "", Aptamer),
+                     Aptamer = trimws(Aptamer)),
+            by = "Aptamer") %>%
+  select(-c(protein_pair_id, std.error, statistic, conf.low, conf.high,
+            UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster)) %>%
+  select(noncleavable_protein_id, cleavable_protein_id,
+         Target, TargetFullName, GeneSymbol, Cluster, chromosome,
+         estimate, Padj_BH) %>%
+  unique() %>%
+  group_by(noncleavable_protein_id) %>%
+  mutate(corrScore = median(estimate*-log10(Padj_BH))) %>%
+  ungroup();
+
+dd_noncleavable_down_corrScore <- dd_tidy_noncleavable_intx_t21 %>%
+  filter(Padj_BH < 0.10 & estimate < 0) %>%
+  group_by(cleavable_protein_id) %>%
+  mutate(Aptamer = (stringr::str_match(cleavable_protein_id,
+                                       "[|]\\s*(.*?)\\s*[(]"))[[2]]) %>%
+  ungroup() %>%
+  mutate(Aptamer = gsub("[|]", "", Aptamer),
+         Aptamer = gsub("[(]", "", Aptamer),
+         Aptamer = trimws(Aptamer)) %>%
+  left_join(ai_p4c_soma_anno %>%
+              mutate(Aptamer = gsub("[|]", "", Aptamer),
+                     Aptamer = gsub("[(]", "", Aptamer),
+                     Aptamer = trimws(Aptamer)),
+            by = "Aptamer") %>%
+  select(-c(protein_pair_id, std.error, statistic, conf.low, conf.high,
+            UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster)) %>%
+  select(noncleavable_protein_id, cleavable_protein_id,
+         Target, TargetFullName, GeneSymbol, Cluster, chromosome,
+         estimate, Padj_BH) %>%
+  unique() %>%
+  group_by(noncleavable_protein_id) %>%
+  mutate(corrScore = median(estimate*-log10(Padj_BH))) %>%
+  ungroup();
+
+dd_n_aptamers_per_cluster <- ar_p4c_soma %>%
+  select(Aptamer, Cluster) %>%
+  unique() %>%
+  group_by(Cluster) %>%
+  summarise(N_Aptamers = n())
+
+dd_noncleavable_up_corrScore %>% arrange(desc(corrScore))
+dd_noncleavable_down_corrScore %>% arrange(corrScore)
+dd_noncleavable_up_corrScore %>% arrange(desc(corrScore)) %>% group_by(Cluster) %>%
+  summarise(N = n(),
+            mean_corrScore = mean(corrScore),
+            median_corrScore = median(corrScore)) %>%
+  ungroup() %>%
+  full_join(dd_n_aptamers_per_cluster, by = "Cluster")
+dd_noncleavable_down_corrScore %>% arrange(corrScore) %>% arrange(desc(corrScore)) %>% group_by(Cluster) %>%
+  summarise(N = n(),
+            mean_corrScore = mean(corrScore),
+            median_corrScore = median(corrScore)) %>%
+  full_join(dd_n_aptamers_per_cluster, by = "Cluster")
+
+# BACH1 is a widely used alternative name for BRCA1 interacting protein C-terminal helicase 1 (BRIP1)
+# https://www.ncbi.nlm.nih.gov/gene/571
+# Ubiquitous expression in bone marrow (RPKM 19.7), placenta (RPKM 15.8) and 25 other tissues
+
+# IFN-a/b R1
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ddata")
+fwrite(dd_tidy_noncleavable_intx_t21, "dd_tidy_noncleavable_intx_t21.csv.gz")
+
+# PICK UP HERE (1/28/2025 ~1030PM MT)
+# RE-DO THIS ANALYSIS - NUMBERS AREN'T RIGHT - Re-do the analysis data to eliminate duplication before modeling...
+```
+
+#### Noncleavable, T21-only
+```{r}
+set.seed(1234)
+fit.noncleavable_intx_d21 <- ar_p4c_soma_noncleavable %>%
+  filter(T21 == 0) %>%
+  split(., .$protein_pair_id) %>%
+  map(~lm(noncleavable_Z_log10_Abundance ~ cleavable_Z_log10_Abundance, data = .))
+
+dd_tidy_noncleavable_intx_d21 <-  ar_p4c_soma_noncleavable %>%
+  filter(T21 == 0) %>%
+  split(., .$protein_pair_id) %>%
+  map2(.x = fit.noncleavable_intx_t21, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="protein_pair_id") %>%
+    filter(term!="(Intercept)") %>%
+  arrange(p.value) %>%
+  separate(protein_pair_id,
+           into = c("noncleavable_protein_id", "cleavable_protein_id"),
+           sep = "[~]",
+           extra = "merge",
+           remove = FALSE) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH"))
+
+ai_p4c_soma_anno <- ar_p4c_soma %>%
+  select(UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster,
+         Aptamer, GeneSymbol, UniProt, Target, TargetFullName, In_published_p4c_soma,
+         Variable, Cluster, In_st17,
+         In_biomart_anno, biomart_gene_name, biomart_gene_synonym, biomart_chr_scaffold, chromosome,
+         mean_log10Abundance.T21, sd_log10Abundance.T21,
+         mean_log10Abundance.D21, sd_log10Abundance.D21) %>%
+  unique()
+
+dd_noncleavable_up_corrScore_d21 <- dd_tidy_noncleavable_intx_d21 %>%
+  filter(Padj_BH < 0.10 & estimate > 0) %>%
+  group_by(cleavable_protein_id) %>%
+  mutate(Aptamer = (stringr::str_match(cleavable_protein_id,
+                                       "[|]\\s*(.*?)\\s*[(]"))[[2]]) %>%
+  ungroup() %>%
+  mutate(Aptamer = gsub("[|]", "", Aptamer),
+         Aptamer = gsub("[(]", "", Aptamer),
+         Aptamer = trimws(Aptamer)) %>%
+  left_join(ai_p4c_soma_anno %>%
+              mutate(Aptamer = gsub("[|]", "", Aptamer),
+                     Aptamer = gsub("[(]", "", Aptamer),
+                     Aptamer = trimws(Aptamer)),
+            by = "Aptamer") %>%
+  select(-c(protein_pair_id, std.error, statistic, conf.low, conf.high,
+            UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster)) %>%
+  select(noncleavable_protein_id, cleavable_protein_id,
+         Target, TargetFullName, GeneSymbol, Cluster, chromosome,
+         estimate, Padj_BH) %>%
+  unique() %>%
+  group_by(noncleavable_protein_id) %>%
+  mutate(corrScore = median(estimate*-log10(Padj_BH))) %>%
+  ungroup();
+
+dd_noncleavable_down_corrScore_d21 <- dd_tidy_noncleavable_intx_d21 %>%
+  filter(Padj_BH < 0.10 & estimate < 0) %>%
+  group_by(cleavable_protein_id) %>%
+  mutate(Aptamer = (stringr::str_match(cleavable_protein_id,
+                                       "[|]\\s*(.*?)\\s*[(]"))[[2]]) %>%
+  ungroup() %>%
+  mutate(Aptamer = gsub("[|]", "", Aptamer),
+         Aptamer = gsub("[(]", "", Aptamer),
+         Aptamer = trimws(Aptamer)) %>%
+  left_join(ai_p4c_soma_anno %>%
+              mutate(Aptamer = gsub("[|]", "", Aptamer),
+                     Aptamer = gsub("[(]", "", Aptamer),
+                     Aptamer = trimws(Aptamer)),
+            by = "Aptamer") %>%
+  select(-c(protein_pair_id, std.error, statistic, conf.low, conf.high,
+            UniProt_Aptamer_Chr_Cluster, Aptamer_Chr_Cluster)) %>%
+  select(noncleavable_protein_id, cleavable_protein_id,
+         Target, TargetFullName, GeneSymbol, Cluster, chromosome,
+         estimate, Padj_BH) %>%
+  unique() %>%
+  group_by(noncleavable_protein_id) %>%
+  mutate(corrScore = median(estimate*-log10(Padj_BH))) %>%
+  ungroup();
+
+dd_n_aptamers_per_cluster <- ar_p4c_soma %>%
+  select(Aptamer, Cluster) %>%
+  unique() %>%
+  group_by(Cluster) %>%
+  summarise(N_Aptamers = n())
+
+dd_noncleavable_up_corrScore_d21 %>% arrange(desc(corrScore))
+dd_noncleavable_down_corrScore_d21 %>% arrange(corrScore)
+dd_noncleavable_up_corrScore_d21 %>% arrange(desc(corrScore)) %>% group_by(Cluster) %>%
+  summarise(N = n(),
+            mean_corrScore = mean(corrScore),
+            median_corrScore = median(corrScore)) %>%
+  ungroup() %>%
+  full_join(dd_n_aptamers_per_cluster, by = "Cluster")
+dd_noncleavable_down_corrScore_d21 %>% arrange(corrScore) %>% arrange(desc(corrScore)) %>% group_by(Cluster) %>%
+  summarise(N = n(),
+            mean_corrScore = mean(corrScore),
+            median_corrScore = median(corrScore)) %>%
+  full_join(dd_n_aptamers_per_cluster, by = "Cluster")
+
+# BACH1 is a widely used alternative name for BRCA1 interacting protein C-terminal helicase 1 (BRIP1)
+# https://www.ncbi.nlm.nih.gov/gene/571
+# Ubiquitous expression in bone marrow (RPKM 19.7), placenta (RPKM 15.8) and 25 other tissues
+
+# IFN-a/b R1
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ddata")
+fwrite(dd_tidy_noncleavable_intx_d21, "dd_tidy_noncleavable_intx_d21.csv.gz")
+
+# PICK UP HERE (1/28/2025 ~1030PM MT)
+# RE-DO THIS ANALYSIS - NUMBERS AREN'T RIGHT - Re-do the analysis data to eliminate duplication before modeling...
+```
+
+```{r}
+dd_noncleavable_up_corrScore
+dd_noncleavable_up_corrScore_d21
+
+cbind(dd_noncleavable_up_corrScore %>%
+        filter(corrScore>0) %>%
+        arrange(desc(corrScore)) %>%
+        select(cleavable_protein_id, corrScore) %>%
+        unique(),
+      dd_noncleavable_up_corrScore_d21 %>%
+        filter(corrScore>0) %>%
+        arrange(desc(corrScore)) %>%
+        select(cleavable_protein_id, corrScore) %>%
+        unique())
+```
+
+```{r}
+# IMPORTANT/HELPFUL REFERENCE:
+# "Briefly, the 7K SomaScan Assay consists of 7596 slow, off-rate, chemically modified, single-stranded DNA aptamer reagents (SOMAmer), which are oligonucleotides of approximately 50 base pairs in length that are capable of binding target proteins or peptides with high specificity and affinity. This includes 7289 SOMAmers targeting human proteins, 261 nonhuman proteins, 12 hybridization control elution, 4 binding mouse Fc-fusion, 4 noncleavable, 6 ephrin-type receptors, and 20 spuriomers."
+```
+
+
+```{r}
+# possibly important
+# https://www.nature.com/articles/s41598-024-69069-0
+
+# https://www.annualreviews.org/content/journals/10.1146/annurev-genet-102108-134233
+
+# https://vhio.net/2023/03/20/non-canonical-proteins-as-candidate-targets-for-cancer-immunotherapy/
+# "Non-canonical proteins are unconventional protein products that are not part of the known protein-coding genome repertoire. They arise from unexpected translation of other genomic regions, from alterations in messenger RNA splicing or from translation of RNA out of reading frame."
+# "Published online ahead of print in Clinical Cancer Research*, a journal of the American Association for Cancer Research (AACR), data show that some of these non-canonical proteins are shared across tumor types and can be naturally presented by cancer cells and recognized by T-cells. Most importantly, results also evidence that these candidate antigens are tumor-specific and not detected, or at very low levels, in healthy cells."
+
+# https://www.sciencedirect.com/science/article/pii/S0753332224007947
+# "We will discuss various aspects of covalent conjugates through non-cleavable (stable) or cleavable bonds. Non-cleavable CPP-protein conjugates are produced by recombinant DNA technology to express the complete fusion protein in a host cell or by chemical ligation of CPP and protein, which ensures stability during the delivery process. CPP-protein cleavable bonds are classified into pH-sensitive and redox-sensitive bonds, enzyme-cleavable bonds, and physical stimuli cleavable linkers (light radiation, ultrasonic waves, and thermo-responsive).
+
+# https://www.nature.com/articles/s41586-023-06563-x
+# "Many proteoforms can be derived from a single gene, for example through differential splicing of transcripts, proteolytic cleavage and post-translational modification18. NFL forms polymers19, and we do not have information about which proteoforms are measured on the two platforms. Consistent with the results for NFL on Olink, high NFL levels in cerebrospinal fluid and blood have been reported to associate with advanced Alzheimer’s disease20. Plasma levels of NFL measured using the Olink platform and an alternative affinity-based assay (Simoa) have been reported to be strongly correlated21,22 (r > 0.90 for both studies), whereas levels of NFL measured using the SomaScan platform did not correlate with Simoa measurements (n = 231 Icelanders, Spearman r = 0.00). Of note, NFL levels measured with both the Olink and SomaScan platforms correlate strongly with Alzheimer’s disease, but with opposite directions of effect. Although Olink and Simoa appear to be measuring the same proteoform(s), it remains to be understood what protein or proteoform SomaScan is measuring."
+```
+
+```{r}
+%>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup() %>%
+  left_join(ar_p4c_soma_noncleavable[,c(1:3)] %>% unique(),
+            by = c("protein_pair_id")) %>%
+  select(protein_pair_id, noncleavable_protein_id, cleavable_protein_id, everything());
+
+dd_tidy_noncleavable_modelA
+dd_tidy_noncleavable_modelB
+
+dd_tidy_noncleavable_modelB %>%
+  select(-c(std.error, statistic, conf.low, conf.high)) %>%
+  filter(grepl("cleavable", term)==TRUE) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  arrange(p.value) %>%
+  filter(Padj_BH < 0.10);
+
+dd_tidy_noncleavable_modelB %>%
+  select(-c(std.error, statistic, conf.low, conf.high)) %>%
+  filter(term == "cleavable_Z_log10_Abundance") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  arrange(p.value) %>%
+  filter(Padj_BH < 0.10);
+
+dd_tidy_noncleavable_modelB %>%
+  select(-c(std.error, statistic, conf.low, conf.high)) %>%
+  filter(term == "cleavable_Z_log10_Abundance:T21") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  arrange(p.value) %>%
+  filter(Padj_BH < 0.10);
+
+dd_tidy_noncleavable_modelB %>%
+  select(-c(std.error, statistic, conf.low, conf.high)) %>%
+  filter(term == "T21") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  arrange(p.value) %>%
+  filter(Padj_BH < 0.10);
+```
+
+```{r}
+ai_aptamer_info <- ar_p4c_soma %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, UniProt, Aptamer, GeneSymbol) %>%
+  unique() %>%
+  group_by(UniProt_Aptamer_Chr_Cluster) %>%
+  mutate(Aptamer = (stringr::str_match(UniProt_Aptamer_Chr_Cluster,
+                                       "[|]\\s*(.*?)\\s*[(]"))[[2]]) %>%
+  ungroup();
+
+ai_aptamer_info
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ardata")
+fwrite(ai_aptamer_info, "ai_aptamer_info.csv.gz")
+```
+
+```{r}
+rm(ar_p4c_soma); gc()
+```
+
+
+#### Later... investigate significantly REDUCED non-cleavable proteins??
+```{r}
+# dd_tidy_Zlog10Abundance_modelB %>%
+#   filter(grepl("T21", term) == TRUE & Sig10_PadjBH == 1 & Zlog10_FC < 0) %>%
+#   select(UniProt_Aptamer_Chr_Cluster, UniProt, term, Zlog10_FC, Padj_BH) %>%
+#   unique() %>%
+#   left_join(ai_aptamer_info,
+#             by = c("UniProt_Aptamer_Chr_Cluster", "UniProt")) %>%
+#   filter(grepl("NonCleavable", UniProt_Aptamer_Chr_Cluster)==TRUE)
+
+# NonCleavable.4666.225
+# NonCleavable.4666.230
+# NonCleavable.4666.232
+# NonCleavable.4666.236
+# Q: Which other aptamers are the above associated with??
+```
+
+```{r}
+# setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ardata")
+# ar_p4c_soma_noncleavable <- fread("ar_p4c_soma_noncleavable.csv.gz") %>% as.data.frame()
+# ar_p4c_soma_noncleavable
+
+ar_p4c_soma_noncleavable.split <- ar_p4c_soma_noncleavable %>%
+  as.data.frame() %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster) 
+
+tmp <- ar_p4c_soma_noncleavable.split[[1]] %>%
+  as.data.frame() %>%
+  dplyr::select(-c(UniProt_Aptamer_Chr_Cluster)) %>%
+  `rownames<-`(NULL) %>%
+  column_to_rownames("LabID") %>%
+  dplyr::select(Z_log10_Abundance, T21, Age, Female, everything());
+
+lm(Z_log10_Abundance ~ ., data = tmp) %>%
+  tidy(conf.int = TRUE)
+```
+
+```{r}
+ar_p4c_soma_noncleavable.split <- ar_p4c_soma_noncleavable %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+
+head(ar_p4c_soma_noncleavable.split, n=1)
+
+
+```
+
+```{r}
+# lm(Z_log10_Abundance ~ 
+```
+
+```{r}
+#install.packages(c("glmnet", "faraway"))
+library(glmnet)   #function for ridge regression
+library(faraway) #has the dataset fat
+set.seed(1233)
+
+data("fat")
+head(fat)
+```
+

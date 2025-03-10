@@ -1,0 +1,315 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_d21only <- fread("ar_p4c_soma_d21only.csv.gz") #%>%
+  #filter(Aptamer_in_P4C == 1 & Aptamer_in_Lehallier2019 == 0);
+
+setwd(dir.ardata)
+ar_p4c_soma_t21only <- fread("ar_p4c_soma_t21only.csv.gz")
+
+#ar_p4c_soma_d21only
+#ar_p4c_soma_t21only
+```
+
+```{r}
+ar_p4c_soma_d21only %>%
+  dplyr::select(Aptamer, Aptamer_in_Lehallier2019, Aptamer_in_P4C) %>%
+  unique() %>%
+  group_by(Aptamer_in_Lehallier2019, Aptamer_in_P4C) %>% 
+  summarise(N = n())
+
+ar_p4c_soma_t21only %>%
+  dplyr::select(Aptamer, Aptamer_in_Lehallier2019, Aptamer_in_P4C) %>%
+  unique() %>%
+  group_by(Aptamer_in_Lehallier2019, Aptamer_in_P4C) %>% 
+  summarise(N = n())
+```
+
+#### *Within D21s only*, cluster trajectories of all proteins measured in P4C, even if already clustered and reported in Lehallier et al., 2019
+```{R}
+ar_p4c_soma_d21only.split <- ar_p4c_soma_d21only %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+predicted_newclusters.D21 <- list()
+plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ar_p4c_soma_d21only.split) ){
+  set.seed(1234)
+
+  loess_newclusters.D21[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+                          data = ar_p4c_soma_d21only.split[[i]])
+  predicted_newclusters.D21[[i]] <- cbind(ar_p4c_soma_d21only.split[[i]]$LabID,
+                                        loess_newclusters.D21[[i]]$fitted,
+                                        ar_p4c_soma_d21only.split[[i]]$Zlog10_relative_abundance,
+                                        ar_p4c_soma_d21only.split[[i]]$Age,
+                                        as.character(ar_p4c_soma_d21only.split[[i]]$Sex)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("LabID", "predicted_Zlog10_relative_abundance", "Zlog10_relative_abundance", "Age", "Sex")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_Zlog10_relative_abundance = as.numeric(predicted_Zlog10_relative_abundance),
+           Zlog10_relative_abundance = as.numeric(Zlog10_relative_abundance),
+           Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+    arrange(Age) %>%
+    mutate(UniProt_Aptamer_Chr_Cluster = names(ar_p4c_soma_d21only.split)[[i]]) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, everything())
+  
+  # plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+  #   ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+  #   geom_point(color = RedBlue[[1]], alpha = 0.5) +
+  #   geom_line(color = RedBlue[[1]]) +
+  #   ggtitle(names(predicted_newclusters.D21)[[i]])
+  
+  names(loess_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+  names(predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+  #names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+}
+#predicted_newclusters.D21 %>% head()
+#plot_predicted_newclusters.D21 %>% head()
+
+set.seed(1234)
+predicted_newclusters.D21.matrix <- predicted_newclusters.D21 %>%
+  rbindlist() %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID, predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+#predicted.D21.matrix %>% as.data.frame()
+
+# Dissimilarity matrix:
+d_newclusters.D21s <- dist(predicted_newclusters.D21.matrix,
+                           method = "euclidean");
+# Hierarchical clustering using Complete Linkage:
+hc1_newclusters.D21s <- hclust(d_newclusters.D21s,
+                               method = "complete");
+# Plot the obtained dendrogram:
+k.now <- 8;
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k.now, border = 1:k.now);
+k.now <- 11;
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k.now, border = 1:k.now);
+k.now <- 12;
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k.now, border = 1:k.now);
+
+# Cut tree into 6 groups
+k.now <- 12;
+sub_grp6_newclusters.D21s <- cutree(hc1_newclusters.D21s, k = k.now)
+# sub_grp6_newclusters.D21s
+
+# Add the the cluster each observation belongs to to our original data.
+length(sub_grp6_newclusters.D21s) #[1] 4632
+predicted_newclusters.D21.matrix %>% as.data.frame() %>% nrow() #[1] 4632
+
+ar_p4c_soma_d21only_aging_clusters <- predicted_newclusters.D21.matrix %>%
+  as.data.frame() %>%
+  #mutate(P4C_Clock_Cluster = 8 + sub_grp6_newclusters.D21s) %>% # Assign cluster numbers 9-16 since Lehallier 2019 defined clusters 1-8. # First option tried...
+    mutate(P4C_Clock_Cluster = sub_grp6_newclusters.D21s) %>% # New option from clustering ALL measured proteins.
+  dplyr::select(P4C_Clock_Cluster, everything()) %>%
+  rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+  gather(key = "LabID", value = "predicted_Zlog10_relative_abundance", starts_with("HTP")) %>%
+  ungroup() %>%
+  mutate(LabID = trimws(LabID),
+         UniProt_Aptamer_Chr_Cluster = trimws(UniProt_Aptamer_Chr_Cluster)) %>%
+  left_join(( (fread(paste0(dir.ardata, "/ar_p4c_soma_d21only.csv.gz"))) %>%
+              dplyr::select(LabID, Age, Sex, UniProt_Aptamer_Chr_Cluster, Lehallier2019_ClusterID) %>%
+               unique() %>%
+               filter(!is.na(Age)) %>%
+               ungroup() %>%
+               mutate(LabID = trimws(LabID),
+                      UniProt_Aptamer_Chr_Cluster = trimws(UniProt_Aptamer_Chr_Cluster))),
+            by = c("LabID", "UniProt_Aptamer_Chr_Cluster")) %>%
+  dplyr::select(LabID, Age, Sex, UniProt_Aptamer_Chr_Cluster, 
+         Lehallier2019_ClusterID, P4C_Clock_Cluster,
+         predicted_Zlog10_relative_abundance) %>%
+  full_join( (fread(paste0(dir.ardata, "/ar_p4c_soma_d21only.csv.gz")) %>%
+     #filter(Aptamer_in_P4C == 1 & Aptamer_in_Lehallier2019 == 1) %>%
+     dplyr::select(LabID, Age, Sex, UniProt_Aptamer_Chr_Cluster,
+                   Lehallier2019_ClusterID, everything())),
+     by = c("LabID", "Age", "Sex", "UniProt_Aptamer_Chr_Cluster", "Lehallier2019_ClusterID")) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Lehallier2019_ClusterID,
+                P4C_Clock_Cluster, everything()) %>%
+  unique() %>%
+  #mutate(Clock_Cluster = case_when(is.na(Lehallier2019_ClusterID) ~ P4C_Clock_Cluster,
+  #                                 .default = Lehallier2019_ClusterID)) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Lehallier2019_ClusterID, P4C_Clock_Cluster, Clock_Cluster,
+                everything());
+
+
+# ar_p4c_soma_d21_clock_clusters_extended %>%
+#   dplyr::select(UniProt_Aptamer_Chr_Cluster, Lehallier2019_ClusterID, P4C_Clock_Cluster, Clock_Cluster) %>% unique() %>%
+#   split(., .$Clock_Cluster)
+
+#ar_p4c_soma_d21_clock_clusters_extended
+
+#setwd(dir.ardata)
+#fwrite(ar_p4c_soma_d21_clock_clusters_extended, "ar_p4c_soma_d21_clock_clusters_extended.csv.gz")
+
+setwd(dir.ardata)
+fwrite(ar_p4c_soma_d21only_aging_clusters, "ar_p4c_soma_d21only_aging_clusters.csv.gz")
+```
+
+#### ar_p4c_soma_d21_clock_clusters_extended
+```{r}
+
+```
+
+
+
+#### *Within T21s only*, cluster trajectories of all proteins measured in P4C, even if already clustered and reported in Lehallier et al., 2019
+```{R}
+ar_p4c_soma_t21only.split <- ar_p4c_soma_t21only %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.T21 <- list()
+predicted_newclusters.T21 <- list()
+plot_predicted_newclusters.T21 <- list()
+for ( i in 1:length(ar_p4c_soma_t21only.split) ){
+  set.seed(1234)
+
+  loess_newclusters.T21[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+                          data = ar_p4c_soma_t21only.split[[i]])
+  predicted_newclusters.T21[[i]] <- cbind(ar_p4c_soma_t21only.split[[i]]$LabID,
+                                        loess_newclusters.T21[[i]]$fitted,
+                                        ar_p4c_soma_t21only.split[[i]]$Zlog10_relative_abundance,
+                                        ar_p4c_soma_t21only.split[[i]]$Age,
+                                        as.character(ar_p4c_soma_t21only.split[[i]]$Sex)) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("LabID", "predicted_Zlog10_relative_abundance", "Zlog10_relative_abundance", "Age", "Sex")) %>%
+    mutate(Age = as.numeric(Age),
+           predicted_Zlog10_relative_abundance = as.numeric(predicted_Zlog10_relative_abundance),
+           Zlog10_relative_abundance = as.numeric(Zlog10_relative_abundance),
+           Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+    arrange(Age) %>%
+    mutate(UniProt_Aptamer_Chr_Cluster = names(ar_p4c_soma_t21only.split)[[i]]) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, everything())
+  
+  plot_predicted_newclusters.T21[[i]] <- predicted_newclusters.T21[[i]] %>%
+    ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+    geom_point(color = RedBlue[[1]], alpha = 0.5) +
+    geom_line(color = RedBlue[[1]]) +
+    ggtitle(names(predicted_newclusters.T21)[[i]])
+  
+  names(loess_newclusters.T21)[[i]] <- names(ar_p4c_soma_t21only.split)[[i]]
+  names(predicted_newclusters.T21)[[i]] <- names(ar_p4c_soma_t21only.split)[[i]]
+  names(plot_predicted_newclusters.T21)[[i]] <- names(ar_p4c_soma_t21only.split)[[i]]
+}
+
+predicted_newclusters.T21 %>% head()
+
+plot_predicted_newclusters.T21 %>% head()
+```
+
+
+#### f_p4c_soma_d21_clock_clusters_extended
+```{r}
+# KEEP:
+# set.seed(1234)
+# factoextra::fviz_cluster(object = list(data = predicted_newclusters.D21.matrix,
+#                                         cluster = cutree(hc1_newclusters.D21s, k = k.now)),
+#                          geom = "point",
+#                          repel = TRUE);
+
+f_p4c_soma_d21_clock_clusters_extended <- ar_p4c_soma_d21_clock_clusters_extended %>%
+  mutate(Clock_Cluster = paste0("Clock Cluster ", Clock_Cluster),
+         Clock_Cluster = factor(Clock_Cluster,
+                                levels = c(paste0("Clock Cluster ", seq(1:18))))) %>%
+  arrange(Clock_Cluster);
+
+# f_p4c_soma_d21_clock_clusters_extended
+
+#### Write ddata to file
+setwd(dir.ddata)
+fwrite(f_p4c_soma_d21_clock_clusters_extended, "f_p4c_soma_d21_clock_clusters_extended.csv.gz")
+```
+
+
+
+#### ARCHIVE
+
+#### (JK) Cluster protein trajectories NOT already clustered by Lehallier et al. 2019, within D21s only
+```{r}
+# setwd(dir.ardata)
+# ar_p4c_soma_d21only <- fread("ar_p4c_soma_d21only.csv.gz") %>%
+#   filter(Aptamer_in_P4C == 1 & Aptamer_in_Lehallier2019 == 0);
+# 
+# ar_p4c_soma_d21only.split <- ar_p4c_soma_d21only %>%
+#   split(., .$UniProt_Aptamer_Chr_Cluster)
+# 
+# # https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+# loess_newclusters.D21 <- list()
+# predicted_newclusters.D21 <- list()
+# plot_predicted_newclusters.D21 <- list()
+# for ( i in 1:length(ar_p4c_soma_d21only.split) ){
+#   set.seed(1234)
+# 
+#   loess_newclusters.D21[[i]] <- loess(Zlog10_relative_abundance ~ Age,
+#                           data = ar_p4c_soma_d21only_newclusters.split[[i]])
+#   predicted_newclusters.D21[[i]] <- cbind(ar_p4c_soma_d21only.split[[i]]$LabID,
+#                                         loess_newclusters.D21[[i]]$fitted,
+#                                         ar_p4c_soma_d21only.split[[i]]$Zlog10_relative_abundance,
+#                                         ar_p4c_soma_d21only.split[[i]]$Age,
+#                                         as.character(ar_p4c_soma_d21only.split[[i]]$Sex)) %>%
+#     as.data.frame() %>%
+#     `colnames<-`(c("LabID", "predicted_Zlog10_relative_abundance", "Zlog10_relative_abundance", "Age", "Sex")) %>%
+#     mutate(Age = as.numeric(Age),
+#            predicted_Zlog10_relative_abundance = as.numeric(predicted_Zlog10_relative_abundance),
+#            Zlog10_relative_abundance = as.numeric(Zlog10_relative_abundance),
+#            Sex = factor(Sex, levels = c("Male", "Female"))) %>%
+#     arrange(Age) %>%
+#     mutate(UniProt_Aptamer_Chr_Cluster = names(ar_p4c_soma_d21only.split)[[i]]) %>%
+#     dplyr::select(UniProt_Aptamer_Chr_Cluster, everything())
+#   
+#   plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+#     ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+#     geom_point(color = RedBlue[[1]], alpha = 0.5) +
+#     geom_line(color = RedBlue[[1]]) +
+#     ggtitle(names(predicted_newclusters.D21)[[i]])
+#   
+#   names(loess_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+#   names(predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+#   names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+# }
+# 
+# predicted_newclusters.D21 %>% head()
+# 
+# plot_predicted_newclusters.D21 %>% head()
+```
+

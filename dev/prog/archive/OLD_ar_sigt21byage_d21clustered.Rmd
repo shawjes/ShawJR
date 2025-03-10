@@ -1,0 +1,160 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata for clustering among D21s of protein trajectories with significant T21*Age interaction
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_sigt21byage_d21only_clustering_input <- fread("ar_p4c_soma_sigt21byage_d21only_clustering_input.csv.gz")
+
+head(ar_p4c_soma_sigt21byage_d21only_clustering_input)
+```
+
+#### Split ardata by UniProt_Aptamer_Chr_Cluster (used as uid used for convenience)
+```{r}
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split <- ar_p4c_soma_sigt21byage_d21only_clustering_input %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster);
+
+ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[1]] 
+```
+
+
+```{r}
+# https://purrr.tidyverse.org/reference/quietly.html
+quiet_loess <- purrr::quietly(loess)
+```
+
+#### For each aptamer with significant T21*Age interaction, obtain Loess predicted values for each D21
+```{r}
+# https://stackoverflow.com/questions/15337777/fit-a-line-with-loess-in-r
+loess_newclusters.D21 <- list()
+tmp.loess_prediction.D21.df <- list()
+loess_prediction.D21 <- list()
+#plot_predicted_newclusters.D21 <- list()
+for ( i in 1:length(ar_p4c_soma_sigt21byage_d21only_clustering_input.split) ){
+#for ( i in 1:3 ){
+  set.seed(1234)
+  tmp.loess_prediction.D21.df[[i]] <- ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]] %>%
+    mutate(predicted_Zlog10_relative_abundance = (loess(Zlog10_relative_abundance ~ Age + Female,
+                                                        # IMPORTANT: ADJUST FOR SEX FOR BETTER CLLUSTERING?
+                                                        data = ar_p4c_soma_sigt21byage_d21only_clustering_input.split[[i]]))$fitted);
+  # plot_predicted_newclusters.D21[[i]] <- predicted_newclusters.D21[[i]] %>%
+  #   ggplot(aes(x = Age, y = predicted_Zlog10_relative_abundance)) +
+  #   geom_point(color = RedBlue[[1]], alpha = 0.5) +
+  #   geom_line(color = RedBlue[[1]]) +
+  #   ggtitle(names(predicted_newclusters.D21)[[i]])
+  
+  #names(loess_prediction.D21)[[i]] <- names(ar_p4c_soma_d21only_extend_clustering.split)[[i]]
+  names(tmp.loess_prediction.D21.df)[[i]] <- names(ar_p4c_soma_sigt21byage_d21only_clustering_input.split)[[i]]
+  #names(plot_predicted_newclusters.D21)[[i]] <- names(ar_p4c_soma_d21only.split)[[i]]
+}
+#predicted_newclusters.D21 %>% head()
+#plot_predicted_newclusters.D21 %>% head()
+#tmp.loess_prediction.D21.df[[1]] %>% head()
+
+loess_prediction.D21.df <- tmp.loess_prediction.D21.df %>%
+  rbindlist();
+
+head(loess_prediction.D21.df)
+#rm(tmp.loess_prediction.D21.df); gc();
+
+loess_prediction.D21.matrix <- tmp.loess_prediction.D21.df %>%
+  rbindlist() %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, LabID, predicted_Zlog10_relative_abundance) %>%
+  unique() %>%
+  spread(key = LabID, value = predicted_Zlog10_relative_abundance) %>%
+  column_to_rownames(var = "UniProt_Aptamer_Chr_Cluster") %>%
+  as.matrix();
+#predicted.D21.matrix %>% as.data.frame()
+
+# Dissimilarity matrix:
+set.seed(1234)
+d_newclusters.D21s <- dist(loess_prediction.D21.matrix,
+                           method = "euclidean");
+# Hierarchical clustering using Complete Linkage:
+set.seed(1234)
+hc1_newclusters.D21s <- hclust(d_newclusters.D21s,
+                               method = "complete");
+```
+
+#### Decide how many T21-by-Age Clusters make sense
+```{r}
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 4, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 8, border = 1:8);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 9, border = 1:9);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 10, border = 1:10);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 11, border = 1:11);
+
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = 12, border = 1:12);
+
+k_hc1_newclusters.D21s <- 12
+plot(hc1_newclusters.D21s, cex = 0.1);
+rect.hclust(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s, border = 1:k_hc1_newclusters.D21s);
+```
+
+#### Use the cuttree function to assign aptamers to k=12 T21-by-Age Clusters ('ar_sigt21byage_d21clustered')
+```{r}
+k_hc1_newclusters.D21s <- 12
+
+ar_sigt21byage_d21clustered <- cutree(hc1_newclusters.D21s, k = k_hc1_newclusters.D21s) %>%
+    as.data.frame() %>%
+    `colnames<-`("T21-by-Age Cluster") %>%
+    rownames_to_column("UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(k = k_hc1_newclusters.D21s) %>%
+    ungroup() %>%
+  left_join( fread(paste0(dir.ardata, "/ar_p4c_soma.csv.gz")), by = "UniProt_Aptamer_Chr_Cluster" )
+
+head(ar_sigt21byage_d21clustered)
+
+# ar_sigt21byage_d21clustered
+```
+
+```{r}
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_d21clustered, "ar_sigt21byage_d21clustered.csv.gz")
+```
+

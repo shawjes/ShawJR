@@ -1,0 +1,14 @@
+Variable	Example	Description
+LabID	HTP0677B	Human Trisome Project sample/biospecimen identifier
+Sample_type	Plasma	Type of sample taken/extracted from biospecimen
+Platform	SOMAscan	Description of assay platform/strategy
+Aptamer	SERPINA3.4153.11	Unique SOMAmer detection reagent identifier
+GeneSymbol	SERPINA3	Gene symbol(s) corresponding to detected protein(s)
+UniProt	P01011	Uniprot protein identifier(s)
+Target	alpha-1-antichymotrypsin complex	Target protein/complex name
+TargetFullName	Alpha-1-antichymotrypsin complex	Target protein/complex name
+Units	relative abundance	Description of measurement units
+Value	1.319083834	Measurement value
+Data_contact	email address	Contact for queries about data set
+Date_exported	11102021	Date of data set preparation/export
+Script	HTP_data_Synapse_v0.1.R	Data preparation script

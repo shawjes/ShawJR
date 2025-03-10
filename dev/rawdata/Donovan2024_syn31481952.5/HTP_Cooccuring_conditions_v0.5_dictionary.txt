@@ -1,0 +1,7 @@
+Variable	Example	Description
+ParticipantID	HTP0274	Human Trisome Project participant identifier
+Condition	Aberrant subclavian artery	Name of co-occuring condition
+History_of_condition	FALSE	Current or past diagnosis for this condition?; NB: missing values (NA) should be treated as unknown
+Data_contact	matthew.galbraith@cuanschutz.edu	Contact for queries about data set
+Date_exported	06142022	Date of data set preparation/export
+Script	HTP_data_Synapse_v0.1.R	Data preparation script

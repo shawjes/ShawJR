@@ -1,0 +1,30 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+t_sigt21byage_cluster_gene_position %>%
+  dplyr::select(-c(Chr21)) %>%
+  mutate(tmp = gsub("q", "|q", genomic_position),
+         tmp = gsub("p", "|p", tmp)) %>%
+  separate(tmp, into = c("chromosome", "chromosome_band"), sep = "[|]", extra = "merge", remove = TRUE) %>%
+  mutate(chromosome_arm = case_when(grepl("p", genomic_position)==TRUE ~ "p",
+                                    grepl("q", genomic_position)==TRUE ~ "q",
+                                    .default = NA)) %>%
+  dplyr::select(T21byAge_Cluster, geneID, chromosome, chromosome_arm, chromosome_band) %>%
+  mutate(chromosome_band = gsub("q", "", chromosome_band),
+         chromosome_band = gsub("p", "", chromosome_band),
+         chromosome_band = as.numeric(chromosome_band)) %>%
+  group_by(chromosome, chromosome_arm) %>%
+  mutate(max_band = max(chromosome_band)) %>%
+  mutate(is_max_band = case_when(chromosome_band == max_band ~ 1, .default = 0)) %>%
+  ungroup() %>%
+  split(., .$chromosome)
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,1301 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Overview of fitted models
+##### Model A: Zlog10_relative_abundance ~ T21 + Age + Female
+###### Hypotheses tested by model:
+- Difference in the group mean of Zlog10_relative_abundance for T21 as compared to D21
+- Difference in the mean value of Zlog10_relative_abundance for each 1 year increase in age at blood draw (i.e., the slope for age)
+- Difference in the group mean of Zlog10_relative_abundance for females as compared to males
+
+##### Model B :Zlog10_relative_abundance ~ T21 + Age + Female + T21*Age
+###### Hypotheses tested by model:
+- Difference in the group mean of Zlog10_relative_abundance for T21 as compared to D21
+- Difference in the mean value of Zlog10_relative_abundance for each 1 year increase in age at blood draw (i.e., the slope for age)
+- Difference in the group mean of Zlog10_relative_abundance for females as compared to males
+- Difference in the slope for age among T21s, as compared to the slope for age among D21s
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+#dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1) %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)))
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata.split <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  filter(Aptamer_in_P4C == 1) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+# Note: the above two lines of code should be the only revision to ardata before modeling.
+
+ardata.split %>% rbindlist()
+```
+
+#### t_p4c_soma_lm_demog
+```{r}
+tmp <- ardata.split %>%
+  rbindlist() %>%
+  dplyr::select(LabID, Karyotype, Sex, Karyotype_Sex, D21_T21XX_T21XY,
+                T21, Female, Age) %>%
+  unique() %>%
+  group_by(Karyotype, Sex, Karyotype_Sex, D21_T21XX_T21XY,
+                T21, Female);
+
+q = c(0.05, 0.25, 0.5, 0.75, 0.95);
+
+t_p4c_soma_lm_demog <- tmp  %>% 
+  dplyr::summarize(N = n(),
+            min_Age = min(Age) %>% round(digits = 1),
+            mean_Age = mean(Age) %>% round(digits = 1),
+            median_Age = median(Age) %>% round(digits = 1),
+            max_Age = max(Age) %>% round(digits = 1),
+            sd_Age = sd(Age) %>% round(digits = 1),
+            percentile = q,
+                   percentile_Age = quantile(Age, probs = percentile)) %>%
+  arrange(percentile) %>%
+  mutate(percentile_Age = round(percentile_Age, digits = 1),
+         percentile = paste0("p", as.character(percentile*100), "_Age")) %>%
+  spread(key = percentile, value = percentile_Age) %>%
+  dplyr::select(names(.)[1:6],
+                N,
+                mean_Age,
+                sd_Age,
+                min_Age,
+                p5_Age, p25_Age, p50_Age, p75_Age, p95_Age, max_Age)
+
+t_p4c_soma_lm_demog
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_demog, "t_p4c_soma_lm_demog.csv.gz")
+```
+
+#### Vectorize and name the model formulas to be fit later in this script
+modelA: Zlog10_relative_abundance ~ T21 + Age + Female                                                   
+modelB: Zlog10_relative_abundance ~ T21 + Age + Female + T21*Age
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL) %>%
+  mutate(model_name = gsub("1", "A", model_name),
+         model_name = gsub("2", "B", model_name));
+model_formulas <- tmp$model_formula;
+names(model_formulas) <- tmp$model_name;
+
+#names(model_formulas)[[1]]
+#model_formulas[[1]]
+#names(model_formulas)[[2]]
+#model_formulas[[2]]
+#names(model_formulas)[[3]]
+#model_formulas[[3]]
+
+model_formulas
+```
+
+#### Evaluate cores available for performing analysis
+```{r}
+# https://future.futureverse.org/reference/plan.html
+# https://stackoverflow.com/questions/77244972/limit-of-workers-in-futureplan-function-higher-than-available-cpus-cores
+
+parallelly::availableCores()
+```
+
+
+#### vifdf()
+```{r}
+vifdf <- function(fit = fit,
+                   model_formula = model_formula) {
+  id <- unique(data$UniProt_Aptamer_Chr_Cluster);
+  df <- fit %>%
+    car::vif(type = "predictor") %>%
+    as.data.frame() %>%
+    rownames_to_column("variable") %>%
+    mutate(id = id) %>%
+    mutate(model_formula = model_formula) %>%
+    dplyr::select(model_formula, id, everything());
+  return(df)
+}
+```
+
+#### Run linear models pre-specified in '/docs/AnalysisTracker.xlsx'
+```{r, echo = F, results = F}
+options(future.globals.maxSize = 5e10);
+
+tdiff <- list()
+lm_fit <- list()
+lm_tidy <-list()
+lm_augment <- list()
+lm_glance <- list()
+lm_vif <- list()
+for ( i in 1:length(model_formulas) ) {
+#for ( i in 1:2 ) {
+  model_formula.now <- model_formulas[[i]]
+
+  t0 <- Sys.time()
+  set.seed(1234)
+  lm_fit[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .))
+  
+  lm_vif[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~car::vif(lm(as.formula(model_formula.now), data = .))) %>%
+    lapply(as.data.frame) %>%
+    lapply(rownames_to_column, "variable") %>%
+    rbindlist(fill = TRUE, idcol = "id") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything())
+  
+  lm_tidy[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  
+  lm_glance[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+
+  lm_augment[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+
+  t1 <- Sys.time();
+  
+  tdiff<- t1 - t0
+}
+
+t_p4c_soma_lm_singleaptamer_vif <- lm_vif %>%
+  rbindlist() %>%
+  dplyr::rename(VIF = `X[[i]]`,
+                UniProt_Aptamer_Chr_Cluster = id) %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+t_p4c_soma_lm_singleaptamer_vif %>%
+  group_by(model_formula, UniProt_Aptamer_Chr_Cluster) %>%
+  summarise(maxVIF = max(VIF)) %>%
+  ungroup() %>%
+  arrange(desc(maxVIF));
+# Note: All VIFs are <6 for all models and aptamers - both models are suitable for valid inferences.
+
+t_p4c_soma_lm_singleaptamer_tidy <- lm_tidy %>%
+  rbindlist() %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_glance <- lm_glance %>% rbindlist() %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+t_p4c_soma_lm_singleaptamer_augment <- lm_augment %>% rbindlist() %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_vif
+t_p4c_soma_lm_singleaptamer_tidy
+t_p4c_soma_lm_singleaptamer_glance
+t_p4c_soma_lm_singleaptamer_augment
+```
+
+#### Save output to files with prefix 't_p4c_soma_lm_singleaptamer_'
+```{r}
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_vif, "t_p4c_soma_lm_singleaptamer_vif.csv.gz")
+fwrite(t_p4c_soma_lm_singleaptamer_tidy, "t_p4c_soma_lm_singleaptamer_tidy.csv.gz")
+fwrite(t_p4c_soma_lm_singleaptamer_augment, "t_p4c_soma_lm_singleaptamer_augment.csv.gz")
+fwrite(t_p4c_soma_lm_singleaptamer_glance, "t_p4c_soma_lm_singleaptamer_glance.csv.gz")
+```
+
+
+#### Create listings of aptamers significantly associated with each model term and output to files with prefix 'l_p4c_soma_lm_singleaptamer_modela_'
+```{r}
+l_p4c_soma_lm_singleaptamer_modela_sigT21_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==FALSE & term == "T21" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+l_p4c_soma_lm_singleaptamer_modela_sigT21_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==FALSE & term == "T21" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_modela_sigAge_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==FALSE & term == "Age" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique();
+l_p4c_soma_lm_singleaptamer_modela_sigAge_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==FALSE & term == "Age" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_modela_sigFemale_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==FALSE & term == "Female" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+l_p4c_soma_lm_singleaptamer_modela_sigFemale_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==FALSE & term == "Female" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+modela_aptamer_lists <- list(l_p4c_soma_lm_singleaptamer_modela_sigT21_up,
+                             l_p4c_soma_lm_singleaptamer_modela_sigT21_down,
+                             l_p4c_soma_lm_singleaptamer_modela_sigAge_up,
+                             l_p4c_soma_lm_singleaptamer_modela_sigAge_down,
+                             l_p4c_soma_lm_singleaptamer_modela_sigFemale_up,
+                             l_p4c_soma_lm_singleaptamer_modela_sigFemale_down);
+names(modela_aptamer_lists) <- c("l_p4c_soma_lm_singleaptamer_modela_sigT21_up",
+                                 "l_p4c_soma_lm_singleaptamer_modela_sigT21_down",
+                                 "l_p4c_soma_lm_singleaptamer_modela_sigAge_up",
+                                 "l_p4c_soma_lm_singleaptamer_modela_sigAge_down",
+                                 "l_p4c_soma_lm_singleaptamer_modela_sigFemale_up",
+                                 "l_p4c_soma_lm_singleaptamer_modela_sigFemale_down")
+
+for ( i in 1:length(modela_aptamer_lists) ){
+  setwd(dir.ddata)
+  write.table(modela_aptamer_lists[[i]], paste0(names(modela_aptamer_lists)[[i]], ".txt"),
+              quote = FALSE,
+              row.names = FALSE,
+              col.names = FALSE)
+  }
+```
+
+#### Create listings of aptamers significantly associated with each model term and output to files with prefix 'l_p4c_soma_lm_singleaptamer_modelb_'
+```{r}
+l_p4c_soma_lm_singleaptamer_modelb_sigT21_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "T21" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+l_p4c_soma_lm_singleaptamer_modelb_sigT21_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "T21" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_modelb_sigT21byAge_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "T21:Age" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique();
+l_p4c_soma_lm_singleaptamer_modelb_sigT21byAge_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "T21:Age" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_modelb_sigAge_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Age" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique();
+l_p4c_soma_lm_singleaptamer_modelb_sigAge_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Age" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_modelb_sigFemale_up <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Female" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+l_p4c_soma_lm_singleaptamer_modelb_sigFemale_down <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Female" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+modelb_aptamer_lists <- list(l_p4c_soma_lm_singleaptamer_modelb_sigT21_up,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigT21_down,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigT21byAge_up,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigT21byAge_down,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigAge_up,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigAge_down,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigFemale_up,
+                             l_p4c_soma_lm_singleaptamer_modelb_sigFemale_down);
+names(modelb_aptamer_lists) <- c("l_p4c_soma_lm_singleaptamer_modelb_sigT21_up",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigT21_down",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigT21byAge_up",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigT21byAge_down",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigAge_up",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigAge_down",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigFemale_up",
+                                 "l_p4c_soma_lm_singleaptamer_modelb_sigFemale_down")
+
+for ( i in 1:length(modelb_aptamer_lists) ){
+  setwd(dir.ddata)
+  write.table(modelb_aptamer_lists[[i]], paste0(names(modelb_aptamer_lists)[[i]], ".txt"),
+              quote = FALSE,
+              row.names = FALSE,
+              col.names = FALSE)
+  }
+```
+
+
+#### MORE TO RUN LATER / MOVE TO OTHER SCRIPTS
+
+#### Later - generate all diagnostic plots
+```{r}
+# library(ggfortify)
+# 
+# autoplot() %>%
+# ardata.split[[100]] %>%
+#   lm(as.formula(model_formula.now), data = .) %>%
+#   autoplot(.,
+#            label.size = 0.5) +
+#   theme(aspect.ratio = 1.0) +
+#   ggtitle(unique(ardata.split[[100]]$Aptamer))
+
+# https://r4ds.github.io/bookclub-tmwr/inspecting-and-developing-models.html
+# A short recap of the 4 main diagnostic plots produced by plot() of a model object.
+# Residuals vs Fitted - to see if residuals have non-linear patterns. Good sign if you see equally spread residuals around a horizontal line without distinct patterns
+# normal Q-Q plot to see if both sets of residuals are identical, if the line is straight then sets come from normal distributions
+# Scale Location plot to see if residuals are spread evenly along ranges of predictors
+# good to check for assumptions of homoscedasticity (equal variance)
+# Residual vs Leverage plot helps to identify an influential cases (cases that don’t get along with the trend of the majority). these are identified by where residuals are located off the Cook’s distance line.
+```
+
+```{r}
+ardata.split %>%
+  rbindlist() %>%
+  filter(grepl("itochondria", TargetFullName)==TRUE) %>%
+  dplyr::select(Aptamer, `Chromosome(s)`, TargetFullName) %>%
+  unique();
+  
+t_p4c_soma_lm_singleaptamer_res_modelb_wide %>%
+  filter(grepl("ChrX[|]Y", UniProt_Aptamer_Chr_Cluster)==TRUE |
+           grepl("ChrXY", UniProt_Aptamer_Chr_Cluster)==TRUE |
+           grepl("Chr21", UniProt_Aptamer_Chr_Cluster)==TRUE | 
+           grepl("ChrMT", UniProt_Aptamer_Chr_Cluster)==TRUE) %>%
+  filter(PadjBH_T21byAge<0.10) %>%
+  left_join(ardata.split %>% rbindlist(), by = "UniProt_Aptamer_Chr_Cluster") %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+  geom_smooth(method = "loess", se = TRUE) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0) +
+  facet_wrap(~UniProt_Aptamer_Chr_Cluster)
+```
+
+```{r}
+# t_p4c_soma_lm_singleaptamer_tidy %>% filter(term == "T21:Age" & PadjBH < 0.10) %>% nrow() #[1] 850 
+
+#t_p4c_soma_lm_singleaptamer_res_cat <- 
+  t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("Zlog10"), contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21 = case_when(Zlog10FC_T21>0 ~ 1,
+                                  Zlog10FC_T21<0 ~ -1,
+                                  .default = Zlog10FC_T21),
+         
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age) >= 0.10 ~ 0, .default = 1),
+         Zlog10FC_Age = case_when(Zlog10FC_Age > 0 ~ 1,
+                                  Zlog10FC_Age < 0 ~ -1,
+                                  .default = Zlog10FC_Age),
+         
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21byAge = case_when(Zlog10FC_T21byAge > 0 ~ 1,
+                                  Zlog10FC_T21byAge < 0 ~ -1,
+                                  .default = Zlog10FC_T21byAge)) %>%
+  mutate(result_cat_T21 = PadjBH_T21*Zlog10FC_T21,
+         result_cat_Age = PadjBH_Age*Zlog10FC_Age,
+         result_cat_T21byAge = PadjBH_T21byAge*Zlog10FC_T21byAge, sep = " ") %>%
+  dplyr::select(starts_with("UniProt_"), contains("result_cat")) %>%
+  unique() %>%
+  arrange(result_cat_T21, result_cat_Age, result_cat_T21byAge) %>%
+  mutate(result_cat_T21 = case_when(result_cat_T21 == -1 ~ "T21(*-)",
+                                    result_cat_T21 == 1 ~ "T21(*+)",
+                                    .default = ""),
+         result_cat_Age = case_when(result_cat_Age == -1 ~ "Age(*-)",
+                                    result_cat_Age == 1 ~ "Age(*+)",
+                                    .default = ""),
+         result_cat_T21byAge = case_when(result_cat_T21byAge == -1 ~ "T21byAge(*-)",
+                                    result_cat_T21byAge == 1 ~ "T21byAge(*+)",
+                                    .default = "")) %>%
+  mutate(resultCat_T21_Age_T21byAge = paste(result_cat_T21, result_cat_Age, result_cat_T21byAge, sep = " ")) %>%
+  dplyr::select(resultCat_T21_Age_T21byAge) %>%
+  group_by(resultCat_T21_Age_T21byAge) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("Age", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("T21byAge", resultCat_T21_Age_T21byAge)==TRUE) %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub("; ; ", "; ", resultCat_T21_Age_T21byAge)) %>%
+  arrange(desc(N)) %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE)
+```
+
+```{r}
+# t_p4c_soma_lm_singleaptamer_tidy %>% filter(term == "T21:Age" & PadjBH < 0.10) %>% nrow() #[1] 850 
+
+t_p4c_soma_lm_singleaptamer_res_cat <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("Zlog10"), contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21 = case_when(Zlog10FC_T21>0 ~ 1,
+                                  Zlog10FC_T21<0 ~ -1,
+                                  .default = Zlog10FC_T21),
+         
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age) >= 0.10 ~ 0, .default = 1),
+         Zlog10FC_Age = case_when(Zlog10FC_Age > 0 ~ 1,
+                                  Zlog10FC_Age < 0 ~ -1,
+                                  .default = Zlog10FC_Age),
+         
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21byAge = case_when(Zlog10FC_T21byAge > 0 ~ 1,
+                                  Zlog10FC_T21byAge < 0 ~ -1,
+                                  .default = Zlog10FC_T21byAge)) %>%
+  mutate(result_cat_T21 = PadjBH_T21*Zlog10FC_T21,
+         result_cat_Age = PadjBH_Age*Zlog10FC_Age,
+         result_cat_T21byAge = PadjBH_T21byAge*Zlog10FC_T21byAge, sep = " ") %>%
+  #dplyr::select(starts_with("UniProt_"), contains("result_cat")) %>%
+  #unique() %>%
+  arrange(result_cat_T21, result_cat_Age, result_cat_T21byAge) %>%
+  mutate(result_cat_T21 = case_when(result_cat_T21 == -1 ~ "T21(*-)",
+                                    result_cat_T21 == 1 ~ "T21(*+)",
+                                    .default = ""),
+         result_cat_Age = case_when(result_cat_Age == -1 ~ "Age(*-)",
+                                    result_cat_Age == 1 ~ "Age(*+)",
+                                    .default = ""),
+         result_cat_T21byAge = case_when(result_cat_T21byAge == -1 ~ "T21byAge(*-)",
+                                    result_cat_T21byAge == 1 ~ "T21byAge(*+)",
+                                    .default = "")) %>%
+  mutate(resultCat_T21_Age_T21byAge = paste(result_cat_T21, result_cat_Age, result_cat_T21byAge, sep = "_")) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("result_cat"), contains("resultCat")) %>%
+  unique() %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub("__", " ", resultCat_T21_Age_T21byAge),
+         resultCat_T21_Age_T21byAge = gsub("_", " ", resultCat_T21_Age_T21byAge),
+         resultCat_T21_Age_T21byAge = trimws(resultCat_T21_Age_T21byAge))
+
+t_p4c_soma_lm_singleaptamer_res_cat$resultCat_T21_Age_T21byAge %>%
+  unique()
+
+t_p4c_soma_lm_singleaptamer_res_cat
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_cat, "t_p4c_soma_lm_singleaptamer_res_cat.csv.gz")
+```
+
+```{r}
+tmp <- t_p4c_soma_lm_singleaptamer_res_cat %>%
+  left_join(ardata.split %>% rbindlist(),
+            by = "UniProt_Aptamer_Chr_Cluster") %>%
+  dplyr::select(-c(starts_with("result_cat"))) %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("Age", resultCat_T21_Age_T21byAge)==TRUE)
+tmp.split <- tmp %>%
+  split(., .$resultCat_T21_Age_T21byAge)
+
+ggSig_lm <- tmp %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub(" ", "\n", resultCat_T21_Age_T21byAge)) %>%
+    as.data.frame() %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    geom_smooth(method = "lm", linetype = "dashed", se = TRUE,
+                size = 0.75) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "top") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~resultCat_T21_Age_T21byAge, nrow=3) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ggtitle("Age trajectories within result category");
+ggSig_loess <- tmp %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub(" ", "\n", resultCat_T21_Age_T21byAge)) %>%
+    as.data.frame() %>%
+    ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    geom_smooth(method = "loess", linetype = "dashed", se = TRUE,
+                size = 0.75) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "top") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~resultCat_T21_Age_T21byAge, nrow=3) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ggtitle("Age trajectories within result category");
+
+setwd(paste0(dir.project, "/output"))
+ggsave(ggSig_lm,
+         filename = "f_modelb_agetrajectory_by_resultcat_lm.png",
+         width = 11, height = 8.5, units = "in")
+
+setwd(paste0(dir.project, "/output"))
+ggsave(ggSig_loess,
+         filename = "f_modelb_agetrajectory_by_resultcat_loess.png",
+         width = 11, height = 8.5, units = "in")
+
+# ggSig_lm <- list()
+# ggSig_loess <- list()
+# for ( i in 1:length(tmp.split) ) {
+#   ggSig_lm[[i]] <- tmp.split[[i]] %>%
+#     as.data.frame() %>%
+#     ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+#     geom_smooth(method = "lm", linetype = "dashed", se = TRUE) +
+#     ggtitle(unique(tmp[[i]]$resultCat_T21_Age_T21byAge)) +
+#     theme(aspect.ratio = 1.0)
+#   
+#   ggSig_loess[[i]] <- tmp[[i]] %>%
+#     as.data.frame() %>%
+#     ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+#     #geom_point(size = 0.75, alpha = 0.5) +
+#     geom_smooth(method = "loess", se = TRUE) +
+#     ggtitle(unique(tmp[[i]]$resultCat_T21_Age_T21byAge)) +
+#     theme(aspect.ratio = 1.0)
+# }
+# ggSig_lm
+```
+
+```{r}
+t_p4c_soma_lm_singleaptamer_res_cat %>%
+  filter(resultCat_T21_Age_T21byAge != "" & grepl("T21", resultCat_T21_Age_T21byAge)==TRUE) %>%
+  split(., .$resultCat_T21_Age_T21byAge) %>%
+  head(n = 1) %>%
+  ggplot(aes(x = ))
+```
+
+
+```{r}
+
+%>%
+  group_by(resultCat_T21_Age_T21byAge) %>%
+  split(., .$resultCat_T21_Age_T21byAge)
+  summarise(N = n()) %>%
+  ungroup() %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("Age", resultCat_T21_Age_T21byAge)==TRUE |
+           grepl("T21byAge", resultCat_T21_Age_T21byAge)==TRUE) %>%
+  mutate(resultCat_T21_Age_T21byAge = gsub("; ; ", "; ", resultCat_T21_Age_T21byAge)) %>%
+  arrange(desc(N)) %>%
+  filter(grepl("T21", resultCat_T21_Age_T21byAge)==TRUE)
+```
+
+
+```{r}
+#t_p4c_soma_lm_singleaptamer_res_cat <- 
+  t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("Zlog10"), contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21 = case_when(Zlog10FC_T21>0 ~ 1,
+                                  Zlog10FC_T21<0 ~ -1,
+                                  .default = Zlog10FC_T21),
+         
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age) >= 0.10 ~ 0, .default = 1),
+         Zlog10FC_Age = case_when(Zlog10FC_Age > 0 ~ 1,
+                                  Zlog10FC_Age < 0 ~ -1,
+                                  .default = Zlog10FC_Age),
+         
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1),
+         Zlog10FC_T21byAge = case_when(Zlog10FC_T21byAge > 0 ~ 1,
+                                  Zlog10FC_T21byAge < 0 ~ -1,
+                                  .default = Zlog10FC_T21byAge)) %>%
+  mutate(result_cat_T21 = PadjBH_T21*Zlog10FC_T21,
+         result_cat_Age = PadjBH_Age*Zlog10FC_Age,
+         result_cat_T21byAge = PadjBH_T21byAge*Zlog10FC_T21byAge, sep = " ") %>%
+  dplyr::select(starts_with("UniProt_"), contains("result_cat")) %>%
+  unique() %>%
+  arrange(result_cat_T21, result_cat_Age, result_cat_T21byAge) %>%
+  mutate(resultCat_T21_Age_T21byAge = paste(result_cat_T21, result_cat_Age, result_cat_T21byAge, sep = " ")) %>%
+  dplyr::select(resultCat_T21_Age_T21byAge) %>%
+  group_by(resultCat_T21_Age_T21byAge) %>%
+  summarise(N = n())
+
+```
+
+```{r}
+# -1 -1 -1				
+# -1 -1 0				
+# -1 -1 1				
+# -1 0 -1				
+# -1 0 0				
+# -1 0 1				
+# -1 1 -1				
+# -1 1 0				
+# -1 1 1				
+# 0 -1 -1
+# 0 -1 0				
+# 0 -1 1				
+# 0 0 -1				
+# 0 0 0				
+# 0 0 1				
+# 0 1 -1				
+# 0 1 0				
+# 0 1 1				
+# 1 -1 -1				
+# 1 -1 0
+# 1 -1 1				
+# 1 0 -1				
+# 1 0 0				
+# 1 0 1				
+# 1 1 -1				
+# 1 1 0				
+# 1 1 1
+
+# PICK UP HERE (2/9/2025 ~ 950am MT)
+
+  mutate(significant_variables = case_when(tmp == "0 1 0" ~ "Age only",
+                                           tmp == "1 0 0" ~ "T21 only",
+                                           tmp == "0 0 0" ~ "None",
+                                           tmp == "1 0 1" ~ "T21; T21-by-Age",
+                                           tmp == "1 1 1" ~ "T21; Age; T21-by-Age",
+                                           tmp == "0 1 1" ~ "Age; T21-by-Age",
+                                           tmp == "1 1 0" ~ "T21; Age",
+                                           tmp == "0 0 1" ~ "T21-by-Age only",
+                                           .default = NA)) %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+  dplyr::select(-c(tmp)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+# PadjBH_T21  PadjBH_Age    PadjBH_T21byAge   # significant_variables
+# 0	          1		          0		              "Age only"
+# 1	          0		          0		              "T21 only"
+# 0	          0		          0		              "None"
+# 1	          0		          1		              "T21; T21-by-Age"
+# 1	        	1		          1		              "T21; Age; T21-by-Age"
+# 0	        	1		          1		              "Age; T21-by-Age"
+# 1	        	1		          0		              "T21; Age"
+# 0	        	0		          1		              "T21-by-Age only"
+
+t_p4c_soma_lm_singleaptamer_res_cat
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_cat, "t_p4c_soma_lm_singleaptamer_res_cat.csv.gz")
+```
+
+```{r}
+# t_p4c_soma_lm_singleaptamer_tidy %>% filter(term == "T21:Age" & PadjBH < 0.10) %>% nrow() #[1] 850 
+
+t_p4c_soma_lm_singleaptamer_res_cat <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  dplyr::select(-c(model_formula)) %>%
+  dplyr::select(-c(contains("Female"))) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, contains("PadjBH")) %>%
+  mutate(PadjBH_T21 = case_when(as.numeric(PadjBH_T21)>=0.10 ~ 0, .default = 1),
+         PadjBH_Age = case_when(as.numeric(PadjBH_Age)>=0.10 ~ 0, .default = 1),
+         PadjBH_T21byAge = case_when(as.numeric(PadjBH_T21byAge)>=0.10 ~ 0, .default = 1)) %>%
+  mutate(tmp = paste(PadjBH_T21, PadjBH_Age, PadjBH_T21byAge, sep = " ")) %>%
+  mutate(significant_variables = case_when(tmp == "0 1 0" ~ "Age only",
+                                           tmp == "1 0 0" ~ "T21 only",
+                                           tmp == "0 0 0" ~ "None",
+                                           tmp == "1 0 1" ~ "T21; T21-by-Age",
+                                           tmp == "1 1 1" ~ "T21; Age; T21-by-Age",
+                                           tmp == "0 1 1" ~ "Age; T21-by-Age",
+                                           tmp == "1 1 0" ~ "T21; Age",
+                                           tmp == "0 0 1" ~ "T21-by-Age only",
+                                           .default = NA)) %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+  dplyr::select(-c(tmp)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+# PadjBH_T21  PadjBH_Age    PadjBH_T21byAge   # significant_variables
+# 0	          1		          0		              "Age only"
+# 1	          0		          0		              "T21 only"
+# 0	          0		          0		              "None"
+# 1	          0		          1		              "T21; T21-by-Age"
+# 1	        	1		          1		              "T21; Age; T21-by-Age"
+# 0	        	1		          1		              "Age; T21-by-Age"
+# 1	        	1		          0		              "T21; Age"
+# 0	        	0		          1		              "T21-by-Age only"
+
+t_p4c_soma_lm_singleaptamer_res_cat
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_cat, "t_p4c_soma_lm_singleaptamer_res_cat.csv.gz")
+```
+
+```{r}
+t_p4c_soma_lm_singleaptamer_res_catn <- t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome,significant_variables) %>%
+  summarise(N_Aptamers = n()) %>%
+  arrange(desc(N_Aptamers)) %>%
+  ungroup()
+
+t_p4c_soma_lm_singleaptamer_res_catn
+
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_res_catn, "t_p4c_soma_lm_singleaptamer_res_catn.csv.gz")
+```
+
+```{r}
+#t_p4c_soma_lm_singleaptamer_res_catn <- 
+ggbar1 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`, color = significant_variables, fill = significant_variables)) +
+    geom_bar(stat = "identity",
+             position = "dodge") +
+    facet_wrap(~significant_variables, nrow = 2) +
+  ggtitle("Significant associations by chromosome");
+
+ggbar2 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = chr21, fill = chr21)) +
+    geom_bar(stat = "identity",
+             position = "stack") +
+  ggtitle("Significant associations by chromosome") +
+  facet_wrap(~significant_variables, nrow=2);
+
+ggbar3 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = chr21, fill = chr21)) +
+    geom_bar(stat = "identity",
+             position = "stack") +
+  ggtitle("Significant associations by chromosome") #+
+  #facet_wrap(~significant_variables, nrow=2);
+
+ggbar4 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  filter(!is.na(Chromosome)) %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+      dplyr::rename(`Significant\nassociations` = significant_variables) %>%
+  ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = `Significant\nassociations`, fill = `Significant\nassociations`)) +
+    geom_bar(stat = "identity",
+             position = "stack") +
+  ggtitle("Significant associations by chromosome") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  ylab("Significant Aptamers(%)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom"); 
+
+ggbar5 <-  t_p4c_soma_lm_singleaptamer_res_cat %>%
+  filter(!is.na(Chromosome)) %>%
+  group_by(Chromosome, significant_variables) %>%
+  summarise(N_Sig10PadjBH_Aptamers = n()) %>%
+  arrange(desc(N_Sig10PadjBH_Aptamers)) %>%
+  ungroup() %>%
+    mutate(significant_variables = factor(significant_variables,
+                                          levels = c("T21 only",
+                                                     "Age only",
+                                                     "T21-by-Age only",
+                                                     "T21; Age",
+                                                     "T21; Age; T21-by-Age",
+                                                     "T21; T21-by-Age",
+                                                     "Age; T21-by-Age",
+                                                     "None"))) %>%
+    arrange(Chromosome, significant_variables) %>%
+    ungroup() %>%
+    group_by(Chromosome) %>%
+    mutate(N_Aptamers_Total = sum(N_Sig10PadjBH_Aptamers)) %>%
+    ungroup() %>%
+    mutate(`Percent of chromosome Aptamers` = round(100*N_Sig10PadjBH_Aptamers/N_Aptamers_Total, digits = 2)) %>%
+  filter(significant_variables != "None") %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+  dplyr::rename(`Significant\nassociations` = significant_variables) %>%
+    ggplot(aes( x = Chromosome, y = `Percent of chromosome Aptamers`,
+                color = `Significant\nassociations`, fill = `Significant\nassociations`)) +
+    geom_bar(stat = "identity",
+             position = "dodge") +
+  ggtitle("Significant associations by chromosome") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  ylab("Significant Aptamers(%)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom");
+
+ggbar1
+ggbar2
+ggbar3
+ggbar4 # KEEPER
+ggbar5
+```
+
+```{r}
+ggdata_loess_T21byAgeOnly <- rbindlist(ardata.split) %>%
+  filter(UniProt_Aptamer_Chr_Cluster %in%
+           c((t_p4c_soma_lm_singleaptamer_res_cat %>%
+                filter(significant_variables == "T21-by-Age only") %>%
+                dplyr::select(UniProt_Aptamer_Chr_Cluster) %>%
+                unique())$UniProt_Aptamer_Chr_Cluster))
+
+ggdata_loess_T21byAgeOnly %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster) %>%
+  unique() %>%
+  nrow() # 269
+```
+
+
+#### Barplot chrommosomal distribution of sigT21
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0, size = 12), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 12), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ));
+#### Barplot chrommosomal distribution of sigT21byAge
+ggdata_sigT21_updown <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  mutate(tmp = case_when(as.numeric(PadjBH_T21)<0.10 & Zlog10FC_T21> 0 ~ 1, 
+                                as.numeric(PadjBH_T21)<0.10 & Zlog10FC_T21< 0 ~ -1, 
+                                .default = 0),
+         tmp = as.character(tmp),
+         sigT21_cat = case_when(tmp == "1" ~ "Significantly up",
+                                tmp == "-1" ~ "Significantly down",
+                                .default = "Not significant"),
+         sigT21_cat = factor(sigT21_cat, levels = c("Significantly up", "Significantly down", "Not significant"))) %>%
+  group_by(Chromosome, sigT21_cat) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  group_by(Chromosome) %>%
+  mutate(N_Chromosome_Aptamers_Total = sum(N)) %>%
+  ungroup() %>%
+  filter(sigT21_cat != "Not significant") %>%
+  dplyr::rename(N_Sig10PadjBH_T21 = N) %>%
+  #dplyr::select(-c(sigT21_cat)) %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21 = round(100*N_Sig10PadjBH_T21/N_Chromosome_Aptamers_Total, digits = 1)) %>%
+  dplyr::rename(`Encoding chromosome` = Chromosome);
+
+ggdata_sigT21_updown %>%
+  filter(grepl(21, `Encoding chromosome`)==TRUE)
+
+# KEEPER!
+ggbar1_sigT21_updown <- ggdata_sigT21_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+              width = 0.6,
+              color = sigT21_cat, fill = sigT21_cat)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Chromosomal encoding of proteins with significantly\ndifferential abundance in T21 (PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0))  +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+ggbar2_sigT21_updown <- ggdata_sigT21_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+              width = 0.6,
+              color = sigT21_cat, fill = sigT21_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significantly\ndifferential abundance in T21 (PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0))  +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+ggbar3_sigT21_updown <- ggdata_sigT21_updown %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21 = case_when(grepl("down", sigT21_cat)==TRUE ~
+                                                                    -1*Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+                                                                  .default = Pct_Chromosome_Aptamers_Sig10PadjBH_T21)) %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21,
+              width = 0.6,
+              color = sigT21_cat, fill = sigT21_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significantly\ndifferential abundance in T21 (PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0))  +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  labs(caption = element_text(
+    "*Significant aptamers as a percentage of total aptamers encoded by the chromosome.
+*For aptamers with significant T21 association (PadjBH<0.10) and Zlog10FC>0,\nthe percentage of chromosomal aptamers is displayed as +1*(sum(Percentage)).
+*For aptamers with significant T21 association (PadjBH<0.10) and Zlog10FC<0,\nthe percentage of chromosomal aptamers is displayed as -1*(sum(Percentage))."));
+
+ggbar1_sigT21_updown
+ggbar2_sigT21_updown
+ggbar3_sigT21_updown
+```
+
+```{r}
+setwd(dir.ddata)
+t_p4c_soma_lm_singleaptamer_res_wide <- fread("t_p4c_soma_lm_singleaptamer_res_wide.csv.gz")
+
+t_p4c_soma_lm_singleaptamer_res_wide %>%
+  filter(PadjBH_T21<0.10 & Zlog10FC_T21<0)
+```
+
+#### Barplot chrommosomal distribution of sigT21byAge
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0, size = 12), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 12), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ));
+
+ggdata_sigT21byAge_updown <- t_p4c_soma_lm_singleaptamer_res_wide %>%
+  mutate(tmp = case_when(as.numeric(PadjBH_T21byAge)<0.10 & ZlogFC_T21byAge> 0 ~ 1, 
+                                as.numeric(PadjBH_T21byAge)<0.10 & ZlogFC_T21byAge< 0 ~ -1, 
+                                .default = 0),
+         tmp = as.character(tmp),
+         sigT21byAge_cat = case_when(tmp == "1" ~ "Significantly up",
+                                tmp == "-1" ~ "Significantly down",
+                                .default = "Not significant"),
+         sigT21byAge_cat = factor(sigT21byAge_cat, levels = c("Significantly up", "Significantly down", "Not significant"))) %>%
+  group_by(Chromosome, sigT21byAge_cat) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  group_by(Chromosome) %>%
+  mutate(N_Chromosome_Aptamers_Total = sum(N)) %>%
+  ungroup() %>%
+  filter(sigT21byAge_cat != "Not significant") %>%
+  dplyr::rename(N_Sig10PadjBH_T21byAge = N) %>%
+  #dplyr::select(-c(sigT21_cat)) %>%
+  mutate(chr21 = case_when(Chromosome==21 ~ "Chromosome 21",
+                             .default = "Other"),
+         chr21 = factor(chr21, levels = c("Chromosome 21", "Other"))) %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge = round(100*N_Sig10PadjBH_T21byAge/N_Chromosome_Aptamers_Total, digits = 1)) %>%
+  dplyr::rename(`Encoding chromosome` = Chromosome)
+
+# KEEPER!
+ggbar1_sigT21byAge_updown <- ggdata_sigT21byAge_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+              width = 0.6,
+              color = sigT21byAge_cat, fill = sigT21byAge_cat)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Chromosomal encoding of proteins with significant T21-by-Age\ninteractions\n(PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  #labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome.")) +
+  labs(caption = element_text(
+    "*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+# KEEPER!
+ggbar2_sigT21byAge_updown <- ggdata_sigT21byAge_updown %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+              width = 0.6,
+              color = sigT21byAge_cat, fill = sigT21byAge_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significant T21-by-Age\ninteractions\n(PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = element_text("*Significant aptamers as a percentage of total aptamers encoded by the chromosome."));
+
+ggbar3_sigT21byAge_updown <- ggdata_sigT21byAge_updown %>%
+  mutate(Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge = case_when(grepl("down", sigT21byAge_cat)==TRUE ~
+                                                                    -1*Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+                                                                  .default = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge)) %>%
+  ggplot(aes( x = `Encoding chromosome`, y = Pct_Chromosome_Aptamers_Sig10PadjBH_T21byAge,
+              width = 0.6,
+              color = sigT21byAge_cat, fill = sigT21byAge_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Chromosomal encoding of proteins with significant T21-by-Age\ninteractions\n(PadjBH<0.10)") +
+  ylab("Significant Aptamers (%*)") +
+  scale_x_continuous("Encoding chromosome", 
+                       labels = c( as.character(seq(1, 21, by=1)), "X", "Y", "XY", "MT"),
+                       breaks = seq(1, 25, by = 1), 
+                       expand=c(0,0)) +
+  theme(aspect.ratio = 0.5,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = element_text(
+    "*Significant aptamers as a percentage of total aptamers encoded by the chromosome.
+*For aptamers with significant T21-by-Age interaction (PadjBH<0.10) and Zlog10FC>0,\nthe percentage of chromosomal aptamers is displayed as +1*(sum(Percentage)).
+*For aptamers with significant T21-by-Age interaction (PadjBH<0.10) and Zlog10FC<0,\nthe percentage of chromosomal aptamers is displayed as -1*(sum(Percentage))."));
+
+ggbar1_sigT21byAge_updown
+ggbar2_sigT21byAge_updown
+ggbar3_sigT21byAge_updown # KEEPER
+```
+

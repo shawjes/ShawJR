@@ -1,0 +1,1924 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_d21t21clustered <- fread("ar_sigt21byage_d21t21clustered.csv.gz")
+ar_nonsigt21byage_d21t21clustered <- fread("ar_nonsigt21byage_d21t21clustered.csv.gz")
+
+head(ar_sigt21byage_d21t21clustered)
+head(ar_nonsigt21byage_d21t21clustered)
+```
+
+#### Evaluate if we have 1:1 mapping of SomaLogic Aptamers to Gene Symbols (spoiler: we don't)
+```{r}
+ar_sigt21byage_d21t21clustered %>%
+  dplyr::select(T21byAge_Cluster, N_Cluster_Aptamers, GeneSymbol) %>%
+  unique() %>%
+  group_by(T21byAge_Cluster, N_Cluster_Aptamers) %>%
+  summarise(N_Cluster_GeneSymbols = n()) %>%
+  ungroup() %>%
+  mutate(delta = N_Cluster_Aptamers - N_Cluster_GeneSymbols) %>%
+  arrange(desc(delta)) %>%
+  filter(delta > 0) %>%
+  left_join(ar_sigt21byage_d21t21clustered %>%
+              dplyr::select(T21byAge_Cluster, N_Cluster_Aptamers, Aptamer, GeneSymbol, UniProt) %>%
+              unique(),
+            by = c("T21byAge_Cluster", "N_Cluster_Aptamers")) %>%
+  arrange(Aptamer, GeneSymbol) %>%
+  group_by(GeneSymbol, T21byAge_Cluster, N_Cluster_Aptamers, N_Cluster_GeneSymbols) %>%
+  summarise(N_Aptamers_per_GeneSymbol = n(),
+            Aptamers_for_GeneSymbol = paste(Aptamer, collapse = "; ")) %>%
+  ungroup() %>%
+  filter(N_Aptamers_per_GeneSymbol != 1) %>%
+  dplyr::select(T21byAge_Cluster,
+                N_Cluster_Aptamers,
+                N_Cluster_GeneSymbols,
+                GeneSymbol,
+                N_Aptamers_per_GeneSymbol,
+                Aptamers_for_GeneSymbol) %>%
+  split(., .$T21byAge_Cluster)
+```
+
+
+```{r}
+# setwd(dir.ddata)
+# fn.gene_list <- list("l_sigt21byage_cluster_A.txt",
+#                    "l_sigt21byage_cluster_B.txt",                     
+#                    "l_sigt21byage_cluster_C.txt",
+#                    "l_sigt21byage_cluster_D.txt",
+#                    "l_sigt21byage_cluster_E.txt",
+#                    "l_sigt21byage_cluster_F.txt",
+#                    "l_sigt21byage_cluster_G.txt",
+#                    "l_sigt21byage_cluster_H.txt",
+#                    "l_sigt21byage_cluster_I.txt",
+#                    "l_sigt21byage_cluster_J.txt",
+#                    "l_sigt21byage_cluster_K.txt",
+#                    "l_sigt21byage_cluster_L.txt",
+#                    "l_sigt21byage_cluster_M.txt",
+#                    "l_sigt21byage_cluster_N.txt")
+# setwd(dir.ddata)
+# gene_lists <- fn.gene_list %>%
+#   lapply(fread, header = FALSE)
+# names(gene_lists) <- c("A", "B", "C", "D", "E",
+#                        "F", "G", "H", "I", "J",
+#                        "K", "L", "M", "N")
+# gene_lists
+
+# gene_lists <- ar_sigt21byage_d21t21clustered %>%
+#   dplyr::select(GeneSymbol, T21byAge_SuperCluster) %>%
+#   unique() %>%
+#   split(., .$T21byAge_SuperCluster)
+
+all_genes <- rbind( (ar_sigt21byage_d21t21clustered %>%
+          filter(GeneSymbol!="" & !is.na(GeneSymbol)) %>%
+          dplyr::select(GeneSymbol, T21byAge_SuperCluster) %>%
+          unique() %>%
+          dplyr::rename(DA_DS_Cluster = T21byAge_SuperCluster)),
+       (ar_nonsigt21byage_d21t21clustered %>%
+          filter(GeneSymbol!="" & !is.na(GeneSymbol)) %>%
+          dplyr::select(GeneSymbol, nonsig_T21byAge_Cluster) %>%
+          unique() %>%
+          dplyr::rename(DA_DS_Cluster = nonsig_T21byAge_Cluster)) ) %>%
+  mutate(Gene_set = "All genes") %>%
+  unique();
+
+all_sigt21byage_genes <- (ar_sigt21byage_d21t21clustered %>%
+          filter(GeneSymbol!="" & !is.na(GeneSymbol)) %>%
+          dplyr::select(GeneSymbol, T21byAge_SuperCluster) %>%
+          unique() %>%
+          dplyr::rename(DA_DS_Cluster = T21byAge_SuperCluster)) %>%
+  mutate(Gene_set = "All genes with significant T21*Age interaction (PadjBH<0.05)") %>%
+  unique()
+all_nonsigt21byage_genes <- (ar_nonsigt21byage_d21t21clustered %>%
+          filter(GeneSymbol!="" & !is.na(GeneSymbol)) %>%
+          dplyr::select(GeneSymbol, nonsig_T21byAge_Cluster) %>%
+          unique() %>%
+          dplyr::rename(DA_DS_Cluster = nonsig_T21byAge_Cluster)) %>%
+  mutate(Gene_set = "All genes with no significant T21*Age interaction (PadjBH>=0.05)")
+
+daDS_cluster_genes <- rbind( (ar_sigt21byage_d21t21clustered %>%
+          filter(GeneSymbol!="" & !is.na(GeneSymbol)) %>%
+          dplyr::select(GeneSymbol, T21byAge_SuperCluster) %>%
+          unique() %>%
+          dplyr::rename(DA_DS_Cluster = T21byAge_SuperCluster)),
+       (ar_nonsigt21byage_d21t21clustered %>%
+          filter(GeneSymbol!="" & !is.na(GeneSymbol)) %>%
+          dplyr::select(GeneSymbol, nonsig_T21byAge_Cluster) %>%
+          unique() %>%
+          dplyr::rename(DA_DS_Cluster = nonsig_T21byAge_Cluster)) ) %>%
+  unique() %>%
+  mutate(Gene_set = paste0("DA-DS Cluster ", DA_DS_Cluster))
+
+gene_lists <- list(all_genes,
+                   all_sigt21byage_genes,
+                   all_nonsigt21byage_genes,
+                   daDS_cluster_genes) %>%
+  rbindlist() %>%
+  split(., .$Gene_set)
+
+names(gene_lists)
+```
+
+
+#### Prepare background genes (https://biostatsquid.com/pathway-enrichment-analysis-tutorial-clusterprofiler/)
+```{r}
+# Set input path
+#in_path <- "Datasets/" # input path, where your data is located
+#out_path <- "PEA/Results/" # output path, where you want your results exported to
+#bg_path <- "PEA/Background_genes/" # folder with your background genes used for PEA
+
+bg_path <- "~/Dropbox/ShawJR/2025/dev/background_gene_sets"
+out_gsea_path <- "~/Dropbox/ShawJR/2025/dev/output/gsea"
+
+#### GSEA for significant T21-by-Age interactions (UP)
+# Settings
+# Get the genes that are present in your dataframe
+setwd(bg_path)
+# H: hallmark gene sets
+bg_genes.h <- read.gmt("h.all.v2024.1.Hs.symbols.gmt")
+# C1: positional gene sets
+bg_genes.c1 <- read.gmt("c1.all.v2024.1.Hs.symbols.gmt")
+# C2: curated gene sets
+bg_genes.c2 <- read.gmt("c2.all.v2024.1.Hs.symbols.gmt")
+#bg_genes.c2_reactome <- read.gmt("c2.cp.reactome.v2024.1.Hs.symbols.gmt")
+#bg_genes.c2_canonicalpathways <- read.gmt("c2.cp.v2024.1.Hs.symbols.gmt")
+#bg_genes.c2_kegg_medicus <- read.gmt("c2.cp.kegg_medicus.v2024.1.Hs.symbols.gmt")
+# C3: regulatory target gene sets
+bg_genes.c3 <- read.gmt("c3.all.v2024.1.Hs.symbols.gmt")
+# C3: regulatory target gene sets / MIR: microRNA targets
+#bg_genes.c3_mir <- read.gmt("c3.mir.v2024.1.Hs.symbols.gmt")
+# C3: regulatory target gene sets / TFT: transcription factor targets
+#bg_genes.c3_tft <- read.gmt("c3.tft.v2024.1.Hs.symbols.gmt")
+
+# C4: computational gene sets
+bg_genes.c4 <- read.gmt("c4.all.v2024.1.Hs.symbols.gmt")
+# CM: cancer modules
+#bg_genes.c4_cancermodues <- read.gmt("c4.cm.v2024.1.Hs.symbols.gmt")
+# 3CA: Curated Cancer Cell Atlas
+#bg_genes.c4_canceratlas <- read.gmt("c4.3ca.v2024.1.Hs.symbols.gmt")
+
+# C5: ontology gene sets
+#bg_genes.c5 <- read.gmt("c5.all.v2024.1.Hs.symbols.gmt")
+# C5: ontology gene sets - GO: Gene Ontology gene sets
+bg_genes.c5_go <- read.gmt("c5.go.v2024.1.Hs.symbols.gmt")
+# C5: ontology gene sets - Biological Pathway (BP): subset of GO
+#bg_genes.c5_biopathway <- read.gmt("c5.go.bp.v2024.1.Hs.symbols.gmt")
+# C5: ontology gene sets - Cellular Component (CC): subset of GO
+#bg_genes.c5_cellularcomponent <- read.gmt("c5.go.cc.v2024.1.Hs.symbols.gmt")
+# C5: ontology gene sets - Molecular Function (MF): subset of GO
+bg_genes.c5_molecularfunction <- read.gmt("c5.go.mf.v2024.1.Hs.symbols.gmt")
+# C5: ontology gene sets - HPO: Human Phenotype Ontology
+bg_genes.c5_hpo <- read.gmt("c5.hpo.v2024.1.Hs.symbols.gmt")
+
+# C6: oncogenic signature gene sets
+bg_genes.c6_oncogenicsig <- read.gmt("c6.all.v2024.1.Hs.symbols.gmt")
+
+# C7: immunologic signature gene sets
+#bg_genes.c7 <- read.gmt("c7.all.v2024.1.Hs.symbols.gmt")
+# ImmuneSigDB subset of C7 (Gene sets representing chemical and genetic perturbations of the immune system generated by manual curation of published studies in human and mouse immunology.)
+bg_genes.c7_immunesig <- read.gmt("c7.immunesigdb.v2024.1.Hs.symbols.gmt")
+
+# C8: cell type signature gene sets
+bg_genes.c8 <- read.gmt("c8.all.v2024.1.Hs.symbols.gmt")
+```
+
+```{r}
+background_gene_lists <- list(bg_genes.c1,
+                              
+                              bg_genes.c2,
+                              #bg_genes.c2_canonicalpathways,			
+                              #bg_genes.c2_kegg_medicus,		
+                              #bg_genes.c2_reactome,		
+                              
+                              bg_genes.c3,
+                              #bg_genes.c3_mir,	
+                              #bg_genes.c3_tft,
+                              
+                              bg_genes.c4,
+                              #bg_genes.c4_canceratlas,				
+                              #bg_genes.c4_cancermodues,
+                              
+                              bg_genes.c5_go,
+                              #bg_genes.c5_biopathway,			
+                              #bg_genes.c5_cellularcomponent,
+                              #bg_genes.c5_molecularfunction,
+                              bg_genes.c5_hpo,				
+                              
+                              bg_genes.c6_oncogenicsig,	
+                              bg_genes.c7_immunesig,		
+                              bg_genes.c8,
+                              bg_genes.h);
+
+#names(background_gene_lists) <- ls(pattern = "bg_genes")
+#names(background_gene_lists) <- gsub("bg_genes.", "", names(background_gene_lists))
+
+names(background_gene_lists) <- c("c1",
+                                  "c2",
+                                  "c3",
+                                  "c4",
+                                  "c5_go",
+                                  "c5_hpo",				
+                                  "c6_oncogenicsig",	
+                                  "c7_immunesig",		
+                                  "c8",
+                                  "h");
+
+background_gene_lists %>% rbindlist(idcol = "id")
+
+
+names(background_gene_lists) %>%
+  as.data.frame()
+
+background_gene_lists %>% lapply(tail, n=100)
+
+background_gene_lists$h %>%
+  dplyr::select(term) %>%
+  unique()
+```
+
+#### Derive sensible minimum and maximum gene set sizes to be tested by enricher function below
+```{r}
+# tmp <- ar_sigt21byage_d21t21clustered %>%
+#   dplyr::select(T21byAge_Cluster, N_Cluster_Aptamers) %>%
+#   unique() %>%
+#   mutate(minGSSize = case_when(N_Cluster_Aptamers<10 ~ N_Cluster_Aptamers,
+#                                .default = ceiling(0.5*N_Cluster_Aptamers)),
+#          maxGSSize = 500) %>%
+#   arrange(T21byAge_Cluster)
+# 
+# T21byAge_Cluster_minGSSize <- tmp$minGSSize
+# T21byAge_Cluster_maxGSSize <- tmp$maxGSSize
+```
+
+```{r}
+enricher(gene = (gene_lists%>% rbindlist())$GeneSymbol,
+              TERM2GENE = bg_genes.h,
+              #minGSSize = T21byAge_Cluster_minGSSize[[i]],
+              #maxGSSize = T21byAge_Cluster_maxGSSize[[i]],
+              #pvalueCutoff = 0.10,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH") %>%
+  as.data.frame() %>%
+  `rownames<-`(NULL)
+
+ar_sigt21byage_d21t21clustered %>%
+  dplyr::select(T21byAge_SuperCluster, Aptamer, `Chromosome(s)`, Chromosome) %>%
+  unique() %>%
+  group_by(T21byAge_SuperCluster, `Chromosome(s)`, Chromosome) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  arrange(T21byAge_SuperCluster, `Chromosome(s)`) %>%
+  split(., .$T21byAge_SuperCluster)
+
+ar_sigt21byage_d21t21clustered %>%
+  filter(`Chromosome(s)`=="Y") %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_point(size = 0.75) +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme(aspect.ratio = 1.0)
+```
+
+#### New code:
+```{r}
+# https://carpentries-incubator.github.io/bioc-rnaseq/instructor/06-gene-set-analysis.html#choose-a-proper-universe
+c1 <- list()	
+c2 <- list()				
+c3 <- list()	
+c4 <- list()
+c5_go <- list()	
+c5_hpo <- list()	
+c6_oncogenicsig <- list()	
+c7_immunesig <- list()	
+c8 <- list()	
+h <- list()	
+for ( i in 1:length(gene_lists) ) {
+  set.seed(1234)
+  # c1
+  c1[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol, # Note: V1 is GeneSymbol
+            TERM2GENE = bg_genes.c1, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+              #minGSSize = T21byAge_Cluster_minGSSize[[i]],
+              #maxGSSize = T21byAge_Cluster_maxGSSize[[i]],
+              #pvalueCutoff = 0.10,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+             pAdjustMethod = "BH"))@result );
+  names(c1)[[i]] <- paste("c1_", names(gene_lists)[[i]], sep = "|");
+
+  c2[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+            TERM2GENE = bg_genes.c2,
+            pvalueCutoff = 1.0,
+             qvalueCutoff = 1,
+            pAdjustMethod = "BH"))@result);
+  names(c2)[[i]] <- paste("c2_", names(gene_lists)[[i]], sep = "|");
+
+  c3[[i]] <- try( (enricher(gene = gene_lists[[i]]$V1,
+              TERM2GENE = bg_genes.c3,
+            pvalueCutoff = 1.0,
+             qvalueCutoff = 1,
+              pAdjustMethod = "BH"))@result);
+  names(c3)[[i]] <- paste("c3_mir", names(gene_lists)[[i]], sep = "|");
+  
+  # c4_canceratlas       
+  c4[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.c4,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(c4)[[i]] <- paste("c4_", names(gene_lists)[[i]], sep = "|");
+
+  # c5_go				
+  c5_go[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.c5_go,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(c5_go)[[i]] <- paste("c5_go",
+                                        names(gene_lists)[[i]],
+                                        sep = "|");
+  # c5_hpo				
+  c5_hpo[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.c5_hpo,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(c5_hpo)[[i]] <- paste("c5_hpo",
+                                        names(gene_lists)[[i]],
+                                        sep = "|");
+  # c6_oncogenicsig				
+  c6_oncogenicsig[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.c6_oncogenicsig,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(c6_oncogenicsig)[[i]] <- paste("c6_oncogenicsig",
+                                        names(gene_lists)[[i]],
+                                        sep = "|");
+  # c7_immunesig				
+  c7_immunesig[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.c7_immunesig,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(c7_immunesig)[[i]] <- paste("c7_immunesig",
+                                        names(gene_lists)[[i]],
+                                        sep = "|");
+  # c8				
+  c8[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.c8,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(c8)[[i]] <- paste("c8", names(gene_lists)[[i]], sep = "|");
+  # h
+  h[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+              TERM2GENE = bg_genes.h,
+            pvalueCutoff = 1.0,
+            qvalueCutoff = 1,
+               pAdjustMethod = "BH"))@result);
+  names(h)[[i]] <- paste("h", names(gene_lists)[[i]], sep = "|")
+}
+
+```
+
+
+#### Code for original results sent to Kate Waugh:
+```{r}
+# https://carpentries-incubator.github.io/bioc-rnaseq/instructor/06-gene-set-analysis.html#choose-a-proper-universe
+
+# c1 <- list()	
+# c2_canonicalpathways <- list()				
+# c2_kegg_medicus <- list()	
+# c2_reactome <- list()	
+# c3_mir <- list()	
+# c3_tft <- list()	
+# c4_canceratlas <- list()			
+# c4_cancermodues <- list()	
+# c5_biopathway <- list()	
+# c5_cellularcomponent <- list()	
+# c5_go <- list()	
+# c5_hpo <- list()	
+# c5_molecularfunction <- list()					
+# c6_oncogenicsig <- list()	
+# c7_immunesig <- list()	
+# c8 <- list()	
+# h <- list()	
+# for ( i in 1:length(gene_lists) ) {
+#   set.seed(1234)
+#   # c1
+#   c1[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol, # Note: V1 is GeneSymbol
+#             TERM2GENE = bg_genes.c1,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#              pAdjustMethod = "BH"))@result );
+#   names(c1)[[i]] <- paste("c1_", names(gene_lists)[[i]], sep = "|");
+# 
+#   # c2_canonicalpathways
+#   c2_canonicalpathways[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#             TERM2GENE = bg_genes.c2_canonicalpathways,
+#             pvalueCutoff = 1.0,
+#              qvalueCutoff = 1,
+#             pAdjustMethod = "BH"))@result);
+#   names(c2_canonicalpathways)[[i]] <- paste("c2_canonicalpathways_",
+#                                              names(gene_lists)[[i]], sep = "|");
+#   # c2_kegg_medicus
+#   c2_kegg_medicus[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c2_kegg_medicus,
+#             pvalueCutoff = 1.0,
+#              qvalueCutoff = 1,
+#               pAdjustMethod = "BH"))@result);
+#   names(c2_kegg_medicus)[[i]] <- paste("c2_kegg_medicus_", names(gene_lists)[[i]], sep = "|");
+#   # c2_reactome
+#   c2_reactome[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c2_reactome,
+#             pvalueCutoff = 1.0,
+#              qvalueCutoff = 1,
+#               pAdjustMethod = "BH"))@result);
+#   names(c2_reactome)[[i]] <- paste("c2_reactome_", names(gene_lists)[[i]], sep = "|");
+#   # gsea_c3_mir               
+#   c3_mir[[i]] <- try( (enricher(gene = gene_lists[[i]]$V1,
+#               TERM2GENE = bg_genes.c3_mir,
+#             pvalueCutoff = 1.0,
+#              qvalueCutoff = 1,
+#               pAdjustMethod = "BH"))@result);
+#   names(c3_mir)[[i]] <- paste("c3_mir", names(gene_lists)[[i]], sep = "|");
+#   # c3_tft 
+#   c3_tft[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c3_tft,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c3_tft)[[i]] <- paste("c3_tft_", names(gene_lists)[[i]], sep = "|");
+#   # c4_canceratlas       
+#   c4_canceratlas[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c4_canceratlas,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c4_canceratlas)[[i]] <- paste("c4_canceratlas",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c4_cancermodues
+#   c4_cancermodues[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c4_cancermodues,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c4_cancermodues)[[i]] <- paste("c4_cancermodues",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c5_biopathway				
+#   c5_biopathway[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c5_biopathway,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c5_biopathway)[[i]] <- paste("c5_biopathway",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c5_cellularcomponent
+#   c5_cellularcomponent[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c5_cellularcomponent,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c5_cellularcomponent)[[i]] <- paste("c5_cellularcomponent",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c5_go				
+#   c5_go[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c5_go,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c5_go)[[i]] <- paste("c5_go",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c5_hpo				
+#   c5_hpo[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c5_hpo,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c5_hpo)[[i]] <- paste("c5_hpo",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c5_molecularfunction				
+#   c5_molecularfunction[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c5_molecularfunction,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c5_molecularfunction)[[i]] <- paste("c5_molecularfunction",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c6_oncogenicsig				
+#   c6_oncogenicsig[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c6_oncogenicsig,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c6_oncogenicsig)[[i]] <- paste("c6_oncogenicsig",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c7_immunesig				
+#   c7_immunesig[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c7_immunesig,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c7_immunesig)[[i]] <- paste("c7_immunesig",
+#                                         names(gene_lists)[[i]],
+#                                         sep = "|");
+#   # c8				
+#   c8[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.c8,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(c8)[[i]] <- paste("c8", names(gene_lists)[[i]], sep = "|");
+#   # h
+#   h[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+#               TERM2GENE = bg_genes.h,
+#             pvalueCutoff = 1.0,
+#             qvalueCutoff = 1,
+#                pAdjustMethod = "BH"))@result);
+#   names(h)[[i]] <- paste("h", names(gene_lists)[[i]], sep = "|");
+# }
+```
+
+```{r}
+#n_gsea_background_databases <- 17
+#gsea_significance_threshold_per_database <- 0.10/n_gsea_background_databases
+```
+
+#### t_sigt21byage_cluster_gene_position
+```{r}
+t_sigt21byage_cluster_gene_position <- c1 %>%
+  rbindlist(idcol = "T21byAge_Cluster") %>%
+  mutate(gsea_background = "C1") %>%
+  dplyr::select(T21byAge_Cluster, geneID, Description) %>%
+  unique() %>%
+  dplyr::rename(genomic_position = Description) %>%
+  mutate(Chr21 = case_when(grepl("chr21", genomic_position)==TRUE ~ 1,
+                           .default = 0)) %>%
+  mutate(T21byAge_Cluster = gsub("c1_[|]", "", T21byAge_Cluster),
+         T21byAge_Cluster = trimws(T21byAge_Cluster))
+
+t_sigt21byage_cluster_gene_position
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_gene_position, "t_sigt21byage_cluster_gene_position.csv")
+```
+
+#### t_sigt21byage_cluster_chr21_genes_positions
+```{r}
+t_sigt21byage_cluster_chr21_genes_positions <- t_sigt21byage_cluster_gene_position %>%
+  group_by(T21byAge_Cluster, Chr21) %>%
+  summarise(N_Cluster_Aptamers_Chr21 = n()) %>%
+  ungroup() %>%
+  mutate(Chr21 = case_when(Chr21==1 ~ "Aptamers encoded by Chr21 (N)",
+                           Chr21==0 ~ "Aptamers encoded by other chromosome (N)",
+                           .default = NA)) %>%
+  dplyr::select(T21byAge_Cluster, Chr21, N_Cluster_Aptamers_Chr21) %>%
+  spread(key = Chr21, value = N_Cluster_Aptamers_Chr21, fill = 0) %>%
+  mutate(`Aptamers Total (N)` = `Aptamers encoded by Chr21 (N)` + `Aptamers encoded by other chromosome (N)`) %>%
+  mutate(`Proportion of Aptamers encoded by Chr21` = round(`Aptamers encoded by Chr21 (N)`/`Aptamers Total (N)`, digits = 4)) %>%
+  dplyr::select(-c(`Aptamers encoded by other chromosome (N)`)) %>%
+  arrange(desc(`Aptamers encoded by Chr21 (N)`)) %>%
+  left_join( (t_sigt21byage_cluster_gene_position %>%
+                filter(Chr21 == 1) %>%
+                dplyr::select(-c(Chr21))),
+             by = "T21byAge_Cluster" ) %>%
+  filter(!is.na(geneID)) %>%
+  dplyr::rename(Chr21_encoded_geneID = geneID,
+                Chr21_encoded_geneID_position = genomic_position)
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_chr21_genes_positions, "t_sigt21byage_cluster_chr21_genes_positions.csv")
+
+t_sigt21byage_cluster_chr21_genes_positions
+```
+
+#### t_sigt21byage_cluster_chrY_genes_positions
+```{r}
+t_sigt21byage_cluster_chrY_genes_positions <- t_sigt21byage_cluster_gene_position %>%
+  mutate(ChrY = case_when(grepl("chrY", genomic_position)==TRUE ~ 1, .default = 0)) %>%
+  group_by(T21byAge_Cluster, ChrY) %>%
+  summarise(N_Cluster_Aptamers_ChrY = n()) %>%
+  ungroup() %>%
+  mutate(ChrY = case_when(ChrY==1 ~ "Aptamers encoded by ChrY (N)",
+                           ChrY==0 ~ "Aptamers encoded by other chromosome (N)",
+                           .default = NA)) %>%
+  dplyr::select(T21byAge_Cluster, ChrY, N_Cluster_Aptamers_ChrY) %>%
+  spread(key = ChrY, value = N_Cluster_Aptamers_ChrY, fill = 0) %>%
+  mutate(`Aptamers Total (N)` = `Aptamers encoded by ChrY (N)` + `Aptamers encoded by other chromosome (N)`) %>%
+  mutate(`Proportion of Aptamers encoded by ChrY` = round(`Aptamers encoded by ChrY (N)`/`Aptamers Total (N)`, digits = 4)) %>%
+  dplyr::select(-c(`Aptamers encoded by other chromosome (N)`)) %>%
+  arrange(desc(`Aptamers encoded by ChrY (N)`)) %>%
+  left_join( (t_sigt21byage_cluster_gene_position %>%
+                filter(grepl("chrY", genomic_position)==TRUE)),
+             by = "T21byAge_Cluster" ) %>%
+  filter(!is.na(geneID)) %>%
+  dplyr::rename(ChrY_encoded_geneID = geneID,
+                ChrY_encoded_geneID_position = genomic_position)
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_chrY_genes_positions, "t_sigt21byage_cluster_chrY_genes_positions.csv")
+
+t_sigt21byage_cluster_chrY_genes_positions
+```
+
+```{r}
+t_sigt21byage_cluster_gsea_results_all <- rbind(c1 %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          c2 %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c2_canonicalpathways %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c2_reactome %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c2_kegg_medicus %>% keep(., inherits, 'data.frame') %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          
+                          c3 %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c3_mir %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c3_tft %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          
+                          c4 %>% keep(., inherits, 'data.frame') %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c4_cancermodues %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c4_canceratlas %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          
+                          c5_go %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c5_biopathway %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c5_go %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c5_molecularfunction %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          #c5_cellularcomponent %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          
+                          c5_hpo %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          c6_oncogenicsig %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          c7_immunesig %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          c8 %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE),
+                          h %>% keep(., inherits, 'data.frame')  %>% rbindlist(idcol = "gsea_id", fill = TRUE)) %>%
+  ####
+  # Pvalue adjustment used in results output 2/23/2025 PM:
+  #mutate(P4C_GSEA_PadjBH = p.adjust(pvalue, method = "BH")) %>%
+  #----
+  mutate(gsea_id = gsub("_[|]", "|", gsea_id)) %>%
+  separate(gsea_id, into = c("gsea_background_genes", "T21byAge_Cluster"), sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  dplyr::select(-c(gsea_id, ID)) %>%
+  left_join(t_sigt21byage_cluster_gene_position,
+             by = c("T21byAge_Cluster", "geneID")) %>%
+  # full_join(t_sigt21byage_cluster_aptamers_n %>%
+  #             `rownames<-`(NULL),
+  #           by = "T21byAge_Cluster") %>%
+  dplyr::rename(#N_Cluster_Aptamers = n_aptamers,
+                GSEA_background_genes = gsea_background_genes) %>%
+  ####
+  # Pvalue adjustment used in results output 2/24/2025 AM:
+  group_by(T21byAge_Cluster, GSEA_background_genes) %>%
+  # GSEA_PadjBH with 'family of tests' defined as (T21byAgeCluster x GSEAbg):
+  mutate(GSEA_PadjBH_TestFamily = "(T21byAgeCluster x GSEA_background_genes)",
+         GSEA_PadjBH = p.adjust(pvalue, method = "BH")) %>%
+  ungroup() %>%
+  arrange(GSEA_PadjBH) %>%
+  #---
+  dplyr::select(T21byAge_Cluster,
+                #N_Cluster_Aptamers,
+                GSEA_background_genes,
+                Description, Count, geneID,
+                #genomic_position, Chr21,
+                GeneRatio, GSEA_PadjBH_TestFamily, GSEA_PadjBH,
+                everything())
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_gsea_results_all, "t_sigt21byage_cluster_gsea_results_all.csv.gz")
+```
+
+#### t_sigt21byage_cluster_gsea_results_sigGSEApadjBH
+```{r}
+t_sigt21byage_cluster_gsea_results_sigGSEApadjBH <- t_sigt21byage_cluster_gsea_results_all %>%
+  arrange(pvalue) %>%
+  filter(GSEA_PadjBH<0.05) %>%
+  arrange(desc(Count));
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH, "t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.csv.gz");
+```
+
+#### t_sigt21byage_cluster_gsea_results_sigGSEApadjBH
+```{r}
+t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split <- t_sigt21byage_cluster_gsea_results_sigGSEApadjBH %>%
+  arrange(GSEA_background_genes) %>%
+  group_by(GSEA_background_genes) %>%
+  arrange(desc(Count)) %>%
+  ungroup() %>%
+  split(., .$T21byAge_Cluster);
+names(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split)[[2]] <- "Sig. T21-by-Age"
+names(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split)[[3]] <- "Non-sig. T21-by-Age"
+names(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split)
+
+rm(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH); gc();
+setwd(dir.ddata)
+openxlsx::write.xlsx(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split,
+                     "t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.xlsx")
+
+t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+  rbindlist() %>%
+  dplyr::rename(T21byAge_SuperCluster = T21byAge_Cluster) %>%
+  group_by(T21byAge_SuperCluster) %>%
+  mutate(N_rows_sigGSEA_results = n()) %>%
+  ungroup() %>%
+  mutate(keyword_FETAL = case_when(grepl("FETAL", Description)==TRUE ~ 1, .default = 0),
+         keyword_EMBRYONIC = case_when(grepl("EMBRYONIC", Description)==TRUE ~ 1, .default = 0),
+         keyword_DEVELOPMENT = case_when(grepl("DEVELOPMENT", Description)==TRUE ~ 1, .default = 0)) %>%
+  dplyr::select(T21byAge_SuperCluster, N_rows_sigGSEA_results, contains("keyword")) %>%
+  group_by(T21byAge_SuperCluster, N_rows_sigGSEA_results) %>%
+  summarise(N_mentions_FETAL = sum(keyword_FETAL),
+            N_mentions_EMBRYONIC = sum(keyword_EMBRYONIC),
+            N_mentions_DEVELOPMENT = sum(keyword_DEVELOPMENT)) %>%
+  ungroup() %>%
+  mutate(N_mentions_Total = N_mentions_FETAL + N_mentions_EMBRYONIC + N_mentions_DEVELOPMENT) %>%
+  arrange(desc(N_mentions_Total)) %>%
+  #dplyr::rename(T21byAge_SuperCluster = T21byAge_Cluster) %>%
+  full_join((ar_sigt21byage_d21t21clustered %>%
+               dplyr::select(#T21byAge_Cluster,
+                             T21byAge_SuperCluster,
+                             #N_Cluster_Aptamers, 
+                             N_SuperCluster_Aptamers) %>%
+               unique()),
+            by = "T21byAge_SuperCluster") %>%
+  #dplyr::select(-c(T21byAge_Cluster, N_Cluster_Aptamers)) %>%
+  unique() %>%
+  dplyr::select(T21byAge_SuperCluster, N_mentions_EMBRYONIC, N_mentions_FETAL, N_mentions_DEVELOPMENT,
+                N_mentions_Total, N_rows_sigGSEA_results, everything()) %>%
+  unique() %>%
+  mutate(mentions_Total_Proportion_of_nrowssigGSEA = round(N_mentions_Total/N_rows_sigGSEA_results, digits = 4)) %>%
+  arrange(desc(mentions_Total_Proportion_of_nrowssigGSEA))
+  #arrange(desc(N_mentions_Total, N_mentions_FETAL, N_mentions_EMBRYONIC, N_mentions_DEVELOPMENT))
+```
+
+#### t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.splitByGSEAbg
+```{r}
+setwd(dir.ddata)
+t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.splitByGSEAbg <- t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+  rbindlist() %>%
+  split(., .$GSEA_background_genes)
+
+t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.splitByGSEAbg
+setwd(dir.ddata)
+openxlsx::write.xlsx(t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.splitByGSEAbg,
+                     "t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.splitByGSEAbg.xlsx")
+```
+
+```{r}
+select <- dplyr::select
+filter <- dplyr::filter
+
+prefixes <- t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+  rbindlist() %>%
+  #head() %>%
+  separate(Description, into = c(paste0("Desc", seq(1:2))), extra = "merge", remove = FALSE) %>%
+  select(Desc1) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  mutate(is_prefix = case_when(Desc1=="KEGG"~ "Yes",
+                               Desc1=="GOBP"~ "Yes",
+                               Desc1=="GOMF" ~ "Yes",
+                               Desc1=="GOCC" ~ "Yes",
+                               Desc1=="REACTOME" ~ "Yes",
+                               Desc1=="MODULE" ~ "Yes",
+                               Desc1=="BIOCARTA" ~ "Yes",
+                               Desc1=="HALLMARK" ~ "Yes",
+                               #substr(Desc1, 1, 3)=="chr" ~ "No",
+                               #substr(Desc1, 1, 3)=="GSE" ~ "Yes",
+                              .default = "TBD"))
+
+#### KEY RESULT - KEEP
+t_sigt21byage_cluster_gsea_keywordn <- t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+  rbindlist() %>%
+  mutate(Description = gsub("MODULE_", "MODULE", Description),
+         Description = gsub("MODULE_", "MODULE", Description)) %>%
+  #head() %>%
+  separate(Description, into = c(paste0("Desc", seq(1:2))), extra = "merge", remove = FALSE) %>%
+  mutate(Desc2 = gsub("NEGATIVE_REGULATION", "NEGATIVEREGULATION", Desc2),
+         Desc2 = gsub("POSITIVE_REGULATION", "POSITIVEREGULATION", Desc2),
+         Desc2 = gsub("_LEUKOCYTE_", "LEUKOCYTE", Desc2),
+         Desc2 = gsub("_CELL", "CELL", Desc2),
+         Desc2 = gsub("CELL_", "CELL", Desc2),
+         Desc2 = gsub("_CELLS", "CELLS", Desc2),
+         Desc2 = gsub("CELLS_", "CELLS", Desc2),
+         Desc2 = gsub("_ALPHA", "ALPHA", Desc2),
+         Desc2 = gsub("ALPHA_", "ALPHA", Desc2),
+         Desc2 = gsub("_BETA", "BETA", Desc2),
+         Desc2 = gsub("BETA_", "BETA", Desc2),
+         Desc2 = gsub("_OF", "", Desc2),
+         Desc2 = gsub("OF_", "", Desc2),
+         Desc2 = gsub("_BY", "", Desc2),
+         Desc2 = gsub("BY_", "", Desc2),
+         Desc2 = gsub("AND_", "", Desc2),
+         Desc2 = gsub("_AND", "", Desc2),
+         
+         Desc2 = gsub("TO_", "", Desc2),
+         Desc2 = gsub("_TO", "", Desc2),
+         Desc2 = gsub("IN_", "", Desc2),
+         Desc2 = gsub("_IN", "", Desc2),
+         
+         Desc2 = gsub("VS_", "VS", Desc2),
+         Desc2 = gsub("_VS_", "VS", Desc2),
+         Desc2 = trimws(Desc2)) %>%
+  group_by(T21byAge_Cluster, Desc2) %>%
+  summarise(N = n()) %>%
+  ungroup() %>%
+  arrange(desc(N)) %>%
+  filter(!is.na(Desc2)) %>%
+  separate(Desc2, into = c(paste0("V", seq(1:20))),
+           sep = "_", extra = "merge", remove = FALSE) %>%
+  group_by(T21byAge_Cluster) %>%
+  gather(key = "key", value = "keyword", V1:V20) %>%
+  ungroup() %>%
+  group_by(T21byAge_Cluster, keyword) %>%
+  summarise(N_mentions = n()) %>%
+  ungroup() %>%
+  group_by(T21byAge_Cluster) %>%
+  arrange(desc(N_mentions)) %>%
+  ungroup() %>%
+  filter(!is.na(keyword)) %>%
+  group_by(keyword) %>%
+  mutate(N_mentions_across_clusters = sum(N_mentions)) %>%
+  ungroup() %>%
+  arrange(desc(N_mentions_across_clusters))
+
+t_sigt21byage_cluster_gsea_keywordn.split <- t_sigt21byage_cluster_gsea_keywordn %>%
+  split(., .$T21byAge_Cluster)
+
+t_sigt21byage_cluster_gsea_keywordn.split[[2]]
+
+head(t_sigt21byage_cluster_gsea_keywordn)
+
+lm(N_mentions ~ T21byAge_Cluster*keyword,
+   data = t_sigt21byage_cluster_gsea_keywordn) %>%
+  tidy(conf.int = TRUE)
+```
+
+#### Still need to update this chunk if need output
+```{r}
+tmp <- t_sigt21byage_cluster_gsea_keywordn %>%
+  split(., .$T21byAge_Cluster)
+
+outlist.t_sigt21byage_cluster_gsea_keywordn <- list(t_sigt21byage_cluster_gsea_keywordn,
+                                                    tmp[[1]],
+                                                    tmp[[2]],
+                                                    tmp[[3]],
+                                                    tmp[[4]],
+                                                    tmp[[5]],
+                                                    tmp[[6]],
+                                                    tmp[[7]],
+                                                    tmp[[8]],
+                                                    tmp[[9]])
+
+names(outlist.t_sigt21byage_cluster_gsea_keywordn)<- c("All keywords",
+                                                        "A",   "B",   "D",
+                                                       "E",  "FNC", "G",
+                                                       "J",   "KLI", "MH")
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_gsea_keywordn, "t_sigt21byage_cluster_gsea_keywordn.csv.gz")
+write.xlsx(outlist.t_sigt21byage_cluster_gsea_keywordn,
+           "t_sigt21byage_cluster_gsea_keywordn.xlsx")
+
+trylm <- try(lm)
+
+ar_keyword_data.split <- t_sigt21byage_cluster_gsea_keywordn %>%
+  select(-N_mentions_across_clusters) %>%
+  unique() %>%
+  split(., .$keyword)
+
+tidy_keyword_mentions <- list()
+for ( i in 1:length(ar_keyword_data.split) ){
+#for ( i in 1:5){
+  tidy_keyword_mentions[[i]] <- try(tidy(lm(N_mentions ~ T21byAge_Cluster, 
+                                            data = ar_keyword_data.split[[i]]),
+                                         conf.int=TRUE))
+}
+
+tidy_keyword_mentions %>%
+  keep(., ~inherits(.x, 'data.frame')) %>%
+  rbindlist() %>%
+  filter(term != "(Intercept)" & !is.na(p.value))
+
+```
+
+
+
+```{r}
+t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+  rbindlist() %>%
+  dplyr::select(T21byAge_Cluster, Description) %>%
+  separate(Description, into = c(paste0("Description", seq(1:2))), extra = "merge", remove = FALSE) %>%
+  dplyr::select(Description1) %>%
+  unique()
+```
+
+
+```{r}
+t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn <- t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+  rbindlist() %>%
+  dplyr::select(T21byAge_Cluster, Description) %>%
+  separate(Description, into = c(paste0("V", seq(1:20))), extra = "merge", remove = TRUE) %>%
+  group_by(T21byAge_Cluster) %>%
+  gather(key = "key", value = "GSEAsigPadjBH_keyword", V1:V20) %>%
+  dplyr::select(-c(key)) %>%
+  group_by(T21byAge_Cluster, GSEAsigPadjBH_keyword) %>%
+  summarise(N_mentions = n()) %>%
+  arrange(desc(N_mentions)) %>%
+  filter(!is.na(GSEAsigPadjBH_keyword))
+
+setwd(dir.ddata)
+fwrite(t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn, "t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn.csv.gz")
+
+t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn.split <- t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn %>%
+  split(., .$T21byAge_Cluster)
+setwd(dir.ddata)
+write.xlsx(t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn.split, "t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn.xlsx")
+```
+
+```{r}
+t_sigt21byage_cluster_gsea_sigGSEApadjBH_keywordn %>% head()
+```
+
+
+
+# Develop further later (maybe)
+
+```{r}
+# https://carpentries-incubator.github.io/bioc-rnaseq/instructor/06-gene-set-analysis.html#choose-a-proper-universe
+
+ora = function(genes, gene_sets, universe = NULL) {
+    if(is.null(universe)) {
+        universe = unique(unlist(gene_sets))
+    } else {
+        universe = unique(universe)
+    }
+    # make sure genes are unique
+    genes = intersect(genes, universe)
+    gene_sets = lapply(gene_sets, intersect, universe)
+    # calculate different numbers
+    n_11 = sapply(gene_sets, function(x) length(intersect(genes, x)))
+    n_10 = length(genes)
+    n_01 = sapply(gene_sets, length)
+    n = length(universe)
+    # calculate p-values
+    p = 1 - phyper(n_11 - 1, n_10, n - n_10, n_01)
+    df = data.frame(
+        gene_set = names(gene_sets),
+        hits = n_11,
+        n_genes = n_10,
+        gene_set_size = n_01,
+        n_total = n,
+        p_value = p,
+        p_adjust = p.adjust(p, "BH")
+    )
+}
+
+# all genes in the gene sets collection ~ 4k genes
+df1 = ora(timeDEgenes, HallmakrGeneSets)
+# all protein-coding genes, ~ 20k genes
+df2 = ora(timeDEgenes, HallmakrGeneSets, rownames(se))
+# all genes in org.Mm.eg.db ~ 70k genes
+df3 = ora(timeDEgenes, HallmakrGeneSets, 
+    keys(org.Mm.eg.db, keytype = "SYMBOL"))
+```
+
+```{r}
+# t_sigt21byage_cluster_gsea_results_sigGSEApadjBH.split %>%
+#   rbindlist() %>%
+#   ungroup() %>%
+#   dplyr::select(T21byAge_Cluster, Description, N_Cluster_Aptamers, GSEA_background_genes, GeneRatio) %>% #, GeneRatio.numeric) %>%
+#   unique() %>%
+#   separate(GeneRatio, into = c("GeneRatio_numerator", "GeneRatio_denominator"), sep = "[/]", extra = "merge", remove = FALSE) %>%
+#   mutate(GeneRatio_numerator = as.numeric(GeneRatio_numerator),
+#          GeneRatio_denominator = as.numeric(GeneRatio_denominator),
+#          GeneRatio.numeric = GeneRatio_numerator/GeneRatio_denominator)%>%
+#   arrange(desc(GeneRatio.numeric)) %>%
+#   dplyr::select(T21byAge_Cluster, Description, N_Cluster_Aptamers, GeneRatio_denominator, GeneRatio_numerator, GSEA_background_genes,
+#                 everything()) %>%
+#   mutate(`P_gene_match|GSEA_background_genes` = GeneRatio_denominator / N_Cluster_Aptamers,
+#          `P_GeneRatio|Description` = GeneRatio.numeric) %>%
+#   dplyr::select(T21byAge_Cluster, Description, N_Cluster_Aptamers,
+#                 `P_gene_match|GSEA_background_genes`, `P_GeneRatio|Description`,
+#                 GeneRatio_denominator, GeneRatio_numerator, GSEA_background_genes,
+#                 everything()) %>%
+#   mutate(`P(gene_match|GSEA_background_genes)*P(GeneRatio|Description)` = `P_gene_match|GSEA_background_genes`*`P_GeneRatio|Description`) %>%
+#   arrange(desc(`P(gene_match|GSEA_background_genes)*P(GeneRatio|Description)`)) %>%
+#   mutate(`GeneRatio_numerator/N_Cluster_Aptamers` = GeneRatio_numerator/N_Cluster_Aptamers) %>%
+#   arrange(desc(`GeneRatio_numerator/N_Cluster_Aptamers`)) %>%
+#   dplyr::select(`GeneRatio_numerator/N_Cluster_Aptamers`, `P(gene_match|GSEA_background_genes)*P(GeneRatio|Description)`, everything()) %>%
+#   split(., .$T21byAge_Cluster) %>%
+#   lapply(head, n=30)
+```
+
+```{r}
+t_sigt21byage_cluster_gsea_sigmetaPadjBH_keywordn %>%
+  group_by(T21byAge_Cluster) %>%
+  mutate(N_keywords = n()) %>%
+  ungroup() %>%
+  dplyr::filter(GSEAsigPadjBH_keyword %in% c("FETAL", "NEONATAL", "DEVELOPMENT", "MORPHOGENESIS")) %>%
+  arrange(T21byAge_Cluster, N_mentions) %>%
+  group_by(T21byAge_Cluster, N_keywords) %>%
+  summarise(GSEAsigPadjBH_keyword = paste(GSEAsigPadjBH_keyword, collapse = "; "),
+            N_mentions = paste(N_mentions, collapse = "; "))
+# PICK UP HERE (7/22/2025 ~8:25PM MT)
+
+
+t_sigt21byage_cluster_gsea_sigmetaPadjBH_keywordn %>%
+  arrange(desc(N_mentions)) %>%
+  group_by(T21byAge_Cluster) %>%
+  mutate(N_keywords = n()) %>%
+  ungroup()
+```
+
+
+```{r}
+t_sigt21byage_cluster_gsea_results_sigmetaPadjBH.split %>%
+  rbindlist() %>%
+  dplyr::select(T21byAge_Cluster, Description) %>%
+  unique()
+```
+
+
+
+
+
+
+
+#### ARCHIVE BELOW FOR NOW (2/22/2025 ~7PM)
+```{r}
+
+##############################
+##  C7 (Immune signatures)  ## 
+##############################
+gsea_c7_immunesig <- list()
+gsea_c1 <- list()
+gsea_c2 <- list()
+gsea_h <- list()
+for ( i in 1:length(gene_lists) ) {
+  set.seed(1234)
+  gsea_c7_immunesig[[i]] <- try( (enricher(gene = gene_lists[[i]]$V1, # Note: V1 is GeneSymbol
+            TERM2GENE = bg_genes.c7_immunesig, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_c7)[[i]] <- paste0("c7_immunesig_", names(gene_lists)[[i]]);
+  
+  gsea_c1[[i]] <- try( (enricher(gene = gene_lists[[i]]$V1,
+            TERM2GENE = bg_genes.c1, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_c1)[[i]] <- names(gene_lists)[[i]];
+  
+  gsea_c2[[i]] <- try( (enricher(gene = gene_lists[[i]]$V1,
+            TERM2GENE = bg_genes.c2, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_c2)[[i]] <- names(gene_lists)[[i]];
+
+  gsea_h[[i]] <- try( (enricher(gene = gene_lists[[i]]$V1,
+            TERM2GENE = bg_genes.h, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_h)[[i]] <- names(gene_lists)[[i]];
+}
+```
+
+
+```{r}
+gsea_c7 %>%
+  rbindlist(idcol = "T21byAge_Cluster") %>%
+  mutate(gsea_background = "C7") %>%
+  mutate(T21byAge_Cluster = factor(T21byAge_Cluster, levels = c(names(gene_lists)))) %>%
+  arrange(T21byAge_Cluster) %>%
+  dplyr::select(gsea_background, T21byAge_Cluster, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(score = -1*log10(p.adjust)*FoldEnrichment) %>%
+  group_by(T21byAge_Cluster) %>%
+  arrange(desc(score)) %>%
+  mutate(rank_score = row_number()) %>%
+  ungroup() %>%
+  #filter(p.adjust < 0.10) %>%
+  filter(p.adjust < 0.10 | rank_score<=10) %>%
+  arrange(desc(Count)) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  dplyr::select(gsea_background, T21byAge_Cluster, geneID, Count, p.adjust, Description, score, rank_score, everything()) %>%
+  split(., .$T21byAge_Cluster)
+```
+
+```{r}
+gsea_c1 %>%
+  rbindlist(idcol = "T21byAge_Cluster") %>%
+  mutate(gsea_background = "C1") %>%
+  mutate(T21byAge_Cluster = factor(T21byAge_Cluster, levels = c(names(gene_lists)))) %>%
+  arrange(T21byAge_Cluster) %>%
+  dplyr::select(gsea_background, T21byAge_Cluster, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(score = -1*log10(p.adjust)*FoldEnrichment) %>%
+  group_by(T21byAge_Cluster) %>%
+  arrange(desc(score)) %>%
+  mutate(rank_score = row_number()) %>%
+  ungroup() %>%
+  arrange(rank_score) %>%
+  filter(p.adjust < 0.10 | rank_score<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$T21byAge_Cluster)
+```
+
+```{r}
+gsea_c2 %>%
+  rbindlist(idcol = "T21byAge_Cluster")
+
+
+gsea_c2 %>%
+  rbindlist(idcol = "T21byAge_Cluster") %>%
+  mutate(gsea_background = "C2") %>%
+  mutate(T21byAge_Cluster = factor(T21byAge_Cluster, levels = c(names(gene_lists)))) %>%
+  arrange(T21byAge_Cluster) %>%
+  dplyr::select(gsea_background, T21byAge_Cluster, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(score = -1*log10(p.adjust)*FoldEnrichment) %>%
+  group_by(T21byAge_Cluster) %>%
+  arrange(desc(score)) %>%
+  mutate(rank_score = row_number()) %>%
+  ungroup() %>%
+  arrange(rank_score) %>%
+  filter(p.adjust < 0.10 | rank_score<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$T21byAge_Cluster)
+```
+
+```{r}
+gsea_h %>%
+  rbindlist(idcol = "T21byAge_Cluster") %>%
+  mutate(gsea_background = "H") %>%
+  mutate(T21byAge_Cluster = factor(T21byAge_Cluster, levels = c(names(gene_lists)))) %>%
+  arrange(T21byAge_Cluster) %>%
+  dplyr::select(gsea_background, T21byAge_Cluster, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(score = -1*log10(p.adjust)*FoldEnrichment) %>%
+  group_by(T21byAge_Cluster) %>%
+  arrange(desc(score)) %>%
+  mutate(rank_score = row_number()) %>%
+  ungroup() %>%
+  arrange(rank_score) %>%
+  filter(p.adjust < 0.10 | rank_score<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$T21byAge_Cluster)
+```
+
+
+# PICK UP HERE (2/22/2025)
+
+
+```{r}
+c7.gsea_t21byage_sig_genesymbol_down<- if ( class((enricher(gene = l_t21byage_sig_genesymbol_down,
+         TERM2GENE = bg_genes.c7,
+         #minGSSize = 10,
+         pvalueCutoff = 0.10,
+         pAdjustMethod = "BH")))=="enrichResult" ) {
+  (enricher(gene = l_t21byage_sig_genesymbol_down,
+            TERM2GENE = bg_genes.c7,
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result } else {""};
+c7.gsea_t21byage_sig_genesymbol_up <- if ( class((enricher(gene = l_t21byage_sig_genesymbol_up,
+         TERM2GENE = bg_genes.c7,
+         #minGSSize = 10,
+         pvalueCutoff = 0.10,
+         pAdjustMethod = "BH")))=="enrichResult" ) {
+  (enricher(gene = l_t21byage_sig_genesymbol_up,
+            TERM2GENE = bg_genes.c7,
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result }
+
+
+
+# h.gsea_t21byage_sig_genesymbol_up <- (enricher(gene = l_t21byage_sig_genesymbol_up,
+#          TERM2GENE = bg_genes.h,
+#          #minGSSize = 10,
+#          pvalueCutoff = 0.10,
+#          pAdjustMethod = "BH"))@result;
+# h.gsea_t21byage_sig_genesymbol_up
+
+# c1.gsea_t21byage_sig_genesymbol_up <- (enricher(gene = l_t21byage_sig_genesymbol_up,
+#          TERM2GENE = bg_genes.c1,
+#          #minGSSize = 10,
+#          pvalueCutoff = 1,
+#          pAdjustMethod = "BH"))@result; 
+# c1.gsea_t21byage_sig_genesymbol_up
+# no applicable method for `@` applied to an object of class "NULL"
+
+# c2.gsea_t21byage_sig_genesymbol_up <- (enricher(gene = l_t21byage_sig_genesymbol_up,
+#          TERM2GENE = bg_genes.c2,
+#          #minGSSize = 10,
+#          pvalueCutoff = 0.10,
+#          pAdjustMethod = "BH"))@result;
+# c2.gsea_t21byage_sig_genesymbol_up
+
+
+
+gsea_t21byage_sig_up.c1 <- enricher(gene = l_t21byage_sig_genesymbol_up,
+         TERM2GENE = bg_genes.c1,
+         pvalueCutoff = 0.10,
+         minGSSize = 10)
+gsea_t21byage_sig_up.c2 <- enricher(gene = l_t21byage_sig_genesymbol_up,
+         TERM2GENE = bg_genes.c2,
+         pvalueCutoff = 0.10,
+         minGSSize = 10)
+gsea_t21byage_sig_up.c3 <- enricher(gene = l_t21byage_sig_genesymbol_up,
+         TERM2GENE = bg_genes.c7,
+         pvalueCutoff = 0.10,
+         minGSSize = 10)
+gsea_t21byage_sig_up.c1
+gsea_t21byage_sig_up.c2
+gsea_t21byage_sig_up.c7
+
+enricher(gene = l_t21byage_sig_genesymbol_up[[2]],
+         TERM2GENE = bg_genes.c7)
+
+set.seed(1234)
+gsea_t21byage_sig_up.c7 <- lapply(names(l_t21byage_sig_genesymbol_up),
+                                  function(x) enricher(gene = l_t21byage_sig_genesymbol_up[[x]],
+                                                       TERM2GENE = bg_genes.c7,
+                                                       pvalueCutoff = 0.10,
+                                                       minGSSize = 10));
+names(gsea_t21byage_sig_up.c7) <- names(l_t21byage_sig_genesymbol_up);
+#Convert the list of enrichResults for each sample_pattern to a dataframe with the pathways
+t_gsea_t21byage_sig_up.c7 <- lapply(names(gsea_t21byage_sig_up.c7),
+                                    function(x) rbind(gsea_t21byage_sig_up.c7[[x]]@result));
+names(t_gsea_t21byage_sig_up.c7) <- names(gsea_t21byage_sig_up.c7)
+t_gsea_t21byage_sig_up.c7 <- do.call(rbind, t_gsea_t21byage_sig_up.c7);
+
+#####################
+##  C2 (Reactome)  ## 
+#####################
+gsea_t21byage_sig_up.c2 <- lapply(names(l_t21byage_sig_genesymbol_up),
+                                  function(x) enricher(gene = l_t21byage_sig_genesymbol_up[[x]],
+                                                       TERM2GENE = bg_genes.c2,
+                                                       pvalueCutoff = 0.10,
+                                                       minGSSize = 10));
+names(gsea_t21byage_sig_up.c2) <- names(l_t21byage_sig_genesymbol_up);
+# Convert the list of enrichResults for each sample_pattern to a dataframe with the pathways
+t_gsea_t21byage_sig_up.c2 <- lapply(names(gsea_t21byage_sig_up.c2), function(x) rbind(gsea_t21byage_sig_up.c2[[x]]@result))
+names(t_gsea_t21byage_sig_up.c2) <- names(gsea_t21byage_sig_up.c2)
+t_gsea_t21byage_sig_up.c2 <- do.call(rbind, t_gsea_t21byage_sig_up.c2);
+
+# Subset to those pathways that have p adj < cutoff and gene count > cutoff (you can also do this in the enricher function)
+#target_pws <- unique(res_df$ID[res_df$p.adjust < padj_cutoff & res_df$Count > genecount_cutoff]) # select only target pathways have p adjusted < 0.05 and at least 6 genes
+#res_df <- res_df[res_df$ID %in% target_pws, ]
+
+t_gsea_t21byage_sig_up.c1 %>% arrange(pvalue)
+t_gsea_t21byage_sig_up.c2 %>% arrange(pvalue)
+t_gsea_t21byage_sig_up.c7 %>% arrange(pvalue)
+```
+
+#### GSEA for significant T21-by-Age interactions (DOWN)
+```{r}
+# Settings
+name_of_comparison <- 'T21byAge (up)' # for our filename
+background_genes <- 'c7 immunologic signature gene sets' # for our filename
+setwd(bg_path)
+bg_genes.c7 <- readRDS('c7.all.v2024.1.Hs.symbols_filtered_t21byage_down.RDS')# read in the background genes
+bg_genes.c2 <- readRDS("c2.cp.reactome.v2024.1.Hs.symbols_t21byage_down.RDS")
+bg_genes.c1 <- readRDS("c1.all.v2024.1.Hs.symbols_t21byage_down.RDS")
+
+#padj_cutoff <- 0.05 # p-adjusted threshold, used to filter out pathways
+#genecount_cutoff <- 5 # minimum number of genes in the pathway, used to filter out pathways
+#filename <- paste0(out_gsea_path, 'clusterProfiler/', name_of_comparison, '_', background_genes) # filename of our PEA results
+
+# Run clusterProfiler on each sub-dataframe
+
+#######################
+##  C1 (Positional)  ## 
+#######################
+gsea_t21byage_sig_down.c1 <- lapply(names(l_t21byage_sig_genesymbol_down),
+                                  function(x) enricher(gene = l_t21byage_sig_genesymbol_down[[x]],
+                                                       TERM2GENE = bg_genes.c1,
+                                                       pvalueCutoff = 0.10));
+names(gsea_t21byage_sig_down.c1) <- names(l_t21byage_sig_genesymbol_down);
+# Convert the list of enrichResults for each sample_pattern to a dataframe with the pathways
+t_gsea_t21byage_sig_down.c1 <- lapply(names(gsea_t21byage_sig_down.c1),
+                                    function(x) rbind(gsea_t21byage_sig_down.c1[[x]]@result))
+names(t_gsea_t21byage_sig_down.c1) <- names(gsea_t21byage_sig_down.c1)
+t_gsea_t21byage_sig_down.c1 <- do.call(rbind, t_gsea_t21byage_sig_down.c1);
+
+##############################
+##  C7 (Immune signatures)  ## 
+##############################
+set.seed(1234)
+gsea_t21byage_sig_down.c7 <- lapply(names(l_t21byage_sig_genesymbol_down),
+                                  function(x) enricher(gene = l_t21byage_sig_genesymbol_down[[x]],
+                                                       TERM2GENE = bg_genes.c7,
+                                                       pvalueCutoff = 0.10));
+names(gsea_t21byage_sig_down.c7) <- names(l_t21byage_sig_genesymbol_down);
+#Convert the list of enrichResults for each sample_pattern to a dataframe with the pathways
+t_gsea_t21byage_sig_down.c7 <- lapply(names(gsea_t21byage_sig_down.c7),
+                                    function(x) rbind(gsea_t21byage_sig_down.c7[[x]]@result));
+names(t_gsea_t21byage_sig_down.c7) <- names(gsea_t21byage_sig_down.c7)
+t_gsea_t21byage_sig_down.c7 <- do.call(rbind, t_gsea_t21byage_sig_down.c7);
+
+#####################
+##  C2 (Reactome)  ## 
+#####################
+gsea_t21byage_sig_down.c2 <- lapply(names(l_t21byage_sig_genesymbol_down),
+                                  function(x) enricher(gene = l_t21byage_sig_genesymbol_down[[x]],
+                                                       TERM2GENE = bg_genes.c2,
+                                                       pvalueCutoff = 0.10,
+                                                       minGSSize = 10));
+names(gsea_t21byage_sig_down.c2) <- names(l_t21byage_sig_genesymbol_down);
+# Convert the list of enrichResults for each sample_pattern to a dataframe with the pathways
+t_gsea_t21byage_sig_down.c2 <- lapply(names(gsea_t21byage_sig_down.c2), function(x) rbind(gsea_t21byage_sig_down.c2[[x]]@result))
+names(t_gsea_t21byage_sig_down.c2) <- names(gsea_t21byage_sig_down.c2)
+t_gsea_t21byage_sig_down.c2 <- do.call(rbind, t_gsea_t21byage_sig_down.c2);
+
+# Subset to those pathways that have p adj < cutoff and gene count > cutoff (you can also do this in the enricher function)
+#target_pws <- unique(res_df$ID[res_df$p.adjust < padj_cutoff & res_df$Count > genecount_cutoff]) # select only target pathways have p adjusted < 0.05 and at least 6 genes
+#res_df <- res_df[res_df$ID %in% target_pws, ]
+
+t_gsea_t21byage_sig_down.c1 %>% arrange(pvalue)
+t_gsea_t21byage_sig_down.c2 %>% arrange(pvalue)
+t_gsea_t21byage_sig_down.c7 %>% arrange(pvalue)
+```
+
+```{r}
+# sort the list in decreasing order (required for clusterProfiler)
+#"Expected input gene ID: ENSG00000041880,ENSG00000132436,ENSG00000284238,ENSG00000126457,ENSG00000223496,ENSG00000166848"
+library(clusterProfiler)
+library(org.Hs.eg.db)
+set.seed(1234)
+gene_list_t21byage_down <- sort(l_t21byage_sig_uniprot_down_ensemblid$ensembl, decreasing = TRUE)
+t21byage_sig_down_gsea <- gseGO(geneList=gene_list_t21byage_down, 
+             #ont ="ALL", 
+             keyType = "ENSEMBL", 
+             #nPerm = 10000, 
+             #minGSSize = 3, 
+             #maxGSSize = 800, 
+             #pvalueCutoff = 0.05, 
+             verbose = TRUE, 
+             seed = 1234,
+             OrgDb = org.Hs.eg.db, 
+             pAdjustMethod = "none",
+             readable = FALSE,
+             by = 'fgsea',
+             organism = 'hsa')
+
+```
+
+
+
+```{r}
+library(biomaRt)
+
+#mart = useMart("ENSEMBL_MART_ENSEMBL") #, dataset="hsapiens_gene_ensembl")
+mart = useMart("ensembl") #, dataset="hsapiens_gene_ensembl")
+ensembl = useMart("ensembl",
+                  dataset="hsapiens_gene_ensembl",
+                  host="https://www.ensembl.org")
+listDatasets(mart = mart)
+
+ann <- getBM(c("hgnc_symbol",
+               "description",
+               "chromosome_name",
+               "band","strand","start_position","end_position",
+               "ensembl_gene_id"),
+             "ensembl_gene_id",
+             unique(ar_p4c_soma$GeneSymbol),
+             mart = ensembl)
+
+ann
+
+# Or you could use the Homo.sapiens package:
+# select(Homo.sapiens,
+#        ensids[1],
+#        c("SYMBOL","GENENAME","MAP",
+#          "CDSSTART","CDSEND","CDSSTRAND"),
+#        "ENSEMBL")
+
+ann
+```
+
+```{r}
+ai_aptamer_info
+
+ai_aptamer_info$ENTREZID[1]
+
+listMarts()
+
+mart = useMart("ENSEMBL_MART_ENSEMBL") #, dataset="hsapiens_gene_ensembl")
+mart = useMart("ensembl") #, dataset="hsapiens_gene_ensembl")
+
+# example using Entrez Gene id
+g = getGene( # id = ai_aptamer_info$ENTREZID[1],
+             id = ai_aptamer_info$ENSEMBL[1],
+             type = "ensembl_gene_id",
+             #type = "entrezgene_id",
+             mart = mart)
+
+show(g)
+```
+
+#### GO Gene Set Enrichment Analysis
+Gene set enrichment analysis using gene ontology.
+```{r}
+ego3 <- gseGO(geneList     = t21byage_sig_down,
+              OrgDb        = org.Hs.eg.db,
+              ont          = "CC",
+              minGSSize    = 100,
+              maxGSSize    = 500,
+              pvalueCutoff = 0.05,
+              verbose      = FALSE)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list = sort(t21byage_sig_down, decreasing = TRUE)
+#"Expected input gene ID: ENSG00000041880,ENSG00000132436,ENSG00000284238,ENSG00000126457,ENSG00000223496,ENSG00000166848"
+library(clusterProfiler)
+library(org.Hs.eg.db)
+set.seed(1234)
+t21byage_sig_down_gse <- gseGO(geneList=sort(t21byage_sig_down, decreasing = TRUE), 
+             ont ="ALL", 
+             keyType = "ENSEMBL", 
+             #keyType = "ENTREZID",
+             #keyType = "SYMBOL",
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             verbose = TRUE, 
+             seed = 1234,
+             OrgDb = org.Hs.eg.db, 
+             pAdjustMethod = "none",
+             readable = TRUE,
+             by = 'DOSE')
+
+
+data(geneList, package="DOSE")
+gene <- names(geneList)[abs(geneList) > 2]
+
+gene_conversion <- bitr(gene, fromType="ENTREZID", toType="SYMBOL", OrgDb="org.Hs.eg.db")
+
+gene_symbols <- gene_conversion$SYMBOL
+
+ego <- enrichGO(gene, OrgDb=org.Hs.eg.db, keyType="ENTREZID", ont="BP", pvalueCutoff=0.05, pAdjustMethod="BH", qvalueCutoff=0.05, readable=T)
+
+ego_symbols <- enrichGO(gene_symbols, OrgDb=org.Hs.eg.db, keyType="SYMBOL", ont="BP", pvalueCutoff=0.05, pAdjustMethod="BH", qvalueCutoff=0.05, readable=T)
+Error in names(x) <- value :
+  'names' attribute [2] must be the same length as the vector [1]
+```
+
+#### Visualize enriched GO terms as a directed acyclic graph
+```{r}
+goplot(ego)
+```
+
+#### GO semantic similarity
+```{r}
+# "GO semantic similarity can be calculated by GOSemSim (Yu et al. 2010). We can use it to cluster genes/proteins into different clusters based on their functional similarity and can also use it to measure the similarities among GO terms to reduce the redundancy of GO enrichment results."
+
+# https://bioconductor.org/packages/release/bioc/html/GOSemSim.html
+BiocManager::install("GOSemSim")
+
+```
+
+
+```{r}
+# https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-kegg.html#clusterprofiler-kegg-pathway-ora
+
+##################################################
+##  KEGG pathway over-representation analysis:  ##
+##################################################
+data(geneList, package="DOSE")
+gene <- names(geneList)[abs(geneList) > 2]
+# "Input ID type can be kegg, ncbi-geneid, ncbi-proteinid or uniprot (see also session 16.1.2). Unlike enrichGO(), there is no readable parameter for enrichKEGG(). However, users can use the setReadable() function if there is an OrgDb available for the species."
+kk <- enrichKEGG(gene         = gene,
+                 organism     = 'hsa',
+                 pvalueCutoff = 0.05)
+
+##################################################
+## KEGG pathway gene set enrichment analysis:  ## 
+##################################################
+kk2 <- gseKEGG(geneList     = geneList,
+               organism     = 'hsa',
+               minGSSize    = 120,
+               pvalueCutoff = 0.05,
+               verbose      = FALSE)
+head(kk2)
+
+##  KEGG module over-representation analysis:  ##
+mkk <- enrichMKEGG(gene = gene,
+                   organism = 'hsa',
+                   pvalueCutoff = 1,
+                   qvalueCutoff = 1)
+head(mkk)     
+
+##  KEGG module gene set enrichment analysis:  ##
+mkk2 <- gseMKEGG(geneList = geneList,
+                 organism = 'hsa',
+                 pvalueCutoff = 1)
+head(mkk2)
+
+##  Visualize enriched KEGG pathways:  ##
+browseKEGG(kk, 'hsa04110')
+
+##  pathview visualization:  ##
+# Users can also use the pathview() function from the pathview (Luo and Brouwer 2013) to visualize enriched KEGG pathways identified by the clusterProfiler package (Yu et al. 2012).
+library("pathview")
+hsa04110 <- pathview(gene.data  = geneList,
+                     pathway.id = "hsa04110",
+                     species    = "hsa",
+                     limit      = list(gene=max(abs(geneList)), cpd=1))
+
+```
+
+#### GO enrichment analysis
+```{r}
+##  GO classification:  ##
+library(clusterProfiler)
+data(geneList, package="DOSE")
+gene <- names(geneList)[abs(geneList) > 2]
+
+ggo <- groupGO(gene     = gene,
+               OrgDb    = org.Hs.eg.db,
+               ont      = "CC",
+               level    = 3,
+               readable = TRUE)
+
+##  GO over-representation analysis:  ##
+ego <- enrichGO(gene          = gene,
+                universe      = names(geneList),
+                OrgDb         = org.Hs.eg.db,
+                ont           = "CC",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05,
+        readable      = TRUE)
+
+# Any gene ID type that is supported in OrgDb can be directly used in GO analyses. Users need to specify the keyType parameter to specify the input gene ID type.
+# Gene IDs can be mapped to gene Symbols by using the parameter readable=TRUE or setReadable() function.
+gene.df <- bitr(gene, fromType = "ENTREZID",
+        toType = c("ENSEMBL", "SYMBOL"),
+        OrgDb = org.Hs.eg.db)
+ego2 <- enrichGO(gene         = gene.df$ENSEMBL,
+                OrgDb         = org.Hs.eg.db,
+                keyType       = 'ENSEMBL',
+                ont           = "CC",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05)
+
+```
+
+#### Prepare gene lists for enrichment analyses
+```{r}
+# a <- " anything goes here, STR1 GET_ME STR2, anything goes here"
+# (str_match(a, "STR1\\s*(.*?)\\s*STR2"))[[2]]
+# b <- " anything goes here, STR1|GET_ME (STR2, anything goes here"
+# (str_match(b, "[|]\\s*(.*?)\\s*[(]"))[[2]]
+
+dd_genes_sigT21_modelB_down <- (dd_tidy_Zlog10Abundance_modelB %>%
+  filter(term == "T21" & Sig10_PadjBH == 1 & Zlog10_FC < 0) %>%
+  select(UniProt_Aptamer_Chr_Cluster, UniProt) %>%
+  unique() %>%
+  left_join(ai_aptamer_info,
+            by = c("UniProt_Aptamer_Chr_Cluster", "UniProt")) %>%
+  select(UniProt, ) %>%
+  unique())$UniProt;
+
+dd_genes_sigT21_modelB_up <- (dd_tidy_Zlog10Abundance_modelB %>%
+  filter(term == "T21" & Sig10_PadjBH == 1 & Zlog10_FC > 0) %>%
+  select(UniProt_Aptamer_Chr_Cluster, UniProt) %>%
+  unique() %>%
+  left_join(ai_aptamer_info, by = c("UniProt_Aptamer_Chr_Cluster", "UniProt")) %>%
+  select(UniProt) %>%
+  unique())$UniProt;
+
+dd_genes_sigT21byAge_modelB_down <- (dd_tidy_Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age" & Sig10_PadjBH == 1 & Zlog10_FC < 0) %>%
+  select(UniProt_Aptamer_Chr_Cluster, UniProt) %>%
+  unique() %>%
+  left_join(ai_aptamer_info, by = c("UniProt_Aptamer_Chr_Cluster", "UniProt")) %>%
+  select(UniProt) %>%
+  unique())$UniProt;
+
+dd_genes_sigT21byAge_modelB_up <- (dd_tidy_Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age" & Sig10_PadjBH == 1 & Zlog10_FC > 0) %>%
+  select(UniProt_Aptamer_Chr_Cluster, UniProt) %>%
+  unique() %>%
+  left_join(ai_aptamer_info, by = c("UniProt_Aptamer_Chr_Cluster", "UniProt")) %>%
+  select(UniProt) %>%
+  unique())$UniProt;
+
+gene_lists <- list(#dd_genes_sigT21_modelB,
+                   dd_genes_sigT21_modelB_down,
+                   dd_genes_sigT21_modelB_up,
+                   #dd_genes_sigT21byAge_modelB,
+                   dd_genes_sigT21byAge_modelB_down,
+                   dd_genes_sigT21byAge_modelB_up);
+names(gene_lists) <- c(#"dd_genes_sigT21_modelB",
+                   "dd_genes_sigT21_modelB_down",
+                   "dd_genes_sigT21_modelB_up",
+                   #"dd_genes_sigT21byAge_modelB",
+                   "dd_genes_sigT21byAge_modelB_down",
+                   "dd_genes_sigT21byAge_modelB_up"
+                       )
+```
+
+#### clusterProfiler
+
+
+```{r}
+```
+
+#### KEGG pathway over-representation analysis
+```{r}
+# https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-kegg.html
+
+# data(geneList, package="DOSE")
+# gene <- names(geneList)[abs(geneList) > 2]
+#kk <- enrichKEGG(gene         = gene,
+#                 organism     = 'hsa',
+#                 pvalueCutoff = 0.05)
+
+kk <- list()
+for ( i in 1:length(gene_lists) ) {
+  kk[[i]] <- enrichKEGG(gene = gene_lists[[i]],
+                 organism     = 'hsa',
+                 pvalueCutoff = 0.10,
+                 keyType = 'uniprot') %>%
+    as.data.frame() %>%
+    #rownames_to_column("rowname") %>%
+    `rownames<-`(NULL) %>%
+    mutate(gene_set = names(gene_lists)[[i]]) %>%
+    mutate(gene_set = gsub("dd_genes_", "", gene_set)) %>%
+  mutate(N_geneIDs = 1 + str_count(geneID, pattern = "/"));
+  names(kk)[[i]] <- gsub("dd_genes_", "", names(gene_lists)[[i]])
+}
+
+kk
+```
+
+```{r}
+kk %>%
+  lapply(select,
+         c(gene_set,
+           Description,
+           FoldEnrichment, qvalue,
+           subcategory, category,
+           N_geneIDs))
+```
+
+```{r}
+kk[[1]] %>%
+  mutate(N_geneIDs = 1 + str_count(geneID, pattern = "/"))
+
+kk %>%
+  lapply(select,
+         c(gene_set,
+           Description,
+           FoldEnrichment, qvalue,
+           subcategory, category,
+           N_geneIDs)) %>%
+  lapply(group_by, gene_set, subcategory) %>%
+  lapply(summarise,
+         N_enriched = n(),
+         descriptions = paste(Description, collapse = "; "),
+         N_geneIDs_in_subcatgory = sum(N_geneIDs, na.rm = TRUE)) %>%
+  lapply(arrange, desc(N_enriched))
+```
+
+#### KEGG pathway gene set enrichment analysis
+```{r}
+geneList
+
+??gseKEGG
+
+kk2 <- gseKEGG(geneList     = geneList,
+               organism     = 'hsa',
+               minGSSize    = 120,
+               pvalueCutoff = 0.05,
+               verbose      = FALSE)
+head(kk2)
+
+gseKEGG(gene = gene_lists[[5]],
+        organism     = 'hsa',
+        minGSSize    = 120,
+                      pvalueCutoff = 0.10,
+                      keyType = 'uniprot',
+                      verbose = FALSE,
+        seed = TRUE)
+
+kk2 <- list()
+for ( i in 1:length(gene_lists) ) {
+  kk2[[i]] <- gseKEGG(gene = gene_lists[[i]],
+                      organism     = 'hsa',
+                      pvalueCutoff = 0.10,
+                      keyType = 'uniprot',
+                      verbose = FALSE) %>%
+    as.data.frame() %>%
+    #rownames_to_column("rowname") %>%
+    `rownames<-`(NULL) %>%
+    mutate(gene_set = names(gene_lists)[[i]]) %>%
+    mutate(gene_set = gsub("dd_genes_", "", gene_set)) %>%
+  mutate(N_geneIDs = 1 + str_count(geneID, pattern = "/"));
+  names(kk)[[i]] <- gsub("dd_genes_", "", names(gene_lists)[[i]])
+}
+
+```
+ 
+
+
+
+
+
+
+
+
+
+
+
+#### Comparing multiple gene lists
+"The compareCluster() function applies selected function (via the fun parameter) to perform enrichment analysis for each gene list."
+"GOSemSim provides the godata() function to prepare semantic data to support measuring GO and gene simiarlity. It internally used the GO.db package to obtain GO strucuture and OrgDb for gene to GO mapping." (https://yulab-smu.top/biomedical-knowledge-mining-book/GOSemSim.html?q=org.Hs.eg.db#semantic-data)
+```{r}
+#library(GOSemSim)
+#hsGO <- godata('org.Hs.eg.db', ont="MF")
+```
+
+```{r}
+# https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-comparecluster.html
+data(gcSample)
+str(gcSample)
+str(gene_lists)
+
+ck <- compareCluster(geneCluster = gcSample,
+                     fun = enrichKEGG,
+                     organism = 'hsa')
+ck <- setReadable(ck, OrgDb = 'org.Hs.eg.db', keyType="ENTREZID")
+head(ck) 
+
+# ----
+ck_p4c <- compareCluster(geneCluster = gene_lists,
+                     fun = "enrichKEGG",
+                     #fun = "enrichPathway",
+                     organism="human")
+ck_p4c <- compareCluster(geneCluster = gene_lists,
+                         #fun = "enrichKEGG",
+                         fun = "enrichPathway",
+                         organism="human")
+ck <- setReadable(ck,
+                  OrgDb = 'org.Hs.eg.db',
+                  keyType="ENTREZID")
+```
+
+
+```{r}
+# https://www.ndexbio.org/index.html#/search?searchType=All&searchString=P02671%2520P01876%2520Q8NEV9%2520P02794%2520Q8NBM8%2520Q8N6N2%2520P53396%2520P53816%2520Q8TDL5%2520O15041%2520P22301%2520Q01344%2520Q9H4I3%2520P81534%2520O43586%2520Q08999%2520P78540%2520P36896%2520Q9NQ25%2520P25963%2520P08949%2520Q8NBI3%2520O43866%2520Q9UGB7%2520Q8N5S9%2520O60667%2520Q06033%2520P50897%2520P14649%2520Q13219%2520O60609%2520Q14002%2520Q14703%2520P20155%2520Q6IS&searchTermExpansion=false
+```
+
+```{r}
+# Users can use a named list of gene IDs as the input that passed to the geneCluster parameter.
+
+set.seed(1234)
+ck <- compareCluster(geneCluster = gene_lists,
+                     #fun = "enrichKEGG",
+                     fun = "enrichPathway",
+                     organism="hsa",
+                     pvalueCutoff=0.10)
+class(ck)
+ck <- setReadable(ck,
+                  OrgDb = 'org.Hs.eg.db',
+                  keyType="ENTREZID")
+ck <- compareCluster(geneCluster = gene_lists,
+                     fun = "enrichGO",
+                     #organism="hsa",
+                     pvalueCutoff=0.10)
+
+
+head(ck) 
+```
+
+```{r}
+library(AnnotationHub)
+hub <- AnnotationHub() # yes
+
+q <- query(hub, "Homo sapiens") 
+#q2 <- query(hub, c("OrgDb", "Homo sapiens"))
+q$dataprovider %>% unique()
+#q2
+
+id <- q$ah_id[length(q)]
+
+Human <- hub[[id]]
+```
+
+```{r}
+# https://bioconductor.org/packages/release/bioc/vignettes/AnnotationHub/inst/doc/AnnotationHub-HOWTO.R
+
+library(AnnotationHub)
+ah <- AnnotationHub()
+query(ah, "OrgDb")
+orgdb <- query(ah, c("OrgDb", "maintainer@bioconductor.org"))
+orgdb %>% class()
+orgdb$species
+
+library(AnnotationDbi)
+AnnotationDbi::keytypes(orgdb)
+AnnotationDbi::columns(orgdb)
+egid <- head(keys(orgdb, "ENTREZID"))
+AnnotationDbi::select(orgdb, egid, c("SYMBOL", "GENENAME"), "ENTREZID")
+
+ah = AnnotationHub()
+epiFiles <- query(ah, "EpigenomeRoadMap")
+
+#  url <- "http://egg2.wustl.edu/roadmap/data/byFileType/peaks/consolidated/broadPeak/E001-H3K4me1.broadPeak.gz"
+#  filename <-  basename(url)
+#  download.file(url, destfile=filename)
+#  if (file.exists(filename))
+#     data <- import(filename, format="bed")
+
+## ----results='hide'-------------------------------------------------------------------------------
+library(AnnotationHub)
+ah = AnnotationHub()
+epiFiles <- query(ah, "EpigenomeRoadMap")
+
+```
+
+

@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ddata")
+dd_tidy_Zlog10Abundance_modelB <- fread("dd_tidy_Zlog10Abundance_modelB.csv.gz")
+
+dd_tidy_Zlog10Abundance_modelB
+```
+
+```{r}
+dd_uniprot_sigT21byAge_up <- dd_tidy_Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age" & Sig10_PadjBH == 1 & Zlog10_FC > 0) %>%
+  arrange(desc(Zlog10_FC)) %>%
+  mutate(nchar = nchar(UniProt)) %>%
+  arrange(desc(nchar)) %>%
+  select(UniProt, everything()) %>%
+  mutate(UniProt = gsub(",", "", UniProt)) %>%
+  separate(UniProt, into = c("UniProt1", "UniProt2", "UniProt3"),
+           sep = " ",
+           extra = "merge", remove = TRUE) %>%
+  gather(key = "UniProt_Index_for_Aptamer", value = "UniProt", UniProt1:UniProt3) %>%
+  select(UniProt) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+dd_uniprot_sigT21byAge_up
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ddata")
+fwrite(dd_uniprot_sigT21byAge_up, "dd_uniprot_sigT21byAge_up.csv")
+fwrite(dd_uniprot_sigT21byAge_up, "dd_uniprot_sigT21byAge_up.txt", sep = "\t")
+```
+
+```{r}
+dd_uniprot_sigT21byAge_down <- dd_tidy_Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age" & Sig10_PadjBH == 1 & Zlog10_FC < 0) %>%
+  arrange(desc(Zlog10_FC)) %>%
+  mutate(nchar = nchar(UniProt)) %>%
+  arrange(desc(nchar)) %>%
+  select(UniProt, everything()) %>%
+  mutate(UniProt = gsub(",", "", UniProt)) %>%
+  separate(UniProt, into = c("UniProt1", "UniProt2"), sep = " ", extra = "merge", remove = TRUE) %>%
+  gather(key = "UniProt_Index_for_Aptamer", value = "UniProt", UniProt1:UniProt2) %>%
+  select(UniProt) %>%
+  unique() %>%
+  `rownames<-`(NULL)
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ardata")
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz")
+ar_p4c_soma
+
+dd_uniprot_sigT21byAge_down
+
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/ddata")
+fwrite(dd_uniprot_sigT21byAge_down, "dd_uniprot_sigT21byAge_down.csv")
+fwrite(dd_uniprot_sigT21byAge_down, "dd_uniprot_sigT21byAge_down.txt", sep = "\t")
+```
+

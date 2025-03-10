@@ -1,0 +1,304 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r echo=True, include=FALSE}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r echo=True, include=FALSE}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+
+select <- dplyr::select
+filter <- dplyr::filter
+rename <- dplyr::rename
+```
+
+#### Read Analysis Tracker
+```{r}
+# setwd(dir.docs)
+# analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+#   filter(run_model == 1)
+# 
+# analysis_tracker
+```
+
+#### Read requisite aidata
+```{r}
+setwd(dir.aidata)
+ai_p4c_rna <- fread("ai_p4c_rna.csv.gz")
+ai_p4c_rna_d21_mean_sd <- fread("ai_p4c_rna_d21_mean_sd.csv.gz")
+ai_p4c_meta <- fread("ai_p4c_meta.csv.gz")
+
+ai_p4c_rna %>% head()
+ai_p4c_rna_d21_mean_sd %>% head()
+ai_p4c_meta %>% head()
+```
+
+#### Identify genes expressed only in T21s
+```{r}
+d21_zero_sd_genes <- (ai_p4c_rna_d21_mean_sd %>%
+  arrange(d21_sd_log10FPKM) %>%
+  filter(d21_sd_log10FPKM == 0))$Analyte
+
+ai_p4c_rna.zero_sd_genes <- ai_p4c_rna %>%
+  filter(Analyte %in% d21_zero_sd_genes)
+
+ai_p4c_rna.zero_sd_genes01 <- ai_p4c_rna.zero_sd_genes %>%
+  mutate(Karyotype = case_when(grepl("B", LabID)==TRUE ~ "Control",
+                               grepl("A", LabID)==TRUE ~ "T21",
+                               .default = NA)) %>%
+  group_by(Analyte, Karyotype) %>%
+  summarise(N = n(),
+            mean = mean(Value),
+            sd = sd(Value),
+            max = max(Value)) %>%
+  ungroup()
+
+ai_expressed_only_in_t21 <- ai_p4c_rna.zero_sd_genes01 %>%
+  mutate(N_mean_sd_max = paste(N, mean, sd, max, sep = "_")) %>%
+  select(-c(N, mean, sd, max)) %>%
+  group_by(Analyte) %>%
+  spread(key = Karyotype, value = N_mean_sd_max) %>%
+  separate(Control, into = c("N_D21", "Mean_D21", "SD_D21", "Max_D21"), sep = "_", extra = "merge", remove = TRUE) %>%
+  separate(T21, into = c("N_T21", "Mean_T21", "SD_T21", "Max_T21"), sep = "_", extra = "merge", remove = TRUE) %>%
+  mutate(N_D21 = as.numeric(N_D21),
+         Mean_D21 = as.numeric(Mean_D21),
+         SD_D21 = as.numeric(SD_D21),
+         Max_D21 = as.numeric(Max_D21),
+         
+         N_T21 = as.numeric(N_T21),
+         Mean_T21 = as.numeric(Mean_T21),
+         SD_T21 = as.numeric(SD_T21),
+         Max_T21 = as.numeric(Max_T21)) %>%
+  mutate(keep = case_when(Mean_D21==0 & SD_D21==0 & Mean_T21==0 & SD_T21==0 ~ 0, .default = 1)) %>%
+  filter(keep == 1)
+
+ai_expressed_only_in_t21 %>% arrange(desc(Max_T21)) %>% head(n=50);
+
+ai_expressed_only_in_t21 %>%
+  arrange(desc(SD_T21))
+
+ai_expressed_only_in_t21 %>%
+  arrange(desc(Mean_T21))
+
+ai_expressed_only_in_t21 %>%
+  mutate(CV_T21 = Mean_T21/SD_T21) %>%
+  arrange(desc(CV_T21)) %>%
+  select(Analyte) %>%
+  unique() %>%
+  nrow()
+#[1] 4772
+
+ai_expressed_only_in_t2101 <- ai_expressed_only_in_t21 %>%
+  mutate(CV_T21 = Mean_T21/SD_T21) %>%
+  arrange(desc(SD_T21)) %>%
+  select(-c(keep))
+setwd(dir.aidata)
+fwrite(ai_expressed_only_in_t2101, "ai_p4c_rna_expressed_only_in_t21.csv.gz")
+setwd(dir.aidata)
+write.xlsx(ai_expressed_only_in_t2101, "ai_p4c_rna_expressed_only_in_t21.xlsx")
+
+ar_expressed_only_in_t21 <- ai_p4c_rna %>%
+  filter(Analyte %in% unique(ai_expressed_only_in_t2101$Analyte)) %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  mutate(T21 = case_when(Karyotype == "Control" ~ 0,
+                         Karyotype == "T21" ~ 1,
+                         .default = NA),
+         Female = case_when(Sex == "Male" ~ 0,
+                            Sex == "Female" ~ 1,
+                            .default = NA))
+setwd(dir.ardata)
+fwrite(ar_expressed_only_in_t21, "ar_expressed_only_in_t21.csv.gz")
+ar_expressed_only_in_t21 %>% head()
+
+ar_expressed_only_in_t21.split <- ar_expressed_only_in_t21 %>%
+  split(., .$Analyte)
+```
+
+```{r}
+set.seed(1234)
+lm_tidy <- ar_expressed_only_in_t21.split %>%
+  lapply(filter, T21 == 1) %>%
+    #head(n=3) %>%
+    purrr::map(~lm(log10(Value+0.005) ~ Age, data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="Analyte") %>%
+    mutate(model_formula = "Value ~ Age + Female") %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)")
+
+lm_tidy %>%
+  arrange(p.value) %>%
+  filter(term == "Age") %>%
+  select(-c(std.error, statistic)) %>%
+  mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+  #filter(grepl("TRDD", Analyte)==TRUE) %>%
+  filter(PadjBH<0.10) %>%
+  arrange(desc(abs(estimate)))
+```
+
+
+```{r}
+ai_p4c_rna %>%
+  filter(Analyte == "TRDD2 (ENSG00000237235.2)") %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  ggtitle("TRDD2 (ENSG00000237235.2)")
+
+ai_p4c_rna %>%
+  filter(Analyte == "IGHVII-67-1 (ENSG00000253820.1)") %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  ggtitle("IGHVII-67-1 (ENSG00000253820.1)")
+
+ai_p4c_rna %>%
+  filter(Analyte == "IL9 (ENSG00000145839.2)") %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  ggtitle("IL9 (ENSG00000145839.2)")
+
+ai_p4c_rna %>%
+  filter(Analyte == "VENTXP3 (ENSG00000257364.1)") %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  ggtitle("VENTXP3 (ENSG00000257364.1)")
+
+ai_p4c_rna %>%
+  filter(Analyte == "LNCSRLR (ENSG00000240032.1)") %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  ggtitle("LNCSRLR (ENSG00000240032.1)")
+
+ai_p4c_rna %>%
+  filter(Analyte == "BPY2DP (ENSG00000229745.1)") %>%
+  left_join(ai_p4c_meta, by = "LabID") %>%
+  ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+  geom_smooth() +
+  theme(aspect.ratio = 1.0) +
+  ggtitle("BPY2DP (ENSG00000229745.1)")
+```
+
+```{r}
+ai_p4c_rna %>% head()
+
+ai_p4c_rna %>% glimpse()
+
+ai_p4c_rna %>% filter(is.na(Value) | Value == -Inf) %>% head()
+
+ai_p4c_rna$Value %>% summary()
+
+log10(0.005)
+```
+
+```{r}
+ai_p4c_rna %>% head()
+ai_p4c_rna_d21_mean_sd %>% head()
+ai_p4c_meta %>% head()
+```
+
+
+#### ai_p4c_rna01
+```{r}
+ai_p4c_rna01 <- ai_p4c_rna %>%
+  mutate(In_P4C_RNAseq = 1) %>%
+  left_join(ai_p4c_rna_d21_mean_sd,
+            by = "Analyte") %>%
+  #na.omit() %>%
+  group_by(LabID, Analyte) %>%
+  mutate(Zlog10_FPKM = (log10(Value + 0.005) - d21_mean_log10FPKM)/d21_sd_log10FPKM) %>%
+  ungroup()
+
+test <- ai_p4c_rna %>%
+  filter(grepl("AACSP1", Analyte)==TRUE) %>%
+  filter(grepl("B", LabID)==TRUE) %>%
+  group_by(Analyte) %>%
+  summarise(d21_mean_log10FPKM = mean(log10(Value + 0.005), na.rm = TRUE),
+            d21_sd_log10FPKM = sd(log10(Value + 0.005), na.rm = TRUE)) %>%
+  ungroup() %>%
+  left_join(ai_p4c_rna %>%
+              filter(grepl("AACSP1", Analyte)==TRUE),
+            by = "Analyte") %>%
+  #na.omit() %>%
+  group_by(LabID, Analyte) %>%
+  mutate(Zlog10_FPKM = (log10(Value + 0.005) - d21_mean_log10FPKM)/d21_sd_log10FPKM) %>%
+  ungroup()
+
+test
+
+ai_p4c_rna01 %>% head(n=100)
+```
+
+#### ar_p4c_rna
+```{r}
+ar_p4c_rna <- ai_p4c_rna01 %>%
+  left_join(ai_p4c_meta,
+            by = "LabID") %>%
+  dplyr::select(-c(Value)) %>%
+  dplyr::rename(Value = Zlog10_FPKM) %>%
+  mutate(Units = "Zlog10_FPKM",
+         Omics_type = "Transcriptomics",
+         Analyte_type = "Gene expression") %>%
+  filter(!is.na(In_P4C_RNAseq)) %>%
+  select(LabID, Karyotype, Sex, Age,
+         #T21, Female, Karyotype_Sex,
+         Omics_type, Analyte_type, Analyte, Value, Units, In_P4C_RNAseq);
+
+setwd(dir.ardata)
+fwrite(ar_p4c_rna, "ar_p4c_rna.csv.gz")
+```
+
+
+```{r}
+ar_p4c_rna %>%
+  filter(grepl("AACSP1", Analyte)==TRUE)
+```
+

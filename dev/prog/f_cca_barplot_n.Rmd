@@ -1,0 +1,113 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_d21clustered <- fread("ar_sigt21byage_d21clustered.csv.gz")
+```
+
+#### f_cca_barplot_n
+```{r}
+f_cca_barplot_n <- ar_sigt21byage_d21clustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                `T21-by-Age Cluster`,
+                Lehallier2019_ClusterID) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  mutate(Lehallier2019_Cluster = case_when(is.na(Lehallier2019_ClusterID)~"None",
+                                           .default = as.character(Lehallier2019_ClusterID))) %>%
+  dplyr::select(-c(Lehallier2019_ClusterID)) %>%
+  group_by(`T21-by-Age Cluster`, Lehallier2019_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  group_by(`T21-by-Age Cluster`) %>%
+  mutate(N_Total = sum(N_Aptamers)) %>%
+  ungroup() %>%
+  mutate(Proportion = N_Aptamers/N_Total) %>%
+  dplyr::rename(`Proteomic Clock Cluster` = Lehallier2019_Cluster);
+
+setwd(dir.ddata)
+fwrite(f_cca_barplot_n, "f_cca_barplot_n.csv")
+```
+
+#### gg_cca_barplot_n
+```{r}
+gg_cca_barplot_n <- f_cca_barplot_n %>%
+  dplyr::rename(`Clock Cluster*` = `Proteomic Clock Cluster`) %>%
+  ggplot(aes(x = `T21-by-Age Cluster`, y = N_Aptamers,
+             color = `Clock Cluster*`,
+             fill = `Clock Cluster*`,
+             width = 0.8)) + 
+  geom_bar(position = "dodge", stat = "identity") +
+  ylab("Aptamers (N)") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "right",
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = "\n*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters") +
+  # set colors
+  scale_colour_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]])) +
+       scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8),
+                          labels=c("A", "B", "C", "D", "E", "F", "G", "H"));
+
+save_as <- "f_cca_barplot_n"
+setwd(dir.output)
+ggsave(gg_cca_barplot_n,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 5, units = "in");
+
+gg_cca_barplot_n
+```

@@ -1,0 +1,12 @@
+T21byAge_Cluster,Aptamers encoded by ChrY (N),Aptamers Total (N),Proportion of Aptamers encoded by ChrY,ChrY_encoded_geneID,ChrY_encoded_geneID_position,Chr21
+All genes,3,276,0.0109,VAMP7,chrYq12,0
+All genes,3,276,0.0109,ASMTL/CSF2RA/IL3RA/CRLF2,chrYp11,0
+All genes,3,276,0.0109,EIF1AY/CDY1,chrYq11,0
+All genes with no significant T21*Age interaction (PadjBH>=0.05),3,273,0.011,VAMP7,chrYq12,0
+All genes with no significant T21*Age interaction (PadjBH>=0.05),3,273,0.011,ASMTL/CSF2RA/IL3RA/CRLF2,chrYp11,0
+All genes with no significant T21*Age interaction (PadjBH>=0.05),3,273,0.011,CDY1,chrYq11,0
+DA-DS Cluster Alpha,2,259,0.0077,ASMTL/CSF2RA/IL3RA/CRLF2,chrYp11,0
+DA-DS Cluster Alpha,2,259,0.0077,CDY1,chrYq11,0
+All genes with significant T21*Age interaction (PadjBH<0.05),1,192,0.0052,EIF1AY,chrYq11,0
+DA-DS Cluster E,1,86,0.0116,EIF1AY,chrYq11,0
+DA-DS Cluster Epsilon,1,192,0.0052,VAMP7,chrYq12,0

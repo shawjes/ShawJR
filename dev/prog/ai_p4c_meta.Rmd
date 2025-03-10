@@ -1,0 +1,45 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+```{r}
+setwd(dir.indata)
+list.files()
+```
+```{r}
+setwd(dir.indata)
+in_donovan2024_p4c_meta <- fread("in_donovan2024_p4c_meta.csv.gz")
+
+in_donovan2024_p4c_meta
+```
+
+```{r}
+ai_donovan2024_p4c_meta <- in_donovan2024_p4c_meta %>%
+  dplyr::select(-c(Data_contact, Date_exported, Script)) %>%
+  unique()
+
+ai_donovan2024_p4c_meta
+```
+
+```{r}
+setwd(dir.aidata)
+fwrite(ai_donovan2024_p4c_meta, "ai_p4c_meta.csv.gz")
+```
+

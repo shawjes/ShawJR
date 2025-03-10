@@ -1,0 +1,1180 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Overview of fitted models
+##### Model 1: log2(Mean Calculated Concentration) ~ T21 + Age + Female
+###### Hypotheses tested by model:
+- Difference in the group mean of log2(Mean Calculated Concentration) for T21 as compared to D21
+- Difference in the mean value of log2(Mean Calculated Concentration) for each 1 year increase in age at blood draw (i.e., the slope for age)
+- Difference in the group mean of log2(Mean Calculated Concentration) for females as compared to males
+
+##### Model 2 : log2(Mean Calculated Concentration) ~ T21 + Age + Female + T21*Age
+###### Hypotheses tested by model:
+- Difference in the group mean of log2(Mean Calculated Concentration) for T21 as compared to D21
+- Difference in the mean value of log2(Mean Calculated Concentration) for each 1 year increase in age at blood draw (i.e., the slope for age)
+- Difference in the group mean of log2(Mean Calculated Concentration) for females as compared to males
+- Difference in the slope for age among T21s, as compared to the slope for age among D21s
+
+##### Model 3: log2(Mean Calculated Concentration) ~ T21 + Age + Female + T21*Female
+###### Hypotheses tested by model:
+- Difference in the group mean of log2(Mean Calculated Concentration) for T21 as compared to D21.
+- Difference in the mean value of log2(Mean Calculated Concentration) for each 1 year increase in age at blood draw (i.e., the slope for age).
+- Difference in the group mean of log2(Mean Calculated Concentration) for females as compared to males.
+- Difference in the effect of female sex among T21s, as compared to the effect of female sex among D21s / Difference in the effect of T21 among females, as compared to the effect of T21 among males / Difference in mean value of log2(Mean Calculated Concentration) among D21 males (Female=0 and T21=0) as compared to T21 females (Female=1 and T21=1).
+
+##### Model 1A: log2(Mean Calculated Concentration) ~ Age + Female + (1|Source), data=T21s only
+###### Hypotheses tested by model:
+Difference in the mean value of log2(Mean Calculated Concentration) among T21s for each 1 year increase in age at blood draw (i.e., the slope for age).
+Difference in the mean value of log2(Mean Calculated Concentration) for T21 females as compared to T21 males.
+
+##### Model 1B: log2(Mean Calculated Concentration) ~ Age + Female + (1|Source), data=D21s only
+###### Hypotheses tested by model:
+Difference in the mean value of log2(Mean Calculated Concentration) among D21s for each 1 year increase in age at blood draw (i.e., the slope for age).
+Difference in the mean value of log2(Mean Calculated Concentration) for D21 females as compared to D21 males.
+
+```{r}
+library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+library(miceadds)
+library(ggforce)
+require(openxlsx)
+```
+
+```{r}
+install.packages("lqmm")
+library(lqmm)
+
+fit <- lqmm(distance ~ age, random = ~ 1, group = Subject,
+tau = 0.5, data = Orthodont)
+```
+
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd
+```
+
+#### Basic data quality checks
+```{r}
+# Check that we have complete meta-data and sample Source for all MSD LabIDs:
+msd %>%
+  select(LabID, I_MSDdata, I_MetaData, I_SourceData) %>%
+  unique() %>%
+  group_by(I_MSDdata, I_SourceData, I_MetaData) %>%
+  summarise(N=n())
+# Perfect.
+
+# Check that all analytes have the same number of participants measured:
+msd %>%
+  group_by(Panel_Analyte) %>%
+  summarise(N=n()) %>%
+  arrange(desc(N))
+# Good. Every Panel_Analyte has exactly 468 observations, one for each participant.
+
+# Check that all record IDs have the same number of observations (Each should have 1 observation for each of 54 analytes):
+msd %>%
+  group_by(RecordID) %>%
+  summarise(N=n()) %>%
+  arrange(desc(N))
+# Good. Every participant has exactly 54 observations, one per Panel_Analyte.
+```
+
+#### Check data for missingness, unique IDs, etc.
+```{r}
+# Check the completeness of T21 status:
+msd %>% filter(is.na(T21) | T21=="") %>% select(RecordID, T21) %>% unique()
+# 0 rows = 0 problems.
+
+# Confirm that each ID has only one T21 classification:
+msd %>% select(RecordID, T21) %>% unique() %>%
+  group_by(RecordID) %>%
+  summarise(N=n()) %>%
+  arrange(desc(N)) %>%
+  filter(N!=1 | is.na(N))
+# 0 rows = 0 problems.
+
+# Confirm that each ID has only one Female classification:
+msd %>% select(RecordID, Female) %>% unique() %>%
+  group_by(RecordID) %>%
+  summarise(N=n()) %>%
+  arrange(desc(N)) %>%
+  filter(N!=1 | is.na(N))
+# 0 rows = 0 problems.
+
+# Check age completeness for all LabIDs:
+msd %>% filter(is.na(Age) | Age=="")
+# 0 rows = 0 problems.
+```
+
+#### Calculate group and overall mean concentration for each analyte
+```{r}
+summary.All<-msd %>%
+  group_by(Panel_Analyte) %>%
+  summarise(Group="All",
+            N=n(),
+            Min=min(CalcConcMean_AfterImputation),
+            Mean=mean(CalcConcMean_AfterImputation),
+            Median=median(CalcConcMean_AfterImputation),
+            Max=max(CalcConcMean_AfterImputation),
+            StdDev=var(CalcConcMean_AfterImputation)^0.5)
+
+summary.byKaryotype<-msd %>%
+  group_by(Panel_Analyte, T21) %>%
+  summarise(N=n(),
+            Min=min(CalcConcMean_AfterImputation),
+            Mean=mean(CalcConcMean_AfterImputation),
+            Median=median(CalcConcMean_AfterImputation),
+            Max=max(CalcConcMean_AfterImputation),
+            StdDev=var(CalcConcMean_AfterImputation)^0.5) %>%
+  ungroup() %>%
+  rename(Group=T21) %>%
+  mutate(Group=ifelse(Group==1, "T21", ifelse(Group==0, "D21", NA)))
+
+summaryStats<-rbind(summary.All, summary.byKaryotype) %>%
+  arrange(Panel_Analyte)
+summaryStats
+
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results")
+#fwrite(summaryStats, "MSD_051320_Concentration_SummaryStats_JRS.csv")
+
+N.wide<-summaryStats %>% select(Panel_Analyte, Group, N) %>%
+  spread(key=Group, value=N) %>%
+  rename(N.All=All,
+         N.D21=D21,
+         N.T21=T21)
+means.wide<-summaryStats %>% select(Panel_Analyte, Group, Mean) %>%
+  spread(key=Group, value=Mean) %>%
+  rename(Mean.All=All,
+         Mean.D21=D21,
+         Mean.T21=T21)
+
+medians.wide<-summaryStats %>% select(Panel_Analyte, Group, Median) %>%
+  spread(key=Group, value=Median) %>%
+  rename(Median.All=All,
+         Median.D21=D21,
+         Median.T21=T21)
+
+N.wide
+means.wide
+medians.wide
+
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results")
+#fwrite(N.wide, "MSD_051320_Concentration_SummaryStats_N_wide_JRS.csv")
+#fwrite(N.means, "MSD_051320_Concentration_SummaryStats_Means_wide_JRS.csv")
+#fwrite(N.medians, "MSD_051320_Concentration_SummaryStats_Medians_wide_JRS.csv")
+
+stats.wide<-N.wide %>%
+  full_join(means.wide, by="Panel_Analyte") %>%
+  full_join(medians.wide, by="Panel_Analyte")
+
+stats.wide
+
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results")
+#fwrite(N.wide, "MSD_051320_Concentration_SummaryStats_N_Mean_Median_wide_JRS.csv")
+```
+
+#### Define custom function for cleaning results generated below
+```{r}
+# tidy:
+# Define new function that defaults to include confidence intervals in output:
+tidyPlus <- function(x, print=TRUE) {
+  result <- tidy(x, conf.int=T)
+  return(result)
+}
+```
+
+# Create stratified datasets for use in Models 1A and 1B, respectively
+```{r}
+T21<-msd %>% filter(T21==1)
+T21 %>% head()
+
+D21<-msd %>% filter(T21==0)
+D21 %>% head()
+```
+
+```{r}
+msd
+
+install.packages("qrLMM")
+library(qrLMM)
+median_reg = QRLMM(y,x,newid,nj,MaxIter = 500)
+
+data(Orthodont)
+attach(Orthodont)
+sex = c()
+sex[Sex=="Male"]=0
+sex[Sex=="Female"]=1
+y = distance # response
+y
+#[1] 26.0 25.0 29.0 31.0 21.5 22.5 23.0 26.5 23.0 22.5 24.0 27.5 25.5 27.5 26.5 27.0 20.0 23.5 22.5 26.0 24.5
+#[22] 25.5 27.0 28.5 22.0 22.0 24.5 26.5 24.0 21.5 24.5 25.5 23.0 20.5 31.0 26.0 27.5 28.0 31.0 31.5 23.0 23.0
+#[43] 23.5 25.0 21.5 23.5 24.0 28.0 17.0 24.5 26.0 29.5 22.5 25.5 25.5 26.0 23.0 24.5 26.0 30.0 22.0 21.5 23.5
+#[64] 25.0 21.0 20.0 21.5 23.0 21.0 21.5 24.0 25.5 20.5 24.0 24.5 26.0 23.5 24.5 25.0 26.5 21.5 23.0 22.5 23.5
+#[85] 20.0 21.0 21.0 22.5 21.5 22.5 23.0 25.0 23.0 23.0 23.5 24.0 20.0 21.0 22.0 21.5 16.5 19.0 19.0 19.5 24.5
+#[106] 25.0 28.0 28.0
+class(y) #[1] "numeric"
+dim(y)
+length(y) #[1] 108
+
+x = cbind(1,sex,age) #design matrix for fixed effects
+x
+#       sex age
+#  [1,] 1   0   8
+#  [2,] 1   0  10
+#  [3,] 1   0  12
+#  [4,] 1   0  14
+#  [5,] 1   0   8
+#  [6,] 1   0  10
+# ...
+# [107,] 1   1  12
+# [108,] 1   1  14
+x %>% class() # matrix
+dim(x) # 108 x 3
+
+z = cbind(1,age) #design matrix for random effects
+z
+#       age
+#  [1,] 1   8
+#  [2,] 1  10
+#  [3,] 1  12
+#  [4,] 1  14
+#  [5,] 1   8
+# ...
+# [107,] 1  12
+# [108,] 1  14
+z %>% class() # matrix
+dim(z) # 108 x 2
+
+# A median regression
+median_reg = QRLMM(y,x,z,Subject,MaxIter = 500)
+help(QRLMM)
+```
+
+```{r}
+y.msd = msd$CalcConcMean_AfterImputation
+x.msd = cbind(1, msd$T21, msd$Age, msd$Female)
+z.msd = cbind(1, msd$Source)
+
+length(y); dim(x); dim(z)
+length(y.msd); dim(x.msd); dim(z.msd)
+class(y.msd); class(x.msd); class(z.msd)
+
+# A median regression
+median_reg = QRLMM(y.msd, x.msd, z.msd, Subject, MaxIter = 500)
+
+QRLMM(y,x,z,groups,p=0.5,precision=0.0001,MaxIter=300,M=10,cp=0.25,
+      beta=NA,sigma=NA,Psi=NA,show.convergence=TRUE,CI=95)
+
+y	
+the response vector of dimension N where N is the total of observations.
+
+x	
+design matrix for the fixed effects of dimension N x d where d represents the number of fixed effects including the intercept, if considered.
+
+z	
+design matrix for the random effects of dimension N x q where q represents the number of random effects.
+
+groups	
+factor of dimension N specifying the partitions of the data over which the random effects vary.
+
+p	
+unique quantile or a set of quantiles related to the quantile regression.
+
+precision	
+the convergence maximum error.
+
+MaxIter	
+the maximum number of iterations of the SAEM algorithm. Default = 300.
+
+M	
+Number of Monte Carlo simulations used by the SAEM Algorithm. Default = 10. For more accuracy we suggest to use M=20.
+
+cp	
+cut point (0 ≤ cp ≤ 1) which determines the percentage of initial iterations with no memory.
+
+beta	
+fixed effects vector of initial parameters, if desired.
+
+sigma	
+dispersion initial parameter for the error term, if desired.
+
+Psi	
+Variance-covariance random effects matrix of initial parameters, if desired.
+
+show.convergence	
+if TRUE, it will show a graphical summary for the convergence of the estimates of all parameters for each quantile in order to assess the convergence.
+
+CI	
+Confidence to be used for the Confidence Interval when a grid of quantiles is provided. Default=95.
+```
+
+
+
+```{r}
+# fit <- lqmm(distance ~ age, random = ~ 1, group = Subject,
+# tau = 0.5, data = Orthodont)
+
+library(lqmm)
+lqmm.crp<-lqmm(CalcConcMean_AfterImputation ~ T21 + Age + Female, random = ~ 1, group = Source, tau = 0.5, data = msd %>% filter(Analyte=="CRP"))
+
+help(lqmm)
+
+```
+
+
+#### Model 1: log2(Concentration) ~ T21 + Age + Female + (1|Source)
+```{r}
+# Remove all objects other than the data required for analysis and the tidyPlus function:
+rm(list=setdiff(ls(), c("msd", "T21", "D21", "tidyPlus", "stats.wide")))
+
+set.seed(1234)
+
+samples<-"T21 + D21"
+df<-msd
+
+
+
+# Run Model 1 separately for each of 54 cytokines:
+lqmm = df %>%
+  group_by(Panel_Analyte) %>%
+  do( fit.lqmm = lqmm(CalcConcMean_AfterImputation ~ T21 + Age + Female, random = ~ 1, group = Source, tau = 0.5, data = .) )
+
+#----------------------------------------------------------------------------------
+#####################
+##  DO NOT MODIFY  ##
+#####################
+
+# Name each dataframe in list of results:
+names(lmm$fit.lmm)<-lmm$Panel_Analyte
+
+# Extract model method and call (i.e., model parameterization), to integrate into results workbooks below.
+# Note: Only need to do this for any one of the 54 models, since method and call are the same for all analytes.
+fit.method<-summary(lmm$fit.lmm[[1]])$methTitle
+temp<-summary(lmm$fit.lmm[[1]])$call %>%
+  as.character() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("V1", "V2", "V3", "V4"))
+fit.call<-paste(temp$V1, "(formula = ", temp$V2, ", data = ", temp$V3, " , REML = ", temp$V4, ")", sep="")
+
+# Extract model diagnostic info:
+augment.lmm = broom::augment(lmm, fit.lmm, data=df) # Note: Must explicitly include data=msd, as opposed to data=. , so that sample info gets included along with augment output (residuals, Cook's distance, etc.)
+glance.lmm = broom::glance(lmm, fit.lmm)
+
+# Apply tidyPlus to all dataframes in list 'lmm$fit.lmm'
+tidy.lmm<-lapply(lmm$fit.lmm, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte") %>%
+  mutate(Model_Call = fit.call,
+         Statistical_Method = fit.method,
+         Samples_Analyzed = samples) %>%
+  select(Panel_Analyte, Model_Call, Statistical_Method, Samples_Analyzed, term, estimate, std.error, p.value, conf.low, conf.high) %>%
+  `colnames<-`(c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed",
+                 "Term", "log2FC", "SE", "P", "CI.low", "CI.high"))
+
+# Separate results by model term to apply multiple testing correction to each:
+T21_results<-tidy.lmm %>% filter(Term=="T21") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(T21_results)[12:18]<-paste(colnames(T21_results)[12:18], T21_results$Term[1], sep="_")
+
+Female_results<-tidy.lmm %>% filter(Term=="Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Female_results)[12:18]<-paste(colnames(Female_results)[12:18], Female_results$Term[1], sep="_")
+
+Age_results<-tidy.lmm %>% filter(Term=="Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Age_results)[12:18]<-paste(colnames(Age_results)[12:18], Age_results$Term[1], sep="_")
+
+# Note: Only extracting intercept in case useful later for simulation/plotting
+Intercept_results<-tidy.lmm %>% filter(Term=="(Intercept)") %>%
+  `colnames<-`(c("Model", "Panel_Analyte", "Term", "log2FC", "SE", "P", "CI.low", "CI.high", "FDR", "Rank"))
+
+results_wide<-T21_results %>%
+  full_join(Age_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed")) %>%
+  full_join(Female_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed"))
+
+#----------------------------------------------------------------------------------
+
+#######################
+##  CUSTOMIZE BELOW  ##
+#######################
+
+# Output diagnostic data/stats:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model1")
+fwrite(augment.lmm, "MSD_200512_AUGMENT_Model1_LMM_FIXEDageFemaleT21_RANDsource.csv")
+fwrite(glance.lmm, "MSD_200512_GLANCE_Model1_LMM_FIXEDageFemaleT21_RANDsource.csv")
+
+# Output results:
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model1")
+#fwrite(results_wide, "MSD_200512_RESULTS_Model1_LMM_SAMPt21d21_FIXEDageFemaleT21_RANDsource_JRS.csv")
+#write.xlsx(results_wide, "MSD_200512_RESULTS_Model1_LMM_SAMPt21d21_FIXEDageFemaleT21_RANDsource_JRS.xlsx") # For formatting in Excel
+
+results.Model1_wide<-results_wide
+```
+
+#### Model 2: log2(Concentration) ~ T21 + Age + Female + T21*Age + (1|Source)
+```{r}
+# Remove all objects other than the data required for analysis and the tidyPlus function:
+rm(list=setdiff(ls(), c("msd", "T21", "D21", "stats.wide", "tidyPlus", "results.Model1_wide")))
+
+set.seed(1234)
+
+samples<-"T21 + D21"
+df<-msd
+
+# Run Model 2 separately for each of 54 cytokines:
+lmm = df %>%
+  group_by(Panel_Analyte) %>%
+  do(fit.lmm = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Age + (1|Source), data = ., REML=TRUE))
+
+#----------------------------------------------------------------------------------
+#####################
+##  DO NOT MODIFY  ##
+#####################
+
+# Name each dataframe in list of results:
+names(lmm$fit.lmm)<-lmm$Panel_Analyte
+
+# Extract model method and call (i.e., model parameterization), to integrate into results workbooks below.
+# Note: Only need to do this for any one of the 54 models, since method and call are the same for all analytes.
+fit.method<-summary(lmm$fit.lmm[[1]])$methTitle
+temp<-summary(lmm$fit.lmm[[1]])$call %>%
+  as.character() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("V1", "V2", "V3", "V4"))
+fit.call<-paste(temp$V1, "(formula = ", temp$V2, ", data = ", temp$V3, " , REML = ", temp$V4, ")", sep="")
+
+# Extract model diagnostic info:
+augment.lmm = broom::augment(lmm, fit.lmm, data=df) # Note: Must explicitly include data=df, as opposed to data=. , so that sample info gets included along with augment output (residuals, Cook's distance, etc.)
+glance.lmm = broom::glance(lmm, fit.lmm)
+
+# Apply tidyPlus to all dataframes in list 'lmm$fit.lmm'
+tidy.lmm<-lapply(lmm$fit.lmm, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte") %>%
+  mutate(Model_Call = fit.call,
+         Statistical_Method = fit.method,
+         Samples_Analyzed = samples) %>%
+  select(Panel_Analyte, Model_Call, Statistical_Method, Samples_Analyzed, term, estimate, std.error, p.value, conf.low, conf.high) %>%
+  `colnames<-`(c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed",
+                 "Term", "log2FC", "SE", "P", "CI.low", "CI.high"))
+
+# Separate results by model term to apply multiple testing correction to each:
+T21_results<-tidy.lmm %>% filter(Term=="T21") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(T21_results)[12:18]<-paste(colnames(T21_results)[12:18], T21_results$Term[1], sep="_")
+#T21_results
+
+Female_results<-tidy.lmm %>% filter(Term=="Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Female_results)[12:18]<-paste(colnames(Female_results)[12:18], Female_results$Term[1], sep="_")
+#Female_results
+
+Age_results<-tidy.lmm %>% filter(Term=="Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Age_results)[12:18]<-paste(colnames(Age_results)[12:18], Age_results$Term[1], sep="_")
+
+T21byAge_results<-tidy.lmm %>% filter(Term=="T21:Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(T21byAge_results)[12:18]<-paste(colnames(T21byAge_results)[12:18], T21byAge_results$Term[1], sep="_")
+
+# Note: Only extracting intercept in case useful later for simulation/plotting
+Intercept_results<-tidy.lmm %>% filter(Term=="(Intercept)") %>%
+  `colnames<-`(c("Model", "Panel_Analyte", "Term", "log2FC", "SE", "P", "CI.low", "CI.high", "FDR", "Rank"))
+
+results_wide<-T21_results %>%
+  full_join(Age_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed")) %>%
+  full_join(Female_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed")) %>%
+  full_join(T21byAge_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed"))
+
+#----------------------------------------------------------------------------------
+
+#######################
+##  CUSTOMIZE BELOW  ##
+#######################
+
+# Output diagnostic data/stats:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model2")
+fwrite(augment.lmm, "MSD_200512_AUGMENT_Model2_LMM_SAMPt21d21_FIXEDageFemaleT21byAge_RANDsource.csv")
+fwrite(glance.lmm, "MSD_200512_GLANCE_Model2_LMM_SAMPt21d21_FIXEDageFemaleT21byAge_RANDsource.csv")
+
+# Output results:
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model2")
+#fwrite(results_wide, "MSD_200512_RESULTS_Model2_LMM_SAMPt21d21_FIXEDageFemaleT21byAge_RANDsource_JRS.csv")
+#write.xlsx(results_wide, "MSD_200512_RESULTS_Model2_LMM_SAMPt21d21_FIXEDageFemaleT21byAge_RANDsource_JRS.xlsx") # For formatting in Excel
+
+results.Model2_wide<-results_wide
+```
+
+#### Model 3: log2(Concentration) ~ T21 + Age + Female + T21*Female + (1|Source)
+```{r}
+# Remove all objects other than the data required for analysis and the tidyPlus function:
+rm(list=setdiff(ls(), c("msd", "T21", "D21", "stats.wide", "tidyPlus", "results.Model1_wide", "results.Model2_wide")))
+
+set.seed(1234)
+
+samples<-"T21 + D21"
+df<-msd
+
+# Run Model 3 separately for each of 54 cytokines:
+lmm = df %>%
+  group_by(Panel_Analyte) %>%
+  do(fit.lmm = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ T21 + Age + Female + T21*Female + (1|Source), data = ., REML=TRUE))
+
+#----------------------------------------------------------------------------------
+#####################
+##  DO NOT MODIFY  ##
+#####################
+
+# Name each dataframe in list of results:
+names(lmm$fit.lmm)<-lmm$Panel_Analyte
+
+# Extract model method and call (i.e., model parameterization), to integrate into results workbooks below.
+# Note: Only need to do this for any one of the 54 models, since method and call are the same for all analytes.
+fit.method<-summary(lmm$fit.lmm[[1]])$methTitle
+temp<-summary(lmm$fit.lmm[[1]])$call %>%
+  as.character() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("V1", "V2", "V3", "V4"))
+fit.call<-paste(temp$V1, "(formula = ", temp$V2, ", data = ", temp$V3, " , REML = ", temp$V4, ")", sep="")
+
+# Extract model diagnostic info:
+augment.lmm = broom::augment(lmm, fit.lmm, data=df) # Note: Must explicitly include data=df, as opposed to data=. , so that sample info gets included along with augment output (residuals, Cook's distance, etc.)
+glance.lmm = broom::glance(lmm, fit.lmm)
+
+# Apply tidyPlus to all dataframes in list 'lmm$fit.lmm'
+tidy.lmm<-lapply(lmm$fit.lmm, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte") %>%
+  mutate(Model_Call = fit.call,
+         Statistical_Method = fit.method,
+         Samples_Analyzed = samples) %>%
+  select(Panel_Analyte, Model_Call, Statistical_Method, Samples_Analyzed, term, estimate, std.error, p.value, conf.low, conf.high) %>%
+  `colnames<-`(c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed",
+                 "Term", "log2FC", "SE", "P", "CI.low", "CI.high"))
+
+# Separate results by model term to apply multiple testing correction to each:
+T21_results<-tidy.lmm %>% filter(Term=="T21") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(T21_results)[12:18]<-paste(colnames(T21_results)[12:18], T21_results$Term[1], sep="_")
+
+Female_results<-tidy.lmm %>% filter(Term=="Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Female_results)[12:18]<-paste(colnames(Female_results)[12:18], Female_results$Term[1], sep="_")
+
+Age_results<-tidy.lmm %>% filter(Term=="Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Age_results)[12:18]<-paste(colnames(Age_results)[12:18], Age_results$Term[1], sep="_")
+
+T21byFemale_results<-tidy.lmm %>% filter(Term=="T21:Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(T21byFemale_results)[12:18]<-paste(colnames(T21byFemale_results)[12:18], T21byFemale_results$Term[1], sep="_")
+
+# Note: Only extracting intercept in case useful later for simulation/plotting
+Intercept_results<-tidy.lmm %>% filter(Term=="(Intercept)") %>%
+  `colnames<-`(c("Model", "Panel_Analyte", "Term", "log2FC", "SE", "P", "CI.low", "CI.high", "FDR", "Rank"))
+
+results_wide<-T21_results %>%
+  full_join(Age_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed")) %>%
+  full_join(Female_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed")) %>%
+  full_join(T21byFemale_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed"))
+
+#----------------------------------------------------------------------------------
+
+#######################
+##  CUSTOMIZE BELOW  ##
+#######################
+
+# Output diagnostic data/stats:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model3")
+fwrite(augment.lmm, "MSD_200512_AUGMENT_Model3_LMM_SAMPt21d21_FIXEDageFemaleT21byFemale_RANDsource.csv")
+fwrite(glance.lmm, "MSD_200512_GLANCE_Model3_LMM_SAMPt21d21_FIXEDageFemaleT21byFemale_RANDsource.csv")
+
+# Output results:
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model3")
+#fwrite(results_wide, "MSD_200512_RESULTS_Model3_LMM_SAMPt21d21_FIXEDageFemaleT21byFemale_RANDsource_JRS.csv")
+#write.xlsx(results_wide, "MSD_200512_RESULTS_Model3_LMM_SAMPt21d21_FIXEDageFemaleT21byFemale_RANDsource_JRS.xlsx") # For formatting in Excel
+
+results.Model3_wide<-results_wide
+```
+
+#### Run models stratified by T21
+
+#### Model 1A: log2(Concentration) ~ Age + Female + (1|Source), data=T21 only
+# Purpose: Get effects of age and sex within T21 only, based on Model 1 but without the variable for T21.
+```{r}
+# Remove all objects other than the data required for analysis and the tidyPlus function:
+rm(list=setdiff(ls(), c("msd", "T21", "D21", "stats.wide", "tidyPlus",
+                        "results.Model1_wide", "results.Model2_wide", "results.Model3_wide")))
+
+set.seed(1234)
+
+samples<-"T21"
+df<-T21
+
+
+# Run Model 1A separately for each of 54 cytokines, within T21s only:
+lmm = df %>%
+  group_by(Panel_Analyte) %>%
+  do(fit.lmm = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ Age + Female + (1|Source), data = ., REML=TRUE))
+
+#----------------------------------------------------------------------------------
+#####################
+##  DO NOT MODIFY  ##
+#####################
+
+# Name each dataframe in list of results:
+names(lmm$fit.lmm)<-lmm$Panel_Analyte
+
+# Extract model method and call (i.e., model parameterization), to integrate into results workbooks below.
+# Note: Only need to do this for any one of the 54 models, since method and call are the same for all analytes.
+fit.method<-summary(lmm$fit.lmm[[1]])$methTitle
+temp<-summary(lmm$fit.lmm[[1]])$call %>%
+  as.character() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("V1", "V2", "V3", "V4"))
+fit.call<-paste(temp$V1, "(formula = ", temp$V2, ", data = ", temp$V3, " , REML = ", temp$V4, ")", sep="")
+
+# Extract model diagnostic info:
+augment.lmm = broom::augment(lmm, fit.lmm, data=df) # Note: Must explicitly include data=df, as opposed to data=. , so that sample info gets included along with augment output (residuals, Cook's distance, etc.)
+glance.lmm = broom::glance(lmm, fit.lmm)
+
+# Apply tidyPlus to all dataframes in list 'lmm$fit.lmm'
+tidy.lmm<-lapply(lmm$fit.lmm, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte") %>%
+  mutate(Model_Call = fit.call,
+         Statistical_Method = fit.method,
+         Samples_Analyzed = samples) %>%
+  select(Panel_Analyte, Model_Call, Statistical_Method, Samples_Analyzed, term, estimate, std.error, p.value, conf.low, conf.high) %>%
+  `colnames<-`(c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed",
+                 "Term", "log2FC", "SE", "P", "CI.low", "CI.high"))
+
+# Separate results by model term to apply multiple testing correction to each:
+Female_results<-tidy.lmm %>% filter(Term=="Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Female_results)[12:18]<-paste(colnames(Female_results)[12:18], Female_results$Term[1], sep="_")
+#Female_results
+
+Age_results<-tidy.lmm %>% filter(Term=="Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Age_results)[12:18]<-paste(colnames(Age_results)[12:18], Age_results$Term[1], sep="_")
+#Age_results
+
+# Note: Only extracting intercept in case useful later for simulation/plotting
+Intercept_results<-tidy.lmm %>% filter(Term=="(Intercept)") %>%
+  `colnames<-`(c("Model", "Panel_Analyte", "Term", "log2FC", "SE", "P", "CI.low", "CI.high", "FDR", "Rank"))
+
+results_wide<-Age_results %>%
+  full_join(Female_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed"))
+
+#----------------------------------------------------------------------------------
+
+#######################
+##  CUSTOMIZE BELOW  ##
+#######################
+
+# Output diagnostic data/stats:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model1A")
+fwrite(augment.lmm, "MSD_200512_AUGMENT_Model1A_LMM_SAMPt21_FIXEDageFemale_RANDsource.csv")
+fwrite(glance.lmm, "MSD_200512_GLANCE_Model1A_LMM_SAMPt21_FIXEDageFemale_RANDsource.csv")
+
+# Output results:
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model1A")
+#fwrite(results_wide, "MSD_200512_RESULTS_Model1A_LMM_SAMPt21_FIXEDageFemale_RANDsource_JRS.csv")
+#write.xlsx(results_wide, "MSD_200512_RESULTS_Model1A_LMM_SAMPt21_FIXEDageFemale_RANDsource_JRS.xlsx") # For formatting in Excel
+
+results.Model1A_wide<-results_wide
+```
+
+#### Model 1B: log2(Concentration) ~ Age + Female + (1|Source), data=D21 only
+# Get effects of age and sex within D21 only, based on Model 1 minus T21 (log2(Concentration)~Age+Female+(1|Source))
+```{r}
+# Remove all objects other than the data required for analysis and the tidyPlus function:
+rm(list=setdiff(ls(), c("msd", "T21", "D21", "stats.wide", "tidyPlus",
+                        "results.Model1_wide", "results.Model2_wide", "results.Model3_wide",
+                        "results.Model1A_wide")))
+
+set.seed(1234)
+
+samples<-"D21"
+df<-D21
+
+# Run Model 1B separately for each of 54 cytokines, within T21s only:
+lmm = df %>%
+  group_by(Panel_Analyte) %>%
+  do(fit.lmm = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ Age + Female + (1|Source), data = ., REML=TRUE))
+
+#----------------------------------------------------------------------------------
+#####################
+##  DO NOT MODIFY  ##
+#####################
+
+# Name each dataframe in list of results:
+names(lmm$fit.lmm)<-lmm$Panel_Analyte
+
+# Extract model method and call (i.e., model parameterization), to integrate into results workbooks below.
+# Note: Only need to do this for any one of the 54 models, since method and call are the same for all analytes.
+fit.method<-summary(lmm$fit.lmm[[1]])$methTitle
+temp<-summary(lmm$fit.lmm[[1]])$call %>%
+  as.character() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("V1", "V2", "V3", "V4"))
+fit.call<-paste(temp$V1, "(formula = ", temp$V2, ", data = ", temp$V3, " , REML = ", temp$V4, ")", sep="")
+
+# Extract model diagnostic info:
+augment.lmm = broom::augment(lmm, fit.lmm, data=df) # Note: Must explicitly include data=df, as opposed to data=. , so that sample info gets included along with augment output (residuals, Cook's distance, etc.)
+glance.lmm = broom::glance(lmm, fit.lmm)
+
+# Apply tidyPlus to all dataframes in list 'lmm$fit.lmm'
+tidy.lmm<-lapply(lmm$fit.lmm, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte") %>%
+  mutate(Model_Call = fit.call,
+         Statistical_Method = fit.method,
+         Samples_Analyzed = samples) %>%
+  select(Panel_Analyte, Model_Call, Statistical_Method, Samples_Analyzed, term, estimate, std.error, p.value, conf.low, conf.high) %>%
+  `colnames<-`(c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed",
+                 "Term", "log2FC", "SE", "P", "CI.low", "CI.high"))
+
+# Separate results by model term to apply multiple testing correction to each:
+Female_results<-tidy.lmm %>% filter(Term=="Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Female_results)[12:18]<-paste(colnames(Female_results)[12:18], Female_results$Term[1], sep="_")
+#Female_results
+
+Age_results<-tidy.lmm %>% filter(Term=="Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  left_join(stats.wide %>%
+              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+colnames(Age_results)[12:18]<-paste(colnames(Age_results)[12:18], Age_results$Term[1], sep="_")
+#Age_results
+
+# Note: Only extracting intercept in case useful later for simulation/plotting
+Intercept_results<-tidy.lmm %>% filter(Term=="(Intercept)") %>%
+  `colnames<-`(c("Model", "Panel_Analyte", "Term", "log2FC", "SE", "P", "CI.low", "CI.high", "FDR", "Rank"))
+
+results_wide<-Age_results %>%
+  full_join(Female_results[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed"))
+
+#----------------------------------------------------------------------------------
+
+#######################
+##  CUSTOMIZE BELOW  ##
+#######################
+
+# Output diagnostic data/stats:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model1A")
+fwrite(augment.lmm, "MSD_200512_AUGMENT_Model1B_LMM_SAMPd21_FIXEDageFemale_RANDsource.csv")
+fwrite(glance.lmm, "MSD_200512_GLANCE_Model1B_LMM_SAMPd21_FIXEDageFemale_RANDsource.csv")
+
+# Output results:
+#setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Model1A")
+#fwrite(results_wide, "MSD_200512_RESULTS_Model1B_LMM_SAMPd21_FIXEDageFemale_RANDsource_JRS.csv")
+#write.xlsx(results_wide, "MSD_200512_RESULTS_Model1B_LMM_SAMPd21_FIXEDageFemale_RANDsource_JRS.xlsx") # For formatting in Excel
+
+results.Model1B_wide<-results_wide
+```
+
+#### Get R session info R version, package versions, etc.) into a dataframe
+```{r}
+info<-vector("list", 9)
+for (i in c(2:6, 9:11)) {
+  info[[1]]<-sessionInfo()[1] %>%
+    as.data.frame() %>% t() %>% as.data.frame() %>% rownames_to_column() %>%
+    rename(sessionInfo_name = rowname, sessionInfo_value=V1) %>%
+    mutate_all(as.character)
+
+  info[[i]]<-sessionInfo()[i] %>%
+    as.data.frame() %>%
+    `colnames<-`("sessionInfo_value") %>%
+    mutate(sessionInfo_name = names(sessionInfo()[i])) %>%
+    select(sessionInfo_name, sessionInfo_value)
+}
+session.info<-rbindlist(info)
+
+session.info
+```
+
+# Output analysis/results summary workbook
+```{r}
+list_of_datasets <- list("sessionInfo()" = session.info,
+                         "Model 1" = results.Model1_wide,
+                         "Model 2" = results.Model2_wide,
+                         "Model 3" = results.Model3_wide,
+                         "Model 1A" = results.Model1A_wide,
+                         "Model 1B" = results.Model1B_wide)
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results")
+write.xlsx(list_of_datasets, file = "MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx")
+
+print("done")
+```
+
+# PICK UP HERE (5/12/20 @ 3:13PM)
+NEXT:
+1) MAKE ALL VOLCANO PLOTS
+2) ADD README TAB TO RESULTS WORKBOOK (Consult with Kate and Matt about what info would be helpful to include)
+Definitely include:
+- Data files used in analysis
+- R session info
+
+#### Next to do:
+- More volcano plots:
+  - Effect of sex overall (Beta_female)
+  - Effect of age overall (Beta_age)
+  - Effect of sex within T21 only, within D21 only
+  - Effect of age within T21 only, within D21 only 
+
+#### Remaining analysis to-do's:
+- Produce and review model diagnostics
+- Check for potential outliers and discuss with team
+- Follow up on singular model fits
+
+#### BELOW = WORK IN PROGRESS
+#### Model diagnostics
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Results")
+T21_results.lmm<-fread("200430_RESULTS_T21_LMM_FIXEDageFemaleT21_RANDsource.csv") %>%
+  rename(log2FC.mod1=estimate,
+         FDR.mod1=FDR,
+         Rank.mod1=Rank,
+         SE.mod1=std.error,
+         P.mod1=P,
+         CIlower.mod1=conf.low,
+         CIupper.mod1=conf.high,
+         Term=term)
+T21_results.lmm
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Results")
+T21_results.lmm_withAgeIntx<-fread("200430_RESULTS_T21_LMM_FIXEDageFemaleT21byAge_RANDsource.csv") %>%
+    rename(log2FC.mod2=estimate,
+           FDR.mod2=FDR,
+           Rank.mod2=Rank,
+           SE.mod2=std.error,
+           P.mod2=P,
+           CIlower.mod2=conf.low,
+           CIupper.mod2=conf.high,
+           Term=term)
+T21byAge_results.lmm_withAgeIntx<-fread("200430_RESULTS_T21byAge_LMM_FIXEDageFemaleT21byAge_RANDsource.csv") %>%
+    rename(log2FC.mod2=estimate,
+           FDR.mod2=FDR,
+           Rank.mod2=Rank,
+           SE.mod2=std.error,
+           P.mod2=P,
+           CIlower.mod2=conf.low,
+           CIupper.mod2=conf.high,
+           Term=term)
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Results")
+T21_results.lmm_withSexIntx<-fread("200430_RESULTS_T21_LMM_FIXEDageFemaleT21byFemale_RANDsource.csv") %>%
+    rename(log2FC.mod3=estimate,
+           FDR.mod3=FDR,
+           Rank.mod3=Rank,
+           SE.mod3=std.error,
+           P.mod3=P,
+           CIlower.mod3=conf.low,
+           CIupper.mod3=conf.high,
+           Term=term)
+T21byFemale_results.lmm_withSexIntx<-fread("200430_RESULTS_T21byFemale_LMM_FIXEDageFemaleT21byFemale_RANDsource.csv") %>%
+  rename(log2FC.mod3=estimate,
+         FDR.mod3=FDR,
+         Rank.mod3=Rank,
+         SE.mod3=std.error,
+         P.mod3=P,
+         CIlower.mod3=conf.low,
+         CIupper.mod3=conf.high,
+           Term=term)
+
+log2FC_P.T21<-T21_results.lmm %>%
+  full_join(T21_results.lmm_withAgeIntx, by=c("Panel_Analyte", "Term")) %>%
+  full_join(T21_results.lmm_withSexIntx, by=c("Panel_Analyte", "Term")) %>%
+  mutate(log2FC.mod1minus2=log2FC.mod1-log2FC.mod2,
+         log2FC.mod1minus3=log2FC.mod1-log2FC.mod3) %>%
+  select(Panel_Analyte, Term, log2FC.mod1, log2FC.mod2, log2FC.mod3,
+         FDR.mod1, FDR.mod2, FDR.mod3,
+         Rank.mod1, Rank.mod2, Rank.mod3,
+         log2FC.mod1minus2,
+         log2FC.mod1minus3)
+
+log2FC_P.T21 %>%
+  arrange(FDR.mod3)
+
+T21byAge_results.lmm_withAgeIntx
+# Significant T21*Age interactions
+# UPLEX_IL-29
+# TH17_IL-22
+# TH17_IL-27
+# Angiogenesis_VEGF-C
+# VascularInjury_SAA
+
+# For the cytokinds with T21*Age interactions, how do they relate to Alzheimer's in T21? ( glm(Alzheimers ~ UPLEX_IL-29 + .... + SAA, and/or single-variable models))
+
+# 248. Commins S, Steinke JW, Borish L. The extended IL-10 superfamily: IL-10, IL-19, IL-20, IL-22, IL-24, IL-26, IL-28, and IL-29. J Allergy Clin Immunol (2008) 121(5):1108–11. doi:10.1016/j.jaci.2008.02.026
+# https://www.sciencedirect.com/science/article/pii/S0014482706004186?casa_token=-aOcSYgFAnwAAAAA:waU9uZDxkbwNLWbU76oIOeecHC_x2UqS6ABqYwfbFUrkDTUfVwzY-T2YwiEdngwt4An-6ONb
+```
+
+```{r}
+qqnorm(augment.lm3$`.resid`)
+qqline(augment.lm3$`.resid`)
+
+qqnorm(augment.lmm_ML$`.resid`)
+qqline(augment.lmm_ML$`.resid`)
+
+# "p.value	 an approximate p-value for the test. This is said in Royston (1995) to be adequate for p.value < 0.1."
+shapiro.test(rnorm(100, mean = 5, sd = 3))
+shapiro.test(runif(100, min = 2, max = 4))
+# Shapiro-Wilk normality test
+# data:  rnorm(100, mean = 5, sd = 3)
+# W = 0.97525, p-value = 0.0564
+#	Shapiro-Wilk normality test
+# data:  runif(100, min = 2, max = 4)
+# W = 0.92874, p-value = 4.222e-05
+
+class(runif(100, min = 2, max = 4)) #[1] "numeric"
+
+augment.LM<-augment.lm3 %>% rename(resid=`.resid`)
+augment.LMM<-augment.lmm_ML %>% rename(resid=`.resid`)
+# "p.value	 an approximate p-value for the test. This is said in Royston (1995) to be adequate for p.value < 0.1."
+resid_lm<-augment.LM$resid
+resid_lmm<-augment.LMM$resid
+class(resid_lm) #[1] "numeric"
+class(resid_lmm) #[1] "numeric"
+
+analyte.index<-augment.LM %>% ungroup() %>% select(Panel_Analyte) %>% unique() %>% dplyr::mutate(Index=seq(1:55))
+
+augment.LM01<-augment.LM %>% ungroup() %>% full_join(analyte.index, by="Panel_Analyte")
+augment.LMM01<-augment.LMM %>% ungroup() %>% full_join(analyte.index, by="Panel_Analyte")
+
+shapiro.LM<-list()
+shapiro.LMM<-list()
+for (i in 1:55) {
+  aug.LM<-augment.LM01 %>% filter(Index==i)
+  aug.LMM<-augment.LMM01 %>% filter(Index==i)
+  shapiro.LM[[i]]<-shapiro.test(aug.LM$resid) %>% unlist() %>% as.matrix() %>% t() %>% as.data.frame() %>%
+    mutate(Panel_Analyte=aug.LM$Panel_Analyte[[1]])
+  shapiro.LMM[[i]]<-shapiro.test(aug.LMM$resid) %>% unlist() %>% as.matrix() %>% t() %>% as.data.frame() %>%
+    mutate(Panel_Analyte=aug.LM$Panel_Analyte[[1]])
+}
+
+results_shapiro.LM<-rbindlist(shapiro.LM) %>%
+  mutate(p.value=as.numeric(as.character(p.value))) %>%
+  mutate(Sig_Shapiro=ifelse(p.value<0.05, 1, 0))
+results_shapiro.LMM<-rbindlist(shapiro.LMM) %>%
+  mutate(p.value=as.numeric(as.character(p.value))) %>%
+  mutate(Sig_Shapiro=ifelse(p.value<0.05, 1, 0))
+
+results_shapiro.LM %>% group_by(Sig_Shapiro) %>% summarise(N=n())
+results_shapiro.LMM %>% group_by(Sig_Shapiro) %>% summarise(N=n())
+# Most cytokines fail formal test for normality of residuals. Residual plots do look decent, though...
+```
+
+```{r}
+# augment:
+augment.lmm_ML = augment(lmm_ML, fit.lmm_ML)
+augment.lmm = augment(lmm, fit.lmm)
+
+# glance:
+glance.lmm_ML = broom::glance(lmm_ML, fit.lmm_ML)
+glance.lmm = broom::glance(lmm, fit.lmm)
+
+augment.lmm_ML
+augment.lmm
+glance.lmm_ML
+glance.lmm
+
+plot(augment.lmm_ML$`.resid`)
+plot(augment.lmm$`.resid`)
+
+plot(density(augment.lmm_ML$`.resid`))
+plot(density(augment.lmm$`.resid`))
+
+augment.lm3 = augment(lm3, fit3)
+plot(augment.lm3$`.resid`)
+plot(density(augment.lm3$`.resid`))
+
+qqnorm(augment.lm3$`.resid`)
+qqline(augment.lm3$`.resid`)
+```
+
+
+ 

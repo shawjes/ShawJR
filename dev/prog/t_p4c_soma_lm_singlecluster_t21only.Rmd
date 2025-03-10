@@ -1,0 +1,161 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)) &
+           run_model == 1) 
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata.split <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  split(., .$Cluster) # Note these two lines should be the only revision to ardata before modeling.
+
+ardata.split %>% rbindlist() %>% dplyr::select(T21, Karyotype) %>% unique()
+ardata.split %>% rbindlist()
+```
+
+#### Vectorize model formulas to be fit
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL);
+model_formulas <- tmp$model_formula;
+names(model_formulas) <- tmp$model_name;
+
+model_formulas
+```
+
+```{r}
+vifdf <- function(fit = fit,
+                   model_formula = model_formula) {
+  id <- unique(data$UniProt_Aptamer_Chr_Cluster);
+  df <- fit %>%
+    car::vif(type = "predictor") %>%
+    as.data.frame() %>%
+    rownames_to_column("variable") %>%
+    mutate(id = id) %>%
+    mutate(model_formula = model_formula) %>%
+    dplyr::select(model_formula, id, everything());
+  return(df)
+}
+```
+
+```{r}
+options(future.globals.maxSize = 5e10);
+
+tdiff <- list()
+lm_fit <- list()
+lm_tidy <-list()
+lm_augment <- list()
+lm_glance <- list()
+lm_vif <- list()
+for ( i in 1:length(model_formulas) ) {
+#for ( i in 1:2 ) {
+  model_formula.now <- model_formulas[[i]]
+
+  t0 <- Sys.time()
+  set.seed(1234)
+  lm_fit[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .))
+  
+  lm_vif[[i]] <- ardata.split %>%
+    purrr::map(~car::vif(lm(as.formula(model_formula.now), data = .))) %>%
+    lapply(as.data.frame) %>%
+    lapply(rownames_to_column, "variable") %>%
+    rbindlist(fill = TRUE, idcol = "id") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything())
+
+  lm_tidy[[i]] <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+  
+  lm_glance[[i]] <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+
+  lm_augment[[i]] <- ardata.split %>%
+    head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+
+  t1 <- Sys.time();
+  
+  tdiff<- t1 - t0
+}
+```
+
+```{r}
+t_p4c_soma_lm_singlecluster_t21only_vif <- lm_vif %>% rbindlist(fill = TRUE) %>%
+  dplyr::rename(VIF = `X[[i]]`,
+                Cluster = id);
+t_p4c_soma_lm_singlecluster_t21only_tidy <- lm_tidy %>% rbindlist();
+t_p4c_soma_lm_singlecluster_t21only_glance <- lm_glance %>% rbindlist();
+t_p4c_soma_lm_singlecluster_t21only_augment <- lm_augment %>% rbindlist()
+
+t_p4c_soma_lm_singlecluster_t21only_vif %>%
+  group_by(model_formula, Cluster) %>%
+  summarise(maxVIF = max(VIF)) %>%
+  ungroup() %>%
+  arrange(desc(maxVIF));
+t_p4c_soma_lm_singlecluster_t21only_tidy;
+t_p4c_soma_lm_singlecluster_t21only_glance;
+t_p4c_soma_lm_singlecluster_t21only_augment
+```
+
+```{r}
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singlecluster_t21only_vif, "t_p4f_soma_lm_singlecluster_t21only_vif.csv.gz")
+fwrite(t_p4c_soma_lm_singlecluster_t21only_tidy, "t_p4f_soma_lm_singlecluster_t21only_tidy.csv.gz")
+fwrite(t_p4c_soma_lm_singlecluster_t21only_augment, "t_p4f_soma_lm_singlecluster_t21only_augment.csv.gz")
+fwrite(t_p4c_soma_lm_singlecluster_t21only_glance, "t_p4f_soma_lm_singlecluster_t21only_glance.csv.gz")
+```

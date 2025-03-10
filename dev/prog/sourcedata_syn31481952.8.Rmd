@@ -1,0 +1,25 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/prog")
+bash_commands <- readLines(con <- file("sourcedata_syn31481952.8.sh"))
+
+cat(bash_commands)
+```
+
+```{r}
+# Currently not working as of 1/29/2025 ~520pm MT - come back another day to download data programmatically.
+
+system(bash_commands)
+```
+
+```{bash}
+synapse login "shawjr" "Bloombug2015!";
+
+cd '/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata';
+synapse get -q "SELECT * FROM syn31481952.8"
+```
+

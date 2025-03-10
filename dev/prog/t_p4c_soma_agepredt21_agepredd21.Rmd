@@ -1,0 +1,98 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)) &
+           run_model == 1) %>%
+  separate(ardata_name, into = c("ardata1_name", "ardata2_name"), sep = "; ", extra = "merge", remove = TRUE) %>%
+  gather(key = "key", value = "ardata_name", ardata1_name:ardata2_name)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata <- paste0(unique(analysis_tracker$ardata_name), ".csv.gz") %>%
+  lapply(fread)
+names(ardata) <- c("t21only", "d21only")
+ardata
+```
+
+#### Vectorize model formulas to be fit
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  #mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL);
+model_formula <- tmp$model_formula;
+names(model_formula) <- tmp$model_name;
+
+model_formula
+```
+
+#### Note that for this table we only need the glance and augment output
+```{r}
+lm_glance_d21only <- glance(lm(as.formula(model_formula), data = ardata$d21only)) %>%
+  mutate(model_formula = model_formula,
+         model_formula = gsub(" ", "", model_formula),
+         model_formula = gsub("[+]", "plus", model_formula)) %>%
+  mutate(model_formula = gsub("sumZ_Cluster_3plussumZ_Cluster_4plussumZ_Cluster_5plussumZ_Cluster_6plussumZ_Cluster_7plus", "", model_formula),
+         model_formula = gsub("plussumZ_Cluster_8", "plus...plussumZ_Cluster_8", model_formula),
+         model_formula = gsub("plus", "+", model_formula),
+         model_formula = gsub("~", " ~ ", model_formula),
+         model_formula = gsub("[+]", " + ", model_formula)) %>%
+  mutate(cohort = "D21 only") %>%
+  dplyr::select(cohort, model_formula, everything());
+
+lm_glance_t21only <- glance(lm(as.formula(model_formula), data = ardata$t21only)) %>%
+  mutate(model_formula = model_formula,
+         model_formula = gsub(" ", "", model_formula),
+         model_formula = gsub("[+]", "plus", model_formula)) %>%
+  mutate(model_formula = gsub("sumZ_Cluster_3plussumZ_Cluster_4plussumZ_Cluster_5plussumZ_Cluster_6plussumZ_Cluster_7plus", "", model_formula),
+         model_formula = gsub("plussumZ_Cluster_8", "plus...plussumZ_Cluster_8", model_formula),
+         model_formula = gsub("plus", "+", model_formula),
+         model_formula = gsub("~", " ~ ", model_formula),
+         model_formula = gsub("[+]", " + ", model_formula)) %>%
+  mutate(cohort = "T21 only") %>%
+  dplyr::select(cohort, model_formula, everything());
+
+t_p4c_soma_agepredt21_agepredd21 <- list(lm_glance_t21only,
+     lm_glance_d21only) %>%
+  rbindlist() %>%
+  dplyr::select(model_formula, cohort, nobs, r.squared, adj.r.squared,
+                sigma, statistic, p.value, df, df.residual)
+
+t_p4c_soma_agepredt21_agepredd21
+```
+
+```{r}
+setwd(dir.ddata)
+fwrite(t_p4c_soma_agepredt21_agepredd21, "t_p4c_soma_agepredt21_agepredd21.csv")
+```
+\

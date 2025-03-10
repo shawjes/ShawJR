@@ -1,0 +1,106 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma_sumZcluster <- fread("ar_p4c_soma_sumZcluster_agepred.csv.gz") %>%
+  dplyr::select(-c(sumZ_Cluster_Other))
+
+ar_p4c_soma_sumZcluster
+```
+
+### Linear model for log(Age) vs. sumZ_Cluster_1 + ... + sumZ_Cluster8
+```{r}
+set.seed(1234)
+fit.sumZcluster_agepred <- lm(log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        #sumZ_Cluster_Other +
+                                        Female,
+                                data = ar_p4c_soma_sumZcluster);
+```
+
+```{r}
+dd_augment_sumZcluster_agepred <- fit.sumZcluster_agepred %>%
+  augment(newdata = ar_p4c_soma_sumZcluster) %>%
+  mutate(model_formula = "log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female") %>%
+  dplyr::select(model_formula, everything());
+dd_augment_sumZcluster_agepred
+
+dd_glance_sumZcluster_agepred <- fit.sumZcluster_agepred %>% glance() %>%
+  mutate(model_formula = "log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female") %>%
+  dplyr::select(model_formula, everything());
+dd_glance_sumZcluster_agepred
+
+dd_tidy_sumZcluster_agepred <- fit.sumZcluster_agepred %>%
+  tidy(conf.int = TRUE) %>%
+  filter(term!="(Intercept)") %>%
+  dplyr::rename(log10FC = estimate,
+         P = p.value) %>%
+  #select(-c(std.error, statistic)) %>%
+  arrange(P) %>%
+  mutate(model_formula = "log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female") %>%
+  dplyr::select(model_formula, everything());
+
+setwd(dir.ddata)
+fwrite(dd_augment_sumZcluster_agepred, "dd_augment_sumZcluster_agepred.csv")
+fwrite(dd_glance_sumZcluster_agepred, "dd_glance_sumZcluster_agepred.csv")
+fwrite(dd_tidy_sumZcluster_agepred, "dd_tidy_sumZcluster_agepred.csv")
+
+dd_augment_sumZcluster_agepred
+dd_glance_sumZcluster_agepred
+dd_tidy_sumZcluster_agepred
+```

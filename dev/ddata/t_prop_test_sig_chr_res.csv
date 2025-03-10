@@ -1,0 +1,274 @@
+proptest_id,Chromosome,term,estimate,p.value,PadjBH,Sig_PadjBH10,prop_test_sig_chr_h1,Zlog10FC_direction,statistic,parameter,conf.low,conf.high,method,alternative,Aptamers encoded by Chromosome (N),Proportion of Total Aptamers encoded by Chromosome,Significant Aptamers encoded by Chromosome (N),Significant Aptamers Total (N)
+Chr21_up_T21,21,T21,0.0408525754884547,2.67355238650609e-07,5.34710477301218e-07,1,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,23,563,0.026070304085027,0.0606704265666424,Exact binomial test,two.sided,53,0.0114421416234888,23,563
+Chr6_up_T21:Age,6,T21:Age,0.0164609053497942,0.00846402900758608,0.0338561160303443,1,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,4,243,0.00450279090490804,0.0416078086956263,Exact binomial test,two.sided,240,0.0518134715025907,4,243
+Chr13_down_T21,13,T21,0.0294117647058824,0.0198218365010746,0.0792873460042983,1,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,12,408,0.0152879272333571,0.0508124660844086,Exact binomial test,two.sided,67,0.0144645941278066,12,408
+Chr23_down_T21,23,T21,0.0147058823529412,0.06217405308204,0.24869621232816,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,6,408,0.00541541891555199,0.0317322705543769,Exact binomial test,two.sided,145,0.0313039723661485,6,408
+Chr3_down_T21,3,T21,0.0686274509803922,0.0647967030195923,0.259186812078369,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,28,408,0.0460835817197081,0.0976606284347253,Exact binomial test,two.sided,225,0.0485751295336788,28,408
+Chr15_up_T21,15,T21,0.0159857904085258,0.075971401555036,0.303885606220144,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,9,563,0.00733510371021297,0.0301283631596063,Exact binomial test,two.sided,133,0.028713298791019,9,563
+Chr16_up_T21:Age,16,T21:Age,0.0576131687242798,0.0773621436499914,0.271931898985127,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,14,243,0.0318521295897535,0.0947765750818126,Exact binomial test,two.sided,163,0.0351899827288428,14,243
+Chr10_up_T21:Age,10,T21:Age,0.0617283950617284,0.0978029644575289,0.391211857830116,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,15,243,0.0349571396775206,0.0997686225246859,Exact binomial test,two.sided,185,0.0399395509499136,15,243
+Chr8_down_T21:Age,8,T21:Age,0.0230642504118616,0.100410223749369,0.360058157852067,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,14,607,0.0126654717859464,0.0383953445800292,Exact binomial test,two.sided,166,0.0358376511226252,14,607
+Chr16_up_T21,16,T21,0.0230905861456483,0.135965949492563,0.271931898985127,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,13,563,0.0123507188051224,0.039161948106193,Exact binomial test,two.sided,163,0.0351899827288428,13,563
+Chr20_down_T21,20,T21,0.0490196078431373,0.143506427464446,0.456277260464769,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,20,408,0.0301960467621624,0.0746938224390307,Exact binomial test,two.sided,166,0.0358376511226252,20,408
+Chr9_up_T21,9,T21,0.0515097690941385,0.157791126846979,0.407079007227122,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,29,563,0.0347647000620581,0.0731415425005655,Exact binomial test,two.sided,183,0.0395077720207254,29,563
+Chr18_down_T21:Age,18,T21:Age,0.00658978583196046,0.162689684418979,0.524606954412081,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,4,607,0.00179832761849976,0.0167858911833445,Exact binomial test,two.sided,65,0.0140328151986183,4,607
+Chr8_down_T21,8,T21,0.0220588235294118,0.180029078926033,0.360058157852067,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,9,408,0.0101351504151291,0.0414602626932101,Exact binomial test,two.sided,166,0.0358376511226252,9,408
+Chr7_down_T21:Age,7,T21:Age,0.0527182866556837,0.183940217908949,0.735760871635796,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,32,607,0.0363351278012271,0.0736104268042388,Exact binomial test,two.sided,192,0.0414507772020725,32,607
+Chr9_down_T21,9,T21,0.0514705882352941,0.203539503613561,0.407079007227122,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,21,408,0.03213982704097,0.0776045194146756,Exact binomial test,two.sided,183,0.0395077720207254,21,408
+Chr1_up_T21:Age,1,T21:Age,0.131687242798354,0.210909736248712,0.843638944994846,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,32,243,0.091847549560163,0.180790588339599,Exact binomial test,two.sided,493,0.106433506044905,32,243
+Chr16_down_T21:Age,16,T21:Age,0.0444810543657331,0.223784322203412,0.298379096271216,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,27,607,0.0295147207343594,0.0640602112433114,Exact binomial test,two.sided,163,0.0351899827288428,27,607
+Chr20_up_T21:Age,20,T21:Age,0.0493827160493827,0.228138630232384,0.456277260464769,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,12,243,0.0257737951264235,0.084672218323705,Exact binomial test,two.sided,166,0.0358376511226252,12,243
+Chr24_down_T21:Age,24,T21:Age,0.00164744645799012,0.230601631183796,0.230601631183796,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,1,607,4.17088632489688e-05,0.00914449273732809,Exact binomial test,two.sided,2,0.000431778929188256,1,607
+Chr12_down_T21,12,T21,0.0416666666666667,0.237624258714246,0.584036874933396,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,17,408,0.0244566637315098,0.0658756963689463,Exact binomial test,two.sided,263,0.0567789291882556,17,408
+Chr3_up_T21,3,T21,0.0373001776198934,0.239376236827663,0.478752473655325,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,21,563,0.0232349822933484,0.056453894772971,Exact binomial test,two.sided,225,0.0485751295336788,21,563
+Chr18_up_T21,18,T21,0.019538188277087,0.276742561251603,0.524606954412081,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,11,563,0.00979275515934659,0.0346898270751322,Exact binomial test,two.sided,65,0.0140328151986183,11,563
+Chr2_up_T21:Age,2,T21:Age,0.0411522633744856,0.278988292108988,0.567818634319116,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,10,243,0.0199077172780345,0.0743764713071244,Exact binomial test,two.sided,280,0.0604490500863558,10,243
+Chr17_down_T21:Age,17,T21:Age,0.0658978583196046,0.291078392239591,0.547751771874589,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,40,607,0.0474921601332689,0.0886560446683472,Exact binomial test,two.sided,261,0.0563471502590674,40,607
+Chr8_up_T21:Age,8,T21:Age,0.0205761316872428,0.295794308633794,0.394392411511725,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,5,243,0.00671396536477238,0.0473619384423554,Exact binomial test,two.sided,166,0.0358376511226252,5,243
+Chr2_down_T21,2,T21,0.0465686274509804,0.297497739701713,0.567818634319116,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,19,408,0.0282668263032847,0.0717694702650633,Exact binomial test,two.sided,280,0.0604490500863558,19,408
+Chr13_down_T21:Age,13,T21:Age,0.0197693574958814,0.30257223422934,0.605144468458681,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,12,607,0.0102558180310603,0.0342782535649164,Exact binomial test,two.sided,67,0.0144645941278066,12,607
+Chr19_down_T21:Age,19,T21:Age,0.0593080724876442,0.30419384783003,0.900466067164006,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,36,607,0.0418806638100056,0.0811650342821737,Exact binomial test,two.sided,330,0.0712435233160622,36,607
+Chr14_down_T21,14,T21,0.0196078431372549,0.306334491407731,0.948548320039013,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,8,408,0.00850236037165204,0.0382683797068271,Exact binomial test,two.sided,139,0.0300086355785838,8,408
+Chr11_down_T21:Age,11,T21:Age,0.0691927512355848,0.346341744708666,0.713047756609931,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,42,607,0.0503197079169245,0.0923804623990607,Exact binomial test,two.sided,278,0.0600172711571675,42,607
+Chr5_down_T21,5,T21,0.0588235294117647,0.356093202539991,0.874487348235787,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,24,408,0.0380492536653947,0.0862630266846576,Exact binomial test,two.sided,226,0.0487910189982729,24,408
+Chr17_down_T21,17,T21,0.0661764705882353,0.389117840014037,0.547751771874589,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,27,408,0.044060193321263,0.094825330567601,Exact binomial test,two.sided,261,0.0563471502590674,27,408
+Chr18_down_T21,18,T21,0.00735294117647059,0.39345521580906,0.524606954412081,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,3,408,0.00151892771782254,0.0213370073704134,Exact binomial test,two.sided,65,0.0140328151986183,3,408
+Chr22_up_T21,22,T21,0.0177619893428064,0.407993586027075,0.833453188725526,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,10,563,0.00854959841099261,0.0324217392984815,Exact binomial test,two.sided,111,0.0239637305699482,10,563
+Chr17_up_T21,17,T21,0.063943161634103,0.410813828905942,0.547751771874589,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,36,563,0.0451832462342769,0.0874283020264095,Exact binomial test,two.sided,261,0.0563471502590674,36,563
+Chr11_up_T21:Age,11,T21:Age,0.0452674897119342,0.416591172693266,0.713047756609931,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,11,243,0.0228108781785399,0.0795510678032456,Exact binomial test,two.sided,278,0.0600172711571675,11,243
+Chr16_down_T21,16,T21,0.0416666666666667,0.421623763438972,0.421623763438972,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,17,408,0.0244566637315098,0.0658756963689463,Exact binomial test,two.sided,163,0.0351899827288428,17,408
+Chr2_up_T21,2,T21,0.0515097690941385,0.425863975739337,0.567818634319116,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,29,563,0.0347647000620581,0.0731415425005655,Exact binomial test,two.sided,280,0.0604490500863558,29,563
+Chr12_down_T21:Age,12,T21:Age,0.0642504118616145,0.429046439748388,0.584036874933396,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,39,607,0.0460836408532856,0.0867887481853518,Exact binomial test,two.sided,263,0.0567789291882556,39,607
+Chr5_down_T21:Age,5,T21:Age,0.0411861614497529,0.450412110101192,0.874487348235787,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,25,607,0.0268278663469604,0.0602007185560974,Exact binomial test,two.sided,226,0.0487910189982729,25,607
+Chr6_down_T21:Age,6,T21:Age,0.0444810543657331,0.464125429422876,0.673346954950512,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,27,607,0.0295147207343594,0.0640602112433114,Exact binomial test,two.sided,240,0.0518134715025907,27,607
+Chr13_up_T21,13,T21,0.0177619893428064,0.477002064411873,0.636002752549165,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,10,563,0.00854959841099261,0.0324217392984815,Exact binomial test,two.sided,67,0.0144645941278066,10,563
+Chr12_up_T21:Age,12,T21:Age,0.065843621399177,0.488997409914134,0.584036874933396,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,16,243,0.0381005391124452,0.104725322098452,Exact binomial test,two.sided,263,0.0567789291882556,16,243
+Chr22_down_T21:Age,22,T21:Age,0.028006589785832,0.504879810754912,0.833453188725526,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,17,607,0.0163976924519334,0.0444634499686591,Exact binomial test,two.sided,111,0.0239637305699482,17,607
+Chr6_up_T21,6,T21,0.044404973357016,0.505010216212884,0.673346954950512,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,25,563,0.0289394743623503,0.064854982263704,Exact binomial test,two.sided,240,0.0518134715025907,25,563
+Chr11_up_T21,11,T21,0.0657193605683837,0.534785817457449,0.713047756609931,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,37,563,0.0466910412610738,0.0894505714000579,Exact binomial test,two.sided,278,0.0600172711571675,37,563
+Chr17_up_T21:Age,17,T21:Age,0.0452674897119342,0.576647251792596,0.576647251792596,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,11,243,0.0228108781785399,0.0795510678032456,Exact binomial test,two.sided,261,0.0563471502590674,11,243
+Chr23_up_T21:Age,23,T21:Age,0.037037037037037,0.577462667427272,0.727036999117473,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,9,243,0.0170731266330646,0.0691411861292611,Exact binomial test,two.sided,145,0.0313039723661485,9,243
+Chr12_up_T21,12,T21,0.0621669626998224,0.584036874933396,0.584036874933396,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,35,563,0.0436799126967208,0.0854017294075408,Exact binomial test,two.sided,263,0.0567789291882556,35,563
+Chr2_down_T21:Age,2,T21:Age,0.0543657331136738,0.608959992574488,0.608959992574488,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,33,607,0.0377147305510366,0.075505600941396,Exact binomial test,two.sided,280,0.0604490500863558,33,607
+Chr9_up_T21:Age,9,T21:Age,0.0452674897119342,0.619169858448342,0.825559811264455,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,11,243,0.0228108781785399,0.0795510678032456,Exact binomial test,two.sided,183,0.0395077720207254,11,243
+Chr23_up_T21,23,T21,0.0266429840142096,0.62784153391654,0.727036999117473,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,15,563,0.0149868725099148,0.043563244813803,Exact binomial test,two.sided,145,0.0313039723661485,15,563
+Chr14_down_T21:Age,14,T21:Age,0.0329489291598023,0.63351984316146,0.948548320039013,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,20,607,0.02023993028408,0.0504297127318868,Exact binomial test,two.sided,139,0.0300086355785838,20,607
+Chr4_up_T21:Age,4,T21:Age,0.0493827160493827,0.633632278149511,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,12,243,0.0257737951264235,0.084672218323705,Exact binomial test,two.sided,200,0.0431778929188256,12,243
+Chr5_up_T21:Age,5,T21:Age,0.0534979423868313,0.655865511176841,0.874487348235787,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,13,243,0.028789446234809,0.0897457810264001,Exact binomial test,two.sided,226,0.0487910189982729,13,243
+Chr1_up_T21,1,T21,0.11190053285968,0.681565263816188,0.94751191079661,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,63,563,0.0870658579083039,0.140891602367215,Exact binomial test,two.sided,493,0.106433506044905,63,563
+Chr19_up_T21,19,T21,0.0657193605683837,0.68198106494981,0.900466067164006,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,37,563,0.0466910412610738,0.0894505714000579,Exact binomial test,two.sided,330,0.0712435233160622,37,563
+Chr4_down_T21:Age,4,T21:Age,0.0461285008237232,0.689247742437972,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,28,607,0.0308676052444027,0.0659809546742575,Exact binomial test,two.sided,200,0.0431778929188256,28,607
+Chr19_down_T21,19,T21,0.0759803921568627,0.699809894956939,0.900466067164006,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,31,408,0.0522063270699807,0.106116235497882,Exact binomial test,two.sided,330,0.0712435233160622,31,408
+Chr14_up_T21,14,T21,0.0319715808170515,0.71141124002926,0.948548320039013,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,18,563,0.0190562517665468,0.0500594053509683,Exact binomial test,two.sided,139,0.0300086355785838,18,563
+Chr23_down_T21:Age,23,T21:Age,0.028006589785832,0.727036999117473,0.727036999117473,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,17,607,0.0163976924519334,0.0444634499686591,Exact binomial test,two.sided,145,0.0313039723661485,17,607
+Chr6_down_T21,6,T21,0.0465686274509804,0.737330879435919,0.737330879435919,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,19,408,0.0282668263032847,0.0717694702650633,Exact binomial test,two.sided,240,0.0518134715025907,19,408
+Chr22_down_T21,22,T21,0.0196078431372549,0.744683123581065,0.833453188725526,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,8,408,0.00850236037165204,0.0382683797068271,Exact binomial test,two.sided,111,0.0239637305699482,8,408
+Chr10_up_T21,10,T21,0.0426287744227353,0.746043270973901,0.917301030145752,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,24,563,0.0275009168247371,0.0627664663442824,Exact binomial test,two.sided,185,0.0399395509499136,24,563
+Chr18_up_T21:Age,18,T21:Age,0.00823045267489712,0.78035948033554,0.78035948033554,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,2,243,0.000998304804996928,0.029413312757828,Exact binomial test,two.sided,65,0.0140328151986183,2,243
+Chr13_up_T21:Age,13,T21:Age,0.0164609053497942,0.783458239182529,0.783458239182529,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,4,243,0.00450279090490804,0.0416078086956263,Exact binomial test,two.sided,67,0.0144645941278066,4,243
+Chr10_down_T21,10,T21,0.0416666666666667,0.800280340344657,0.917301030145752,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,17,408,0.0244566637315098,0.0658756963689463,Exact binomial test,two.sided,185,0.0399395509499136,17,408
+Chr20_down_T21:Age,20,T21:Age,0.0329489291598023,0.826761599618298,0.909616641768912,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,20,607,0.02023993028408,0.0504297127318868,Exact binomial test,two.sided,166,0.0358376511226252,20,607
+Chr22_up_T21:Age,22,T21:Age,0.0246913580246914,0.833453188725526,0.833453188725526,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,6,243,0.00911400232290613,0.0529652100921754,Exact binomial test,two.sided,111,0.0239637305699482,6,243
+Chr9_down_T21:Age,9,T21:Age,0.0411861614497529,0.83446655677186,0.83446655677186,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,25,607,0.0268278663469604,0.0602007185560974,Exact binomial test,two.sided,183,0.0395077720207254,25,607
+Chr4_up_T21,4,T21,0.044404973357016,0.835716555077386,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,25,563,0.0289394743623503,0.064854982263704,Exact binomial test,two.sided,200,0.0431778929188256,25,563
+Chr21_down_T21:Age,21,T21:Age,0.0115321252059308,0.849222469292152,0.849222469292152,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,7,607,0.00464873702488733,0.0236155176467499,Exact binomial test,two.sided,53,0.0114421416234888,7,607
+Chr3_up_T21:Age,3,T21:Age,0.0493827160493827,0.881366690443986,0.924619424571932,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,12,243,0.0257737951264235,0.084672218323705,Exact binomial test,two.sided,225,0.0485751295336788,12,243
+Chr19_up_T21:Age,19,T21:Age,0.065843621399177,0.900466067164006,0.900466067164006,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,16,243,0.0381005391124452,0.104725322098452,Exact binomial test,two.sided,330,0.0712435233160622,16,243
+Chr15_down_T21:Age,15,T21:Age,0.0263591433278418,0.902872076167896,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,16,607,0.015139931426747,0.0424533484360973,Exact binomial test,two.sided,133,0.028713298791019,16,607
+Chr20_up_T21,20,T21,0.0337477797513322,0.909616641768912,0.909616641768912,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,19,563,0.0204382844115799,0.0522010703713866,Exact binomial test,two.sided,166,0.0358376511226252,19,563
+Chr8_up_T21,8,T21,0.0337477797513322,0.909616641768912,0.909616641768912,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,19,563,0.0204382844115799,0.0522010703713866,Exact binomial test,two.sided,166,0.0358376511226252,19,563
+Chr7_up_T21,7,T21,0.0390763765541741,0.91558470718028,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,22,563,0.0246481390595706,0.0585664053727332,Exact binomial test,two.sided,192,0.0414507772020725,22,563
+Chr11_down_T21,11,T21,0.0612745098039216,0.916784626202301,0.916784626202301,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,25,408,0.0400424858513717,0.0891270283909619,Exact binomial test,two.sided,278,0.0600172711571675,25,408
+Chr10_down_T21:Age,10,T21:Age,0.0378912685337727,0.917301030145752,0.917301030145752,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,23,607,0.0241687124250934,0.0563149438185735,Exact binomial test,two.sided,185,0.0399395509499136,23,607
+Chr5_up_T21,5,T21,0.0497335701598579,0.921888363131424,0.921888363131424,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,28,563,0.0332984925975044,0.0710793404034683,Exact binomial test,two.sided,226,0.0487910189982729,28,563
+Chr3_down_T21:Age,3,T21:Age,0.0494233937397035,0.924619424571932,0.924619424571932,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,30,607,0.0335907109571761,0.0698058898726477,Exact binomial test,two.sided,225,0.0485751295336788,30,607
+Chr1_down_T21,1,T21,0.107843137254902,0.935953663571361,0.94751191079661,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,44,408,0.0794596019742461,0.142062516961464,Exact binomial test,two.sided,493,0.106433506044905,44,408
+Chr1_down_T21:Age,1,T21:Age,0.107084019769358,0.94751191079661,0.94751191079661,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,65,607,0.0836221094610903,0.134446675548813,Exact binomial test,two.sided,493,0.106433506044905,65,607
+Chr14_up_T21:Age,14,T21:Age,0.0288065843621399,1,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,7,243,0.0116585691772693,0.0584493285706317,Exact binomial test,two.sided,139,0.0300086355785838,7,243
+Chr15_down_T21,15,T21,0.0269607843137255,1,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,11,408,0.0135339015598834,0.0477274532412707,Exact binomial test,two.sided,133,0.028713298791019,11,408
+Chr15_up_T21:Age,15,T21:Age,0.0288065843621399,1,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,7,243,0.0116585691772693,0.0584493285706317,Exact binomial test,two.sided,133,0.028713298791019,7,243
+Chr4_down_T21,4,T21,0.0416666666666667,1,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,17,408,0.0244566637315098,0.0658756963689463,Exact binomial test,two.sided,200,0.0431778929188256,17,408
+Chr7_down_T21,7,T21,0.0392156862745098,1,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",down,16,408,0.0225784433233728,0.0629038637242065,Exact binomial test,two.sided,192,0.0414507772020725,16,408
+Chr7_up_T21:Age,7,T21:Age,0.0411522633744856,1,1,0,"Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 'gsub': error in evaluating the argument 'x' in selecting a method for function 'gsub': incorrect number of subscripts
+",up,10,243,0.0199077172780345,0.0743764713071244,Exact binomial test,two.sided,192,0.0414507772020725,10,243

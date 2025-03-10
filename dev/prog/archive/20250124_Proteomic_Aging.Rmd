@@ -1,0 +1,957 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#install.packages("devtools")
+library(devtools)
+# https://github.com/SomaLogic/SomaDataIO
+#devtools::install_github("SomaLogic/SomaDataIO")
+library(SomaDataIO)
+library(ggrepel)
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+#library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(tidyverse)
+#library(caret)
+#library(glmnet)
+```
+
+#### Setting and modifying theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 11), #size = 14
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+RedBlue <- c("#CD3333", "#1874CD")
+GrayBlue <- c("grey", "#2b8cbe")
+```
+
+```{r}
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+```
+
+```{r}
+# IMPORTANT! ASK KATE FOR DCC METADATA & REPLACE LATER
+#p4c_meta <- fread("/Users/jessica/Downloads/HTP_Cooccuring_conditions_v0.5_Synapse.txt",
+#                  sep = "\t")
+#p4c_meta
+
+# FOR NOW, USING DROPBOX METADATA:
+
+#### Read in master meta-data:
+setwd("/Users/jessica/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+p4c_meta <-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+p4c_meta
+```
+```{r}
+library(readxl)    
+read_excel_allsheets <- function(filename, tibble = FALSE) {
+    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+    x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X))
+    if(!tibble) x <- lapply(x, as.data.frame)
+    names(x) <- sheets
+    x
+}
+
+`%notin%` <- Negate(`%in%`)
+```
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+```{r}
+# Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+fp.donovan2024_source <- "/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/Source Data";
+fn.donovan2024_source <- c("SourceData_Fig1.xlsx",
+                           "SourceData_Fig2.xlsx",               
+                           "SourceData_Fig3.xlsx",
+                           "SourceData_Fig4.xlsx",
+                           "SourceData_Fig5.xlsx",
+                           "SourceData_Fig6.xlsx",
+                           "SourceData_Fig7.xlsx",
+                           "SourceData_Fig8.xlsx");
+setwd(fp.donovan2024_source)
+donovan2024_source_data <- fn.donovan2024_source %>%
+  lapply(., read_excel_allsheets);
+
+donovan2024_p4c_meta <- donovan2024_source_data %>%
+  lapply(., rbindlist, fill = TRUE) %>%
+  lapply(., select, c(SampleID, Karyotype, Age, Sex)) %>%
+  lapply(., unique) %>%
+  lapply(as.data.frame) %>%
+  rbindlist(., fill = TRUE) %>%
+  unique()
+
+donovan2024_p4c_meta
+```
+
+```{r}
+p4c_soma <- fread("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/HTP_SOMAscan_Proteomics_Synapse.txt",
+                  sep = "\t")
+
+p4c_soma
+```
+
+#### Assess the overlap of the Somalogic publication LabIDs and the Donovan 2024 Sample IDs
+```{r}
+p4c_soma %>%
+  select(LabID) %>%
+  unique() %>%
+  mutate(In_proteomics_paper = 1) %>%
+  full_join(donovan2024_p4c_meta %>%
+              mutate(In_donovan2024 = 1),
+            by = c("LabID" = "SampleID")) %>%
+  group_by(In_proteomics_paper, In_donovan2024) %>%
+  summarise(N = n())
+
+keep_labids <- (p4c_soma %>%
+  select(LabID) %>%
+  unique() %>%
+  mutate(In_proteomics_paper = 1) %>%
+  full_join(donovan2024_p4c_meta %>%
+              mutate(In_donovan2024 = 1),
+            by = c("LabID" = "SampleID")) %>%
+  filter(!is.na(In_proteomics_paper) & !is.na(In_donovan2024)) %>%
+  select(LabID) %>%
+  unique())$LabID
+```
+
+#### Prepare published SomaLogic data and add metadata
+```{r}
+# https://www.nature.com/articles/s41591-019-0673-2
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC7062043/#SD2
+st7 <- openxlsx::read.xlsx("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/NIHMS1541641-supplement-1541641_Sup_Tab1-17.xlsx",
+                 sheet = 8, # "ST7 Plasma proteomic clock"
+                 startRow = 2) %>% 
+  `rownames<-`(NULL)
+
+#install.packages("openxlsx")
+#library(openxlsx)
+st11_clusterIDs <- openxlsx::read.xlsx("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/NIHMS1541641-supplement-1541641_Sup_Tab1-17.xlsx",
+                 sheet = 12, # "ST7 Plasma proteomic clock"
+                 startRow = 3) %>% 
+  `rownames<-`(NULL)
+
+proteomic_clock_proteins <- st7 %>% select(Variable) %>% filter(Variable != "(Intercept)")
+
+# st7
+#st11_clusterIDs
+#proteomic_clock_proteins
+
+proteomic_clock_proteins_clusters <- proteomic_clock_proteins %>%
+  full_join(st11_clusterIDs, by = c("Variable" = "Protein")) %>%
+  separate(Variable, into = paste0("v", seq(1:10)), remove = FALSE, extra = "merge") %>%
+  gather(key = "key", value = "value", v1:v10) %>%
+  mutate(value = case_when(is.na(value) ~ "", .default = value),
+         key = gsub("v", "", key) %>% as.numeric()) %>%
+  group_by(Variable, ClusterID) %>%
+  arrange(Variable, key) %>%
+  filter(value != "") %>%
+  mutate(max_key = max(key)) %>%
+  mutate(is_last_piece = case_when(key == max_key ~ 1, .default = 0)) %>%
+  filter(is_last_piece == 0) %>%
+  select(-c(max_key, is_last_piece)) %>%
+  mutate(key = paste0("v", key)) %>%
+  summarise(Aptamer = paste(value, collapse = "."));
+
+rm(st11_clusterIDs, proteomic_clock_proteins); gc()
+
+st7
+proteomic_clock_proteins_clusters
+```
+
+```{r}
+a <- p4c_soma %>% select(Aptamer) %>% unique() %>% mutate(In_P4C = 1)
+b <- proteomic_clock_proteins_clusters %>% mutate(In_st7 = 1)
+
+a %>%
+  full_join(b,  by = c("Aptamer" = "Variable")) %>%
+  mutate(In_P4C = case_when(is.na(In_P4C) ~ 0, .default = In_P4C),
+         In_st7 = case_when(is.na(In_st7) ~ 0, .default = In_st7),
+         In_sum = In_P4C + In_st7) %>%
+  group_by(In_P4C, In_st7, In_sum) %>%
+  summarise(N = n())
+```
+
+```{r}
+# p4c_soma %>% select(Aptamer) %>% unique() %>%
+#   mutate(In_published_p4c_soma = 1) %>%
+#   full_join(proteomic_clock_proteins_clusters %>% mutate(In_st17 = 1), by = "Aptamer") %>%
+#   group_by(In_published_p4c_soma, In_st17) %>%
+#   summarise(N = n())
+
+keep_aptamers <- p4c_soma %>%
+  select(Aptamer) %>%
+  unique() %>%
+  mutate(In_published_p4c_soma = 1) %>%
+  full_join(proteomic_clock_proteins_clusters %>% mutate(In_st17 = 1), by = "Aptamer") %>%
+  filter(!is.na(In_published_p4c_soma) & !is.na(In_st17)) %>%
+  select(Aptamer, Variable)
+
+keep_aptamers
+```
+
+```{r}
+gene_chr_anno <- fread("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/martquery_0127162849_293.txt.gz") %>%
+  select(`UniProtKB/Swiss-Prot ID`, `Gene name`, `Gene Synonym`,
+         `Chromosome/scaffold name`) %>%
+  rename(biomart_gene_name = `Gene name`,
+         biomart_gene_synonym = `Gene Synonym`) %>%
+  unique() %>%
+  arrange(`UniProtKB/Swiss-Prot ID`) %>%
+  filter(!is.na(`UniProtKB/Swiss-Prot ID`) & `UniProtKB/Swiss-Prot ID`!="") %>%
+  mutate(In_biomart_anno = 1) %>%
+  rename(UniProt = `UniProtKB/Swiss-Prot ID`) %>%
+  #select(`Chromosome/scaffold name`) %>%
+  #unique() %>%
+  mutate(chromosome = case_when( !is.na(as.numeric(`Chromosome/scaffold name`)) ~
+                                   as.numeric(`Chromosome/scaffold name`),
+                                 grepl("CHR10", `Chromosome/scaffold name`)==TRUE ~ 10,
+                                 grepl("CHR11", `Chromosome/scaffold name`)==TRUE ~ 11,
+                                 grepl("CHR12", `Chromosome/scaffold name`)==TRUE ~ 12,
+                                 grepl("CHR13", `Chromosome/scaffold name`)==TRUE ~ 13,
+                                 grepl("CHR14", `Chromosome/scaffold name`)==TRUE ~ 14,
+                                 grepl("CHR15", `Chromosome/scaffold name`)==TRUE ~ 15,
+                                 grepl("CHR16", `Chromosome/scaffold name`)==TRUE ~ 16,
+                                 grepl("CHR17", `Chromosome/scaffold name`)==TRUE ~ 17,
+                                 grepl("CHR18", `Chromosome/scaffold name`)==TRUE ~ 18,
+                                 grepl("CHR19", `Chromosome/scaffold name`)==TRUE ~ 19,
+                                 grepl("CHR20", `Chromosome/scaffold name`)==TRUE ~ 20,
+                                 grepl("CHR21", `Chromosome/scaffold name`)==TRUE ~ 21,
+                                 grepl("CHR22", `Chromosome/scaffold name`)==TRUE ~ 22,
+                                 grepl("CHR23", `Chromosome/scaffold name`)==TRUE ~ 23,
+                                 
+                                 grepl("CHR1", `Chromosome/scaffold name`)==TRUE ~ 1,
+                                 grepl("CHR2", `Chromosome/scaffold name`)==TRUE ~ 2,
+                                 grepl("CHR3", `Chromosome/scaffold name`)==TRUE ~ 3,
+                                 grepl("CHR4", `Chromosome/scaffold name`)==TRUE ~ 4,
+                                 grepl("CHR5", `Chromosome/scaffold name`)==TRUE ~ 5,
+                                 grepl("CHR6", `Chromosome/scaffold name`)==TRUE ~ 6,
+                                 grepl("CHR7", `Chromosome/scaffold name`)==TRUE ~ 7,
+                                 grepl("CHR8", `Chromosome/scaffold name`)==TRUE ~ 8,
+                                 grepl("CHR9", `Chromosome/scaffold name`)==TRUE ~ 9,
+                                 
+                                 grepl("CHRX", `Chromosome/scaffold name`)==TRUE ~ 22,
+                                 grepl("CHRY", `Chromosome/scaffold name`)==TRUE ~ 23,
+                                 
+                                 grepl("MT", `Chromosome/scaffold name`)==TRUE ~ 24, # Use chromosome=24 for mitochondrial DNA
+                                 
+                                 `Chromosome/scaffold name`=="X" ~ 22,
+                                 `Chromosome/scaffold name`=="Y" ~ 23,
+                                 `Chromosome/scaffold name`=="MT" ~ 24,
+
+                                 .default = NA)) %>%
+  arrange(`Chromosome/scaffold name`) %>%
+  rename(biomart_chr_scaffold = `Chromosome/scaffold name`)
+
+gene_chr_anno
+```
+
+```{r}
+a <- p4c_soma %>%
+  mutate(In_published_p4c_soma = 1) #%>%
+  #filter(Aptamer %in% keep_aptamers$Aptamer)
+
+b <- proteomic_clock_proteins_clusters %>%
+  mutate(In_st17 = 1) #%>%
+  #filter(Aptamer %in% keep_aptamers$Aptamer)
+
+ai1_p4c_soma <- a %>%
+  full_join(b, by = "Aptamer") %>%
+  full_join(donovan2024_p4c_meta %>% rename(LabID = SampleID),
+            by = c("LabID")) %>%
+  left_join(gene_chr_anno, by = "UniProt") %>%
+  filter(LabID %in% keep_labids) %>%
+  rename(Abundance = Value) %>%
+  mutate(log10_Abundance = log10(Abundance))
+
+ai1_p4c_soma
+
+p4c_soma.D21_summary_stats <- ai1_p4c_soma %>%
+  filter(Karyotype == "Control") %>%
+  group_by(Aptamer, Karyotype) %>%
+  summarise(mean_log10Abundance.D21 = mean(log10_Abundance, na.rm = TRUE),
+            sd_log10Abundance.D21 = sd(log10_Abundance, na.rm = TRUE)) %>%
+  ungroup();
+p4c_soma.T21_summary_stats <- ai1_p4c_soma %>%
+  filter(Karyotype == "T21") %>%
+  group_by(Aptamer, Karyotype) %>%
+  summarise(mean_log10Abundance.T21 = mean(log10_Abundance, na.rm = TRUE),
+            sd_log10Abundance.T21 = sd(log10_Abundance, na.rm = TRUE)) %>%
+  ungroup()
+
+ai1_p4c_soma
+p4c_soma.D21_summary_stats
+p4c_soma.T21_summary_stats
+
+ar1_p4c_soma <- ai1_p4c_soma %>%
+  full_join(p4c_soma.D21_summary_stats %>% select(Aptamer, mean_log10Abundance.D21, sd_log10Abundance.D21),
+            by = c("Aptamer")) %>%
+  full_join(p4c_soma.T21_summary_stats %>% select(Aptamer, mean_log10Abundance.T21, sd_log10Abundance.T21),
+            by = "Aptamer") %>%
+  group_by(Aptamer) %>%
+  mutate(Z_log10_Abundance = (log10_Abundance - mean_log10Abundance.D21)/sd_log10Abundance.D21) %>%
+  ungroup() %>%
+  rename(Cluster = ClusterID) %>%
+  mutate(Cluster = paste0("Cluster ", Cluster),
+         #Karyotype = case_when(T21 == 0 ~ "D21",
+          #                     T21 == 1 ~ "T21", .default = NA),
+         #Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+         Cluster = factor(Cluster,
+                          levels = c("Cluster 7",
+                                     "Cluster 6", 
+                                     "Cluster 3",
+                                     "Cluster 4", 
+                                     "Cluster 2", 
+                                     "Cluster 1",
+                                     "Cluster 5",
+                                     "Cluster 8"))) %>%
+  group_by(Cluster) %>%
+  mutate(ggtitle = Cluster) %>%
+  ungroup() %>%
+  arrange(Cluster) %>%
+  mutate(T21 = case_when(Karyotype == "T21" ~ 1,
+                         Karyotype == "Control" ~ 0,
+                         .default = NA),
+         Female = case_when(Sex == "Female" ~ 1,
+                            Sex == "Male" ~ 0,
+                            .default = NA)) %>%
+  mutate(Cluster = case_when(is.na(Cluster) ~ "Cluster Other", .default = Cluster))
+
+ar1_p4c_soma
+ar1_p4c_soma %>% select(Cluster) %>% unique()
+```
+
+```{r}
+ggData.split <- ar1_p4c_soma %>% split(., .$Cluster)
+
+gg_seT <- list()
+for ( i in 1:length(ggData.split) ){
+  gg_seT[[i]] <- ggData.split[[i]] %>%
+    ggplot(aes(x = Age, y = Z_log10_Abundance, color = Karyotype)) +
+    scale_colour_manual(values = GrayBlue) +
+    geom_smooth(se = TRUE) +
+    theme_bw() +
+    ggtitle(ggData.split[[i]]$ggtitle[1]) +
+    coord_cartesian(xlim = c(0,100),
+                    ylim = c(-2,2)) +
+    scale_x_continuous("Age (years)", 
+                       labels = as.character(seq(0, 100, by=20)),
+                       breaks = seq(0, 100, by = 20), 
+                       expand=c(0,0)
+                       ) +
+    scale_y_continuous("Protein levels (Z-score)", 
+                       labels = as.character(seq(-2, 2, by=1)),
+                       breaks = seq(-2, 2, by = 1), 
+                       expand=c(0,0)
+                       ) +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom")
+}
+
+#gg_seT[[8]]
+
+for ( i in 1:length(ggData.split) ) {
+  setwd("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/output")
+  ggsave(gg_seT[[i]],
+         filename = paste("20250124_Proteomic_Aging_", ggData.split[[i]]$ggtitle[1], "_seTRUE_v0.2.png", sep = ""),
+         width = 5, height = 5, units = "in")
+}
+
+gg_seT
+```
+
+
+```{r}
+ar_p4c_soma_sumZcluster <- ar1_p4c_soma %>%
+  group_by(#RecordID,
+           LabID,
+           T21, Karyotype, Female, Sex, Age,
+           #Karyotype_Sex,
+           # Race, Ethnicity,
+           Cluster) %>%
+  summarise(sumZ_Cluster = sum(Z_log10_Abundance)) %>%
+  ungroup() %>%
+  mutate(Cluster = gsub(" ", "_", Cluster)) %>%
+  spread(key = Cluster, value = sumZ_Cluster) %>%
+  gather(key = "Cluster", value = "sumZ_Cluster", Cluster_1:Cluster_Other)
+
+ar_p4c_soma_sumZcluster
+
+ar_p4c_soma_sumZcluster.split <- ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster)
+
+# IMPORTANT NOTE: If NA for any cluster, exclude participant from aging Z score analysis and possibly from all analyses (decide later...)
+```
+
+```{r}
+ar_p4c_soma_sumZcluster_agePredT21 <- ar_p4c_soma_sumZcluster %>%
+  mutate(Cluster = paste0("sumZ_", Cluster)) %>%
+  filter(T21 == 1) %>%
+  spread(key = Cluster, value = sumZ_Cluster)
+ar_p4c_soma_sumZcluster_agePredT21
+
+set.seed(1234)
+fit.sumZcluster_agePredT21 <- lm(log(Age) ~ sumZ_Cluster_1 +
+                                sumZ_Cluster_2+
+                                sumZ_Cluster_3 +
+                                sumZ_Cluster_4 +
+                                sumZ_Cluster_5 +
+                                sumZ_Cluster_6 +
+                                  sumZ_Cluster_7 +
+                                  sumZ_Cluster_8 +
+                                  #sumZ_Cluster_Other +
+                                Female
+                                ,
+                                data = ar_p4c_soma_sumZcluster_agePredT21);
+
+fit.sumZcluster_agePredT21 %>% glance()
+
+fit.sumZcluster_agePredT21 %>%
+  tidy(conf.int = TRUE) %>%
+    filter(term!="(Intercept)") %>%
+  rename(log10FC = estimate,
+         P = p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  arrange(P)
+
+set.seed(1234)
+fit.sumZcluster_agePredT21_MIN <- lm(log(Age) ~ #sumZ_Cluster_1 +
+                                #sumZ_Cluster_2+
+                                #sumZ_Cluster_3 +
+                                sumZ_Cluster_4 +
+                                sumZ_Cluster_5 +
+                                #sumZ_Cluster_6 +
+                                  #sumZ_Cluster_7 +
+                                  sumZ_Cluster_8 +
+                                  #sumZ_Cluster_Other +
+                                Female
+                                ,
+                                data = ar_p4c_soma_sumZcluster_agePredT21);
+
+fit.sumZcluster_agePredT21_MIN %>% glance()
+```
+
+#### LASSO regression to classify T21 +/- Celiac
+(See http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/)
+
+#### Perform stratified sampling
+```{r}
+# ar1_p4c_soma
+
+training_IDs <- list()
+test_IDs <- list()
+
+set.seed(1234)
+
+update_seq <- c(1, 10, seq(from=0, to=1000, by=10)[-c(1:2)] )
+update_seq
+
+ar1_p4c_soma_T21 <- ar1_p4c_soma %>%
+  filter(T21 == 1) %>%
+  mutate(rownum = row_number()) %>%
+  select(rownum, everything())
+
+ar1_p4c_soma_T21_IDs <- ar1_p4c_soma_T21 %>% select(LabID) %>% unique()
+
+for ( i in 1:1000 ){
+#for ( i in 1:3 ){
+  seedvalue = 1234*i
+  set.seed(seedvalue)
+  # Split the data into training and test sets
+  training_IDs.tmp <- ar1_p4c_soma_T21 %>%
+    sample_frac(0.8) %>%
+    mutate(train_test = "Train") %>%
+    select(LabID, train_test, everything())
+  test_IDs.tmp <- ar1_p4c_soma_T21 %>%
+    filter(rownum %notin% training_data.tmp$rownum) %>%
+    mutate(train_test = "Test") %>%
+    select(LabID, train_test, everything())
+  
+  training_IDs[[i]] <- training_IDs.tmp
+  test_IDs[[i]] <- test_IDs.tmp
+
+  if ( i %in% update_seq ) {
+    print(paste(Sys.time(), "  iter = ", i, " complete.", sep=""))
+  }
+}
+
+training_data %>% length()
+test_data %>% length()
+```
+
+
+
+```{r}
+tidy.sumZcluster_modelA <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map2(.x = fit.sumZcluster_agePred, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+```
+
+```{r}
+set.seed(1234)
+fit.sumZcluster_modelA <- ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map(~lm(sumZ_Cluster ~ T21 + Age + Female, data = .));
+
+tidy.sumZcluster_modelA <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map2(.x = fit.sumZcluster_modelA, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.sumZcluster_modelA %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  #arrange(Cluster) %>%
+  select(-c(std.error, statistic));
+
+set.seed(1234)
+fit.sumZcluster_modelB <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age, data = .));
+
+tidy.sumZcluster_modelB <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map2(.x = fit.sumZcluster_modelB, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.sumZcluster_modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+tidy.sumZcluster_modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+```
+
+```{r}
+set.seed(1234)
+fit.Zlog10Abundance_modelA <- ar1_p4c_soma %>%
+  mutate(Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", chromosome, ", ", Cluster, ")")) %>%
+  select(Aptamer_Chr_Cluster, everything()) %>%
+  split(., .$Aptamer_Chr_Cluster) %>%
+  map(~lm(Z_log10_Abundance ~ T21 + Age + Female, data = .));
+set.seed(1234)
+fit.Zlog10Abundance_modelB <- ar1_p4c_soma %>%
+  mutate(Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", chromosome, ", ", Cluster, ")")) %>%
+  select(Aptamer_Chr_Cluster, everything()) %>%
+  split(., .$Aptamer_Chr_Cluster) %>%
+  map(~lm(Z_log10_Abundance ~ T21 + Age + Female + T21*Age, data = .));
+
+tidy.Zlog10Abundance_modelA <-  ar1_p4c_soma %>%
+  mutate(Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", chromosome, ", ", Cluster, ")")) %>%
+  select(Aptamer_Chr_Cluster, everything()) %>%
+  split(., .$Aptamer_Chr_Cluster) %>%
+  map2(.x = fit.Zlog10Abundance_modelA, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Aptamer_Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+tidy.Zlog10Abundance_modelB <-  ar1_p4c_soma %>%
+  mutate(Aptamer_Chr_Cluster = paste0(Aptamer, " (Chr", chromosome, ", ", Cluster, ")")) %>%
+  select(Aptamer_Chr_Cluster, everything()) %>%
+  split(., .$Aptamer_Chr_Cluster) %>%
+  map2(.x = fit.Zlog10Abundance_modelB, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Aptamer_Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.Zlog10Abundance_modelA
+tidy.Zlog10Abundance_modelB
+
+tidy.Zlog10Abundance_modelA %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  select(Aptamer_Cluster, everything());
+
+tidy.Zlog10Abundance_modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  select(Aptamer_Cluster, everything()) %>%
+  rename(log10FC = estimate,
+         P = p.value);
+tidy.Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  select(Aptamer_Cluster, everything()) %>%
+  rename(log10FC = estimate,
+         P = p.value);
+
+tidy.Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  select(Aptamer_Cluster, everything()) %>%
+  mutate(Sig10_PadjBH = case_when(Padj_BH<0.10 ~ 1, .default = 0),
+         Sig05_PadjBH = case_when(Padj_BH<0.05 ~ 1, .default = 0)) %>%
+  filter(grepl("Chr21", Aptamer_Cluster)==TRUE) %>%
+  filter(Sig10_PadjBH == 1);
+```
+
+```{r}
+tidy.Zlog10Abundance_modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  select(Aptamer_Cluster, everything()) %>%
+  mutate(Sig10_PadjBH = case_when(Padj_BH<0.10 ~ 1, .default = 0),
+         Sig05_PadjBH = case_when(Padj_BH<0.05 ~ 1, .default = 0)) %>%
+  filter(Sig10_PadjBH == 1);
+
+tidy.Zlog10Abundance_modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic)) %>%
+  select(Aptamer_Cluster, everything()) %>%
+  mutate(Sig10_PadjBH = case_when(Padj_BH<0.10 ~ 1, .default = 0),
+         Sig05_PadjBH = case_when(Padj_BH<0.05 ~ 1, .default = 0)) %>%
+  filter(Sig10_PadjBH == 1) %>%
+  mutate(rank = abs(estimate)*(-log10(Padj_BH))) %>%
+  arrange(desc(rank)); 
+```
+
+```{r}
+p4c_comorb <- fread("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/HTP_Cooccuring_conditions_v0.5_Synapse.txt")
+p4c_comorb
+
+p4c_comorb %>%
+  group_by(Condition, History_of_condition) %>%
+  summarise(N = n()) %>%
+  spread(key = History_of_condition, value = N, fill = 0) %>%
+  arrange(desc(`TRUE`))
+```
+
+```{r}
+set.seed(1234)
+fit.sumZcluster_modelB <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age, data = .));
+
+tidy.sumZcluster_modelB <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map2(.x = fit.sumZcluster_modelB, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.sumZcluster_modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+tidy.sumZcluster_modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+```
+
+```{r}
+set.seed(1234)
+fit.modelB <-  ar1_p4c_soma %>%
+  split(., .$Cluster) %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age, data = .));
+
+tidy.modelB <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map2(.x = fit.modelB, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+tidy.modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+```
+
+
+
+
+
+
+
+
+
+```{r}
+ar1_p4c_soma_chr <- ar1_p4c_soma %>%
+  mutate(In_ar1_p4c_soma = 1) %>%
+  left_join(gene_chr_anno, by = "UniProt")
+
+ar1_p4c_soma_chr
+
+ar1_p4c_soma_chr %>%
+  mutate(chromosome21 = case_when(chromosome == 21 ~ "Chromosome 21",
+                                  .default = "Other chromosome")) %>%
+  select(Cluster, UniProt, chromosome, chromosome21, Z_log10_Abundance) %>%
+  group_by(Cluster, chromosome21) %>%
+  summarise(N_aptamers = n()) %>%
+  ungroup() %>%
+  spread(key = chromosome21, value = N_aptamers)
+
+ar1_p4c_soma_chr %>%
+  mutate(chromosome21 = case_when(chromosome == 21 ~ "Chromosome 21",
+                                  .default = "Other chromosome")) %>%
+  select(Cluster, UniProt, chromosome, chromosome21, Z_log10_Abundance) %>%
+  group_by(Cluster, chromosome) %>%
+  summarise(N_aptamers = n()) %>%
+  ungroup() %>%
+  group_by(Cluster) %>%
+  arrange(Cluster, chromosome) %>%
+  mutate(N_total_cluster_aptamers = sum(N_aptamers, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Percent_cluster_aptamers = round(100*N_aptamers/N_total_cluster_aptamers, digits = 1)) %>%
+  mutate(gg_chromosome = paste0("chr", chromosome),
+         gg_chromosome = factor(gg_chromosome, levels = c(paste0("chr", seq(1:24))))) %>%
+  arrange(gg_chromosome) %>%
+  ggplot(aes(x = gg_chromosome, y = Percent_cluster_aptamers, fill = Cluster)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  facet_wrap(~Cluster, ncol = 4) +
+  coord_flip()
+
+ar1_p4c_soma_chr %>%
+  mutate(chromosome21 = case_when(chromosome == 21 ~ "Chromosome 21",
+                                  .default = "Other chromosome")) %>%
+  select(Cluster, UniProt, chromosome, chromosome21, Z_log10_Abundance) %>%
+  group_by(Cluster, chromosome) %>%
+  summarise(N_aptamers = n()) %>%
+  ungroup() %>%
+  group_by(Cluster) %>%
+  arrange(Cluster, chromosome) %>%
+  mutate(N_total_cluster_aptamers = sum(N_aptamers, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Percent_cluster_aptamers = round(100*N_aptamers/N_total_cluster_aptamers, digits = 1)) %>%
+  mutate(gg_chromosome = paste0("chr", chromosome),
+         gg_chromosome = factor(gg_chromosome, levels = c(paste0("chr", seq(1:24))))) %>%
+  arrange(gg_chromosome) %>%
+  ggplot(aes(x = Cluster, y = Percent_cluster_aptamers, fill = gg_chromosome)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  facet_wrap(~gg_chromosome, ncol = 4) +
+  coord_flip()
+
+ar1_p4c_soma_chr %>%
+  mutate(chromosome21 = case_when(chromosome == 21 ~ "Chromosome 21",
+                                  .default = "Other chromosome")) %>%
+  select(Cluster, UniProt, chromosome, chromosome21, Z_log10_Abundance) %>%
+  group_by(Cluster, chromosome) %>%
+  summarise(N_aptamers = n()) %>%
+  ungroup() %>%
+  group_by(Cluster) %>%
+  arrange(Cluster, chromosome) %>%
+  mutate(N_total_cluster_aptamers = sum(N_aptamers, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Percent_cluster_aptamers = round(100*N_aptamers/N_total_cluster_aptamers, digits = 1)) %>%
+  mutate(gg_chromosome = paste0("chr", chromosome),
+         gg_chromosome = factor(gg_chromosome, levels = c(paste0("chr", seq(1:24))))) %>%
+  arrange(gg_chromosome) %>%
+  filter(gg_chromosome == "chr21") %>%
+  ggplot(aes(x = Cluster, y = Percent_cluster_aptamers, fill = gg_chromosome)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  facet_wrap(~gg_chromosome, ncol = 4) +
+  coord_flip()
+```
+
+```{r}
+ar1_p4c_soma_chr
+```
+
+
+
+
+
+
+
+
+
+```{r}
+tmp <- ar1_p4c_soma %>%
+  filter(grepl("nterferon", TargetFullName)==TRUE |
+           grepl("reactive protein", TargetFullName) == TRUE)
+tmp
+
+set.seed(1234)
+fit.tmp <- tmp %>%
+  split(., .$Aptamer) %>%
+  map(~lm(log10_Abundance ~ T21 + Age + Female, data = .))
+tidy.tmp <-  tmp %>%
+  split(., .$Aptamer) %>%
+  map2(.x = fit.tmp, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Aptamer") %>%
+    filter(term!="(Intercept)") %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.tmp %>%
+  filter(term == "T21") %>%
+  arrange(p.value)
+
+ar1_p4c_soma %>%
+  filter(grepl("reactive protein", TargetFullName)==TRUE)
+
+```
+
+
+```{r}
+donovan2024_p4c_meta
+```
+
+```{r}
+select <- dplyr::select
+
+p4c_soma_genes <- p4c_soma %>%
+  select(GeneSymbol) %>%
+  unique()
+p4c_soma_genes
+
+fwrite(p4c_soma_genes, "/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/output/20250124_published_p4c_soma_genes.csv")
+fwrite(p4c_soma_genes, "/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/output/20250124_published_p4c_soma_genes.txt",
+       sep = "\t")
+
+p4c_soma_genes_chr <- fread("/Users/jessica/Dropbox/EspinosaGroup/ANALYSIS/2025/prod/rawdata/martquery_0124230151_605.txt.gz") %>%
+  select(`Gene name`, `Chromosome/scaffold name`) %>%
+  unique() %>%
+  mutate(In_biomart_export = 1) %>%
+  full_join(p4c_soma_genes %>% mutate(In_p4c_soma_genes = 1), by = c("Gene name" = "GeneSymbol")) %>%
+  filter(!is.na(In_p4c_soma_genes)) %>%
+  mutate(chromosome = gsub("CHR", "|CHR", `Chromosome/scaffold name`)) %>%
+  rename(GeneSymbol = `Gene name`) %>%
+  mutate(chromosome.clean = case_when(grepl("CHR11_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR11_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR11_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR11_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR11_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR11_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR17_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR18_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      grepl("CHR19_", chromosome)==TRUE | grepl("CHR11", chromosome)==TRUE ~ 11,
+                                      
+                                      grepl("CHR1_", chromosome)==TRUE ~ 1,
+                                      chromosome == "Y" ~ 23,
+                                      chromosome == "X" ~ 22,
+                                      .default = NA))
+p4c_soma_genes_chr
+
+p4c_soma_genes_chr %>% select(chromosome, chromosome.clean) %>% unique() %>% arrange(chromosome.clean)
+
+p4c_soma_genes_chr %>%
+  group_by(In_biomart_export, In_p4c_soma_genes) %>%
+  summarise(N = n())
+```
+
+
+```{r}
+ar1_p4c_soma_genes <- (ar1_p4c_soma %>%
+  dplyr::select(GeneSymbol) %>%
+  unique())$GeneSymbol
+
+ar1_p4c_soma_genes_cluster1 <- (ar1_p4c_soma %>%
+                         filter(Cluster == "Cluster 1") %>%
+                         dplyr::select(GeneSymbol) %>%
+                         unique())$GeneSymbol
+
+# install the biomaRt package       
+# source("https://bioconductor.org/biocLite.R")     
+# biocLite("biomaRt")       
+# load biomaRt      
+library(biomaRt)        
+
+# 1) select a mart and data set        
+ mart <- biomaRt::useDataset(dataset = "hsapiens_gene_ensembl",         
+                    mart    = useMart("ENSEMBL_MART_ENSEMBL",       
+                    host    = "https://www.ensembl.org"))       
+        
+ head(biomaRt::listAttributes(biomaRt::useDataset(
+                                         dataset = "hsapiens_gene_ensembl",         
+                                         mart    = useMart("ENSEMBL_MART_ENSEMBL",      
+                                         host    = "https://www.ensembl.org"))), 10)
+ 
+# 2) run a biomart query using the getBM() function        
+# and specify the attributes and filter arguments      
+cluster1_anno <- list() 
+for ( i in 1:length(ar1_p4c_soma_genes_cluster1) ) {
+  cluster1_anno[[i]] <- biomaRt::getBM(attributes = c("chromosome_name", "description"),       
+                      filters    = "hgnc_symbol",       
+                      values     = ar1_p4c_soma_genes_cluster1[[i]],         
+                      mart       = mart)
+}
+```
+
+
+
+```{r}
+ggData %>%
+  filter(Cluster == "Cluster 8") %>%
+  select(TargetFullName) %>%
+  unique()
+
+# https://www.mdpi.com/1422-0067/19/1/248
+# Wyganowska-Świątkowska, M., Matthews-Kozanecka, M., Matthews-Brzozowska, T., Skrzypczak-Jankun, E., & Jankun, J. (2018). Can egcg alleviate symptoms of down syndrome by altering proteolytic activity? International Journal of Molecular Sciences, 19(1), 248. https://doi.org/10.3390/ijms19010248
+```
+
+

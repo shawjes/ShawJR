@@ -1,0 +1,191 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)) &
+           run_model == 1) %>%
+  separate(ardata_name, into = c("ardata1_name", "ardata2_name"), sep = "; ", extra = "merge", remove = TRUE) %>%
+  gather(key = "key", value = "ardata_name", ardata1_name:ardata2_name)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata <- unique(analysis_tracker$ardata_name) %>%
+  lapply(paste0, ".csv.gz") %>%
+  lapply(fread)
+# Note these two lines should be the only revision to ardata before modeling.
+
+names(ardata) <- c("t21only", "d21only")
+
+ardata %>% lapply(dplyr::select, c(T21, Karyotype)) %>% lapply(unique)
+ardata
+```
+
+#### Vectorize model formulas to be fit
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  #mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL);
+model_formula <- tmp$model_formula;
+names(model_formula) <- tmp$model_name;
+
+model_formula
+```
+
+```{r}
+lm_augmentplus_t21only <- augment(lm(as.formula(model_formula), data = ardata$t21only)) %>%
+    mutate(model_formula = model_formula,
+           cohort = "T21 only") %>%
+  mutate(model_formula = model_formula,
+         model_formula = gsub(" ", "", model_formula),
+         model_formula = gsub("[+]", "plus", model_formula)) %>%
+  mutate(model_formula = gsub("sumZ_Cluster_3plussumZ_Cluster_4plussumZ_Cluster_5plussumZ_Cluster_6plussumZ_Cluster_7plus", "", model_formula),
+         model_formula = gsub("plussumZ_Cluster_8", "plus...plussumZ_Cluster_8", model_formula),
+         model_formula = gsub("plus", "+", model_formula),
+         model_formula = gsub("~", " ~ ", model_formula),
+         model_formula = gsub("[+]", " + ", model_formula)) %>%
+    dplyr::select(cohort, model_formula, everything()) %>%
+  full_join( (glance(lm(as.formula(model_formula), data = ardata$t21only)) %>%
+                mutate(cohort = "T21 only") %>%
+                dplyr::select(cohort, nobs)),
+             by = "cohort") %>%
+  dplyr::select(cohort, nobs, everything()) %>%
+  mutate(cohort_n = paste0(cohort, " (N = ", nobs, ")"));
+
+lm_augmentplus_t21only
+```
+
+
+```{r}
+lm_augmentplus_d21only <- augment(lm(as.formula(model_formula), data = ardata$d21only)) %>%
+    mutate(model_formula = model_formula,
+           cohort = "D21 only") %>%
+  mutate(model_formula = model_formula,
+         model_formula = gsub(" ", "", model_formula),
+         model_formula = gsub("[+]", "plus", model_formula)) %>%
+  mutate(model_formula = gsub("sumZ_Cluster_2plussumZ_Cluster_3plussumZ_Cluster_4plussumZ_Cluster_5plussumZ_Cluster_6plussumZ_Cluster_7plus", "", model_formula),
+         model_formula = gsub("plussumZ_Cluster_8", "plus...plussumZ_Cluster_8", model_formula),
+         model_formula = gsub("plus", "+", model_formula),
+         model_formula = gsub("~", " ~ ", model_formula),
+         model_formula = gsub("[+]", " + ", model_formula)) %>%
+    dplyr::select(cohort, model_formula, everything()) %>%
+  full_join( (glance(lm(as.formula(model_formula), data = ardata$d21only)) %>%
+                mutate(cohort = "D21 only") %>%
+                dplyr::select(cohort, nobs)),
+             by = "cohort") %>%
+  dplyr::select(cohort, nobs, everything()) %>%
+  mutate(cohort_n = paste0(cohort, " (N = ", nobs, ")"));
+
+lm_augmentplus_d21only
+```
+
+#### f_p4c_soma_agepredt21_agepredd21
+```{r}
+gg_model_formula <- (list(lm_augmentplus_d21only, lm_augmentplus_t21only) %>%
+  rbindlist() %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  head(n=1) %>%
+  mutate(model_formula = model_formula,
+         model_formula = gsub(" ", "", model_formula),
+         model_formula = gsub("[+]", "plus", model_formula)) %>%
+  mutate(model_formula = gsub("sumZ_Cluster_2plussumZ_Cluster_3plussumZ_Cluster_4plussumZ_Cluster_5plussumZ_Cluster_6plussumZ_Cluster_7plus", "", model_formula),
+         model_formula = gsub("plussumZ_Cluster_8", "plus...plussumZ_Cluster_8", model_formula),
+         model_formula = gsub("plus", "+", model_formula),
+         model_formula = gsub("~", " ~ ", model_formula),
+         model_formula = gsub("[+]", " + ", model_formula),
+         model_formula = gsub("[+] ... [+] ... [+]", "+ ... +", model_formula)))$model_formula;
+
+f_p4c_soma_agepredt21_agepredd21 <- list(lm_augmentplus_d21only, lm_augmentplus_t21only) %>%
+  rbindlist() %>%
+  mutate(ggtitle = paste0("Cohort: ", cohort, " (N=", nobs, ")")) %>%
+  dplyr::select(ggtitle, everything())
+
+f_p4c_soma_agepredt21_agepredd21
+
+setwd(dir.ddata)
+fwrite(f_p4c_soma_agepredt21_agepredd21, "f_p4c_soma_agepredt21_agepredd21.csv.gz")
+```
+
+#### gg_p4c_soma_agepredt21_agepredd21
+```{r}
+setwd(dir.ddata)
+f_p4c_soma_agepredt21_agepredd21 <- fread("f_p4c_soma_agepredt21_agepredd21.csv.gz");
+
+gg_p4c_soma_agepredt21_agepredd21 <- f_p4c_soma_agepredt21_agepredd21 %>%
+  ggplot(aes(x = .fitted, y = .std.resid, color = Age, fill = Age)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  theme(aspect.ratio = 1.0) +
+  labs(caption = element_text(paste0("Model formula: ", gg_model_formula))) +
+  theme(plot.title.position = "plot",
+        plot.caption.position = "plot",
+        #plot.title = element_text(hjust = 0.05),
+        plot.caption = element_text(hjust = 0.05)) +
+  facet_wrap(~ggtitle) +
+  ggtitle("Fitted versus residuals for models predicting age from Clock Cluster Z-scores")
+
+gg_p4c_soma_agepredt21_agepredd21
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg_p4c_soma_agepredt21_agepredd21,
+         filename = "f_p4c_soma_agepredt21_agepredd21.png",
+         width = 10, height = 5, units = "in")
+```
+
+
+```{r}
+gg_p4c_soma_agepredt21_agepredd21_resid <- f_p4c_soma_agepredt21_agepredd21 %>%
+  ggplot(aes(x = Age, y = .resid, color = cohort, fill = cohort)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  theme(aspect.ratio = 1.0) +
+  labs(caption = element_text(paste0("Model formula: ", gg_model_formula))) +
+  theme(plot.title.position = "plot",
+        plot.caption.position = "plot",
+        #plot.title = element_text(hjust = 0.05),
+        plot.caption = element_text(hjust = 0.05),
+        legend.position = "none") +
+  facet_wrap(~ggtitle) +
+  ylab("Residual (Predicted Age - Age)") + # IMPORTANT: CHECK THIS FORMULA LATER
+  ggtitle("Fitted versus residuals for models predicting age from Clock Cluster Z-scores")
+
+gg_p4c_soma_agepredt21_agepredd21_resid
+
+setwd(paste0(dir.project, "/output"))
+ggsave(gg_p4c_soma_agepredt21_agepredd21_resid,
+         filename = "f_p4c_soma_agepredt21_agepredd21_resid.png",
+         width = 10, height = 5, units = "in")
+```
+

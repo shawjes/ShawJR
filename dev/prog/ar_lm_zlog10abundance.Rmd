@@ -1,0 +1,81 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz")
+
+ar_p4c_soma
+ar_p4c_soma.split <- ar_p4c_soma %>% split(., .$Cluster)
+```
+
+```{r}
+ar_p4c_soma %>%
+  dplyr::select(Karyotype_XY, chromosome, Aptamer) %>%
+  unique() %>%
+  group_by(Karyotype_XY, chromosome) %>%
+  summarise(N = n())
+
+ar_p4c_soma %>%
+  filter(chromosome=="" | grepl("[|]", chromosome)==TRUE) %>%
+  dplyr::select(Karyotype_XY, chromosome, Aptamer) %>%
+  unique() 
+```
+
+```{r}
+T21 + Age + Female
+T21 + Age + Female + T21*Age
+T21 + Age + Female + T21*Female
+T21 + Age + Female + Age*Female
+T21 + Age + Female + T21*Age*Female
+
+Sample_source_code
+```
+
+```{r}
+set.seed(1234)
+fit.modelB <-  ar1_p4c_soma %>%
+  split(., .$Cluster) %>%
+    map(~lm(sumZ_Cluster ~ T21 + Age + Female + T21*Age, data = .));
+
+tidy.modelB <-  ar_p4c_soma_sumZcluster %>%
+  split(., .$Cluster) %>%
+  map2(.x = fit.modelB, .y = .,
+       .f = ~tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+    bind_rows(.id="Cluster") %>%
+    filter(term!="(Intercept)") %>%
+  group_by(term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup();
+
+tidy.modelB %>%
+  filter(term == "T21") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+tidy.modelB %>%
+  filter(term == "T21:Age") %>%
+  arrange(p.value) %>%
+  select(-c(std.error, statistic));
+```
+

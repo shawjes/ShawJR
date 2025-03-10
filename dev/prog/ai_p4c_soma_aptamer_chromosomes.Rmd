@@ -1,0 +1,202 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read in_donovan2024_p4c_soma
+```{r}
+# setwd(dir.indata)
+# in_p4c <- list.files() %>% lapply(fread)
+# names(in_p4c) <- gsub(".csv", "", gsub(".csv.gz", "", list.files(dir.indata)))
+# in_p4c
+
+setwd(dir.indata)
+in_donovan2024_p4c_soma <- fread("in_donovan2024_p4c_soma.csv.gz")
+
+in_donovan2024_p4c_soma
+```
+
+```{r}
+ai_p4c_soma_aptamer_uniprot <- in_donovan2024_p4c_soma %>%
+  dplyr::select(Aptamer, UniProt, GeneSymbol) %>%
+  unique() %>%
+  dplyr::filter(grepl("HybControlElution", Aptamer)==FALSE &
+           grepl("None", Aptamer)==FALSE &
+           grepl("Noncleavable", Aptamer)==FALSE) %>%
+  mutate(UniProt = gsub(",", " ", UniProt),
+         UniProt = gsub("  ", " ", UniProt),
+         UniProt = gsub("  ", " ", UniProt),
+         GeneSymbol = gsub(",", " ", GeneSymbol),
+         GeneSymbol = gsub("  ", " ", GeneSymbol),
+         GeneSymbol = gsub("  ", " ", GeneSymbol),
+         UniProt = trimws(UniProt),
+         GeneSymbol = trimws(GeneSymbol)) %>%
+  dplyr::select(Aptamer, UniProt) %>%
+  unique() %>%
+  separate(UniProt, into = c(paste0("UniProt", seq(1:6))), extra = "merge", remove = TRUE) %>%
+  group_by(Aptamer) %>%
+  gather(key = "UniProt_Index", value = "UniProt", UniProt1:UniProt6) %>%
+  mutate(UniProt_Index = gsub("UniProt", "", UniProt_Index) %>% as.numeric()) %>%
+  arrange(Aptamer, UniProt_Index) %>%
+  ungroup() %>%
+  filter(!is.na(UniProt))
+
+ai_p4c_soma_aptamer_uniprot
+
+setwd(dir.aidata)
+fwrite(ai_p4c_soma_aptamer_uniprot, "ai_p4c_soma_aptamer_uniprot.csv.gz")
+```
+
+```{r}
+ai_p4c_soma_aptamer_gene <- in_donovan2024_p4c_soma %>%
+  dplyr::select(Aptamer, UniProt, GeneSymbol) %>%
+  unique() %>%
+  dplyr::filter(grepl("HybControlElution", Aptamer)==FALSE &
+           grepl("None", Aptamer)==FALSE &
+           grepl("Noncleavable", Aptamer)==FALSE) %>%
+  mutate(UniProt = gsub(",", " ", UniProt),
+         UniProt = gsub("  ", " ", UniProt),
+         UniProt = gsub("  ", " ", UniProt),
+         GeneSymbol = gsub(",", " ", GeneSymbol),
+         GeneSymbol = gsub("  ", " ", GeneSymbol),
+         GeneSymbol = gsub("  ", " ", GeneSymbol),
+         UniProt = trimws(UniProt),
+         GeneSymbol = trimws(GeneSymbol)) %>%
+  dplyr::select(Aptamer, GeneSymbol) %>%
+  unique() %>%
+  separate(GeneSymbol, into = c(paste0("GeneSymbol", seq(1:6))), extra = "merge", remove = TRUE) %>%
+  group_by(Aptamer) %>%
+  gather(key = "GeneSymbol_Index", value = "GeneSymbol", GeneSymbol1:GeneSymbol6) %>%
+  mutate(GeneSymbol_Index = gsub("GeneSymbol", "", GeneSymbol_Index) %>% as.numeric()) %>%
+  arrange(Aptamer, GeneSymbol_Index) %>%
+  ungroup() %>%
+  filter(!is.na(GeneSymbol)) %>%
+  mutate(query_genesymbol = gsub("[@]", "", GeneSymbol))
+
+ai_p4c_soma_aptamer_gene
+
+setwd(dir.aidata)
+fwrite(ai_p4c_soma_aptamer_gene,
+       "ai_p4c_soma_aptamer_gene.csv.gz")
+```
+
+```{r}
+# ai_p4c_soma_aptamer_uniprot %>% nrow();
+# bitr( ai_p4c_soma_aptamer_uniprot$UniProt,
+#       fromType = 'UNIPROT',
+#       toType = "MAP",
+#       OrgDb = org.Hs.eg.db ) %>% nrow();
+# bitr( ai_p4c_soma_aptamer_gene$GeneSymbol,
+#       fromType = 'SYMBOL',
+#       toType = "MAP",
+#       OrgDb = org.Hs.eg.db ) %>% nrow();
+#[1] 4667
+#'select()' returned 1:many mapping between keys and columns
+#Warning: 0.52% of input gene IDs are fail to map...[1] 4396
+#'select()' returned 1:many mapping between keys and columns
+#Warning: 4.16% of input gene IDs are fail to map...[1] 4236
+
+bitr_uniprot_to_map <- bitr( ai_p4c_soma_aptamer_uniprot$UniProt,
+      fromType = 'UNIPROT',
+      toType = "MAP",
+      OrgDb = org.Hs.eg.db )
+bitr_genesymbol_to_map <- bitr( ai_p4c_soma_aptamer_gene$query_genesymbol,
+      fromType = 'SYMBOL',
+      toType = "MAP",
+      OrgDb = org.Hs.eg.db )
+
+bitr_uniprot_to_map
+bitr_genesymbol_to_map
+
+ai_donovan2024_aptamers <- in_donovan2024_p4c_soma %>%
+  dplyr::select(Aptamer) %>%
+  unique();
+ai_map_from_uniprot <- ai_p4c_soma_aptamer_uniprot %>%
+  left_join(bitr_uniprot_to_map, by = c("UniProt" = "UNIPROT")) %>%
+  dplyr::rename(MAP_from_UniProt = MAP) %>%
+  arrange(Aptamer) %>%
+  mutate(tmp = gsub("p", "|", MAP_from_UniProt),
+         tmp = gsub("q", "|", tmp)) %>%
+  mutate(chromosome = stringr::word(tmp, 1, sep = "\\|")) %>%
+  dplyr::select(-c(tmp)) %>%
+  filter(!is.na(UniProt) & UniProt!="");
+ai_map_from_gene <- ai_p4c_soma_aptamer_gene %>%
+  left_join(bitr_genesymbol_to_map, by = c("query_genesymbol" = "SYMBOL")) %>%
+  dplyr::rename(MAP_from_Gene = MAP) %>%
+  arrange(Aptamer) %>%
+  mutate(tmp = gsub("p", "|", MAP_from_Gene),
+         tmp = gsub("q", "|", tmp)) %>%
+  mutate(chromosome = stringr::word(tmp, 1, sep = "\\|")) %>%
+  dplyr::select(-c(tmp)) %>%
+  filter(!is.na(GeneSymbol) & GeneSymbol!="");
+
+ai_map_from_uniprot
+ai_map_from_gene
+
+ai_chr_from_uniprot <- ai_map_from_uniprot %>%
+  dplyr::select(Aptamer, chromosome) %>%
+  unique() %>%
+  group_by(Aptamer) %>%
+  summarise(`N_chromosomes from UniProt` = n(),
+            mapped_from = "UniProt",
+            `chromosome(s) from UniProt` = paste(chromosome, collapse = "|")) %>%
+  ungroup();
+ai_chr_from_gene <- ai_map_from_gene %>%
+  dplyr::select(Aptamer, chromosome) %>%
+  unique() %>%
+  group_by(Aptamer) %>%
+  summarise(`N_chromosomes from GeneSymbol` = n(),
+            mapped_from = "query_genesymbol",
+            `chromosome(s) from GeneSymbol` = paste(chromosome, collapse = "|")) %>%
+  ungroup();
+# unique(ai_chr_from_gene$`chromosome(s) from GeneSymbol`)
+# unique(ai_chr_from_uniprot$`chromosome(s) from UniProt`)
+
+ai_p4c_soma_aptamer_chromosomes <- ai_chr_from_gene %>% dplyr::select(-mapped_from) %>%
+  full_join(ai_chr_from_uniprot %>% dplyr::select(-mapped_from),
+            by = "Aptamer") %>%
+  mutate(`chromosome(s)` = case_when(`N_chromosomes from UniProt`==`N_chromosomes from GeneSymbol` & 
+                              `chromosome(s) from GeneSymbol` == `chromosome(s) from UniProt` ~ `chromosome(s) from UniProt`,
+                            
+                              `chromosome(s) from GeneSymbol`=="NA" & 
+                              `chromosome(s) from UniProt`!="NA" ~ `chromosome(s) from UniProt`,
+                              
+                              `chromosome(s) from UniProt`=="NA" & 
+                              `chromosome(s) from GeneSymbol`!="NA" ~ `chromosome(s) from GeneSymbol`,
+                              
+                              Aptamer == "CDC2.CCNB1.3422.4" ~ `chromosome(s) from UniProt`,
+                              
+                              Aptamer == "LOC652493.6561.77" ~ "UNKNOWN", 
+                            
+                            .default = NA)) %>%
+  dplyr::select(-c(contains("N_chromosomes"), contains("chromosome(s) from")));
+
+ai_p4c_soma_aptamer_chromosomes %>%
+  filter(is.na(`chromosome(s)`)) %>%
+  nrow()
+# 0 missing now, good!
+
+ai_p4c_soma_aptamer_chromosomes
+
+setwd(dir.aidata)
+fwrite(ai_p4c_soma_aptamer_chromosomes, "ai_p4c_soma_aptamer_chromosomes.csv.gz")
+```

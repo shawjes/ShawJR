@@ -1,0 +1,108 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r echo=True, include=FALSE}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r echo=True, include=FALSE}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+
+select <- dplyr::select
+filter <- dplyr::filter
+rename <- dplyr::rename
+```
+
+#### Read Analysis Tracker
+```{r}
+# setwd(dir.docs)
+# analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+#   filter(run_model == 1)
+# 
+# analysis_tracker
+```
+
+#### Read aidata
+```{r}
+setwd(dir.aidata)
+ai_p4c_cytof <- fread("ai_p4c_cytof.csv.gz")
+
+setwd(dir.aidata)
+ai_p4c_meta <- fread("ai_p4c_meta.csv.gz")
+
+head(ai_p4c_cytof)
+head(ai_p4c_meta)
+```
+
+#### Prepare ar_p4c_cytof
+```{r}
+ai_p4c_cytof$Value %>% summary()
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#  0.010   0.650   1.990   4.977   6.872  46.400 
+# Note: No offset value needed for log10 transformation because all values in CyTOF data are already greater than zero.
+
+ar_p4c_cytof <- ai_p4c_cytof %>%
+  filter(grepl("B", LabID)==TRUE) %>% # Note: LabIDs with letter "B" are P4C controls (D21)
+  group_by(CyTOF_cell_population) %>%
+  summarise(d21_mean_log10pct = mean(log10(Value), na.rm=TRUE),
+            d21_sd_log10pct = sd(log10(Value), na.rm=TRUE)) %>%
+  ungroup() %>%
+  full_join(ai_p4c_cytof, by = "CyTOF_cell_population") %>%
+  rename(Analyte = CyTOF_cell_population) %>%
+  group_by(LabID, Analyte) %>%
+  mutate(Zlog10_relative_abundance = (log10(Value) - d21_mean_log10pct)/d21_sd_log10pct) %>%
+  ungroup() %>%
+  dplyr::select(-c(Value)) %>%
+  full_join(ai_p4c_meta, by = "LabID") %>%
+  dplyr::rename(Value = Zlog10_relative_abundance) %>%
+  mutate(Units = "Zlog10_relative_abundance",
+         Omics_type = "CyTOF",
+         Analyte_type = "Immune cell type") %>%
+  select(LabID, Karyotype, Sex, Age,
+         #T21, Female, Karyotype_Sex,
+         Omics_type, Analyte_type, Analyte, Value, Units) 
+
+head(ar_p4c_cytof)
+
+setwd(dir.ardata)
+fwrite(ar_p4c_cytof, "ar_p4c_cytof.csv.gz")
+```
+

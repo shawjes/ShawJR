@@ -1,0 +1,84 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Prepare P4C data from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+```
+
+#### Read indata
+```{r}
+setwd(dir.indata)
+in_donovan2024_p4c_soma <- fread("in_donovan2024_p4c_soma.csv.gz");
+
+setwd(dir.indata)
+in_donovan2024_p4c_d21_labids <- (fread("in_donovan2024_p4c_meta.csv.gz") %>%
+  filter(Karyotype == "Control") %>%
+  dplyr::select(LabID) %>%
+  unique())$LabID;
+
+setwd(dir.indata)
+in_donovan2024_p4c_t21_labids <- (fread("in_donovan2024_p4c_meta.csv.gz") %>%
+  filter(Karyotype == "T21") %>%
+  dplyr::select(LabID) %>%
+  unique())$LabID;
+
+in_donovan2024_p4c_soma
+in_donovan2024_p4c_d21_labids
+in_donovan2024_p4c_t21_labids
+```
+
+#### ai_in_donovan2024_p4c_soma
+```{r}
+ai_in_donovan2024_p4c_soma <- in_donovan2024_p4c_soma %>%
+  dplyr::select(-c(Data_contact, Date_exported, Script, Units)) %>%
+  unique() %>%
+  dplyr::rename(relative_abundance = Value) %>%
+  mutate(log10_relative_abundance = log10(relative_abundance)) %>%
+  full_join( (in_donovan2024_p4c_soma %>%
+  dplyr::select(-c(Data_contact, Date_exported, Script, Units)) %>%
+  unique() %>%
+  dplyr::rename(relative_abundance = Value) %>%
+  mutate(log10_relative_abundance = log10(relative_abundance)) %>%
+  filter(LabID %in% in_donovan2024_p4c_d21_labids) %>%
+  group_by(Aptamer) %>%
+  summarise(mean_log10_relative_abundance_d21 = mean(log10_relative_abundance),
+            sd_log10_relative_abundance_d21 = mean(log10_relative_abundance)) %>%
+  ungroup() %>%
+  full_join(.,
+            in_donovan2024_p4c_soma %>%
+              dplyr::select(-c(Data_contact, Date_exported, Script, Units)) %>%
+              unique() %>%
+      dplyr::rename(relative_abundance = Value) %>%
+        mutate(log10_relative_abundance = log10(relative_abundance)) %>%
+        filter(LabID %in% in_donovan2024_p4c_t21_labids) %>%
+        group_by(Aptamer) %>%
+        summarise(mean_log10_relative_abundance_t21 = mean(log10_relative_abundance),
+                  sd_log10_relative_abundance_t21 = mean(log10_relative_abundance)) %>%
+        ungroup(),
+      by = "Aptamer")),
+  by = "Aptamer") %>%
+  ungroup() %>%
+  mutate(Zlog10_relative_abundance = (log10_relative_abundance - mean_log10_relative_abundance_d21)/sd_log10_relative_abundance_d21)
+
+ai_in_donovan2024_p4c_soma
+
+setwd(dir.aidata)
+fwrite(ai_in_donovan2024_p4c_soma, "ai_in_donovan2024_p4c_soma.csv.gz")
+```

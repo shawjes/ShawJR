@@ -1,0 +1,576 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(data.table)
+library(tidyr)
+library(MXM)
+library(broom)
+library(broomExtra)
+library(car)
+library(tibble)
+library(pROC)
+library(ggplot2)
+```
+
+```{r}
+#setwd("C:/Users/Jess/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/CSV/200306_validated")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/CSV/200306_validated")
+msd<-fread("200306_EXPLORER_MSDexp3456_MeansOnly_FirstPIDsampleOnly01.csv") %>%
+  select(-c(FID,LabID,Visit,Panel,Analyte,Experiment, PID_SampleNumber)) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>%
+  mutate(LOG2calcConcMean_AfterImputation=log2(CalcConcMean_AfterImputation)) %>%
+  select(-CalcConcMean_AfterImputation) %>%
+  select(PID,Source,T21,Age,Female,Panel_Analyte,LOG2calcConcMean_AfterImputation) %>%
+  spread(key=Panel_Analyte, value=LOG2calcConcMean_AfterImputation)
+
+rownames(msd)<-msd$PID
+
+#data.msd_glmm<-msd %>% select(-PID)
+#data.msd_glm<-msd %>% select(-c(PID, Source))
+
+set.seed(1234)
+
+For the COVID-19 stuff, I think we'll mostly want to make sure our training data reflects the sex ratio of patients reported in published data/papers, since we know age and possible male sex are important risk factors.
+
+Here's how I did the stratified sampling for this T21 exercise (dplyr to the rescue, as always):
+
+data.training<-msd %>%
+  select(-c(Source)) %>%
+  group_by(T21, Female) %>%
+  sample_frac(0.8) %>%
+  ungroup()
+data.training
+
+training.PIDs<-data.training %>% select(PID) %>% mutate(Training_Data=1)
+all.PIDs<-msd %>% select(PID) %>% mutate(All_Data=1) %>%
+  full_join(training.PIDs, by="PID") %>%
+  mutate(Training_Data = ifelse(is.na(Training_Data), 0, Training_Data),
+         Validation_Data = ifelse(All_Data==1 & Training_Data==0, 1, 0))
+all.PIDs %>% group_by(Training_Data, Validation_Data) %>%
+  summarise(N=n())
+```
+
+```{r}
+#data.training
+
+set.seed(1234)
+df<-vector("list", 54)
+fit.glm<-vector("list", 54)
+for ( i in 1:54 ) {
+  df.glm<-data.training[,c(2:4,(4+i))]
+  fit.glm[[i]]<-glm(T21 ~ ., family=binomial, data=df.glm)
+}
+
+fit.glm_tidy<-lapply(fit.glm, tidy) %>% rbindlist()
+fit.glm_tidy
+fit.glm_tidyDF<-fit.glm_tidy %>%
+  filter(term!="(Intercept)" & term!="Age" & term!="Female") %>%
+  mutate(term=gsub("`","",term)) %>%
+  arrange(p.value) %>%
+  mutate(Rank_P=seq(1:54))
+fit.glm_tidyDF
+```
+
+```{r}
+DF_ordered<-data.training %>% select(T21, Age, Female, fit.glm_tidyDF$term)
+DF_ordered
+
+modeled_order.validation<-fit.glm_tidyDF$term %>% as.data.frame() %>% mutate_all(as.character) %>%
+  `colnames<-`("Panel_Analyte") %>%
+  mutate(Order_Selected.Training=seq(1:54))
+#modeled_order.validation
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#fwrite(modeled_order.validation, "200325_trainingLOG2_ORDERselectedCytokines.csv")
+
+
+
+set.seed(1234)
+df.list<-vector("list", 54)
+names(df.list)<-paste("model", seq(1:54), sep="_")
+fit.multivariable<-vector("list", 54)
+names(fit.multivariable)<-paste("model", seq(1:54), sep="_")
+for (i in 1:54) {
+  df.list[[i]]<-DF_ordered[,c(1:(3+i))]
+  df<-DF_ordered[,c(1:(3+i))]
+  fit.multivariable[[i]]<-glm(T21 ~ ., data=df)
+}
+
+length(fit.multivariable)
+names(fit.multivariable)
+
+#df.list
+```
+
+```{r}
+results.multivariable<-vector("list", 54)
+names(results.multivariable)<-paste("model", seq(1:54), sep="_")
+AIC.multivariable<-vector("list", 54)
+names(AIC.multivariable)<-paste("model", seq(1:54), sep="_")
+BIC.multivariable<-vector("list", 54)
+names(BIC.multivariable)<-paste("model", seq(1:54), sep="_")
+VIF.multivariable<-vector("list", 54)
+names(VIF.multivariable)<-paste("model", seq(1:54), sep="_")
+null_deviance<-vector("list", 54)
+names(null_deviance)<-paste("model", seq(1:54), sep="_")
+resid_deviance<-vector("list", 54)
+names(resid_deviance)<-paste("model", seq(1:54), sep="_")
+for ( i in 1:54 ) {
+  results.multivariable[[i]]<-tidy(fit.multivariable[[i]]) %>%
+    mutate(Model = names(fit.multivariable)[[i]]) %>%
+    filter(term!="(Intercept)") %>%
+    select(Model, term, estimate, std.error, statistic, p.value)
+  
+  AIC.multivariable[[i]]<-AIC(fit.multivariable[[i]])
+  BIC.multivariable[[i]]<-BIC(fit.multivariable[[i]])
+  
+  VIF.multivariable[[i]]<-try(vif(fit.multivariable[[i]]))
+  
+  resid_deviance[[i]]<-summary(fit.multivariable[[i]])$deviance # 45.12
+  null_deviance[[i]]<-summary(fit.multivariable[[i]])$null.deviance # 50.52
+
+}
+
+VIF.multivariableDF<-vector("list", 54)
+names(VIF.multivariableDF)<-paste("model", seq(2:54), sep="_")
+maxVIF.multivariableDF<-vector("list", 54)
+names(maxVIF.multivariableDF)<-paste("model", seq(2:54), sep="_")
+for ( i in 2:54 ) { # NOTE: Loop over TWO:56 for VIF, because model_1 has only 1 variable.
+  VIF.multivariableDF[[i]]<-VIF.multivariable[i] %>% as.data.frame() %>%
+    `colnames<-`("VIF") %>%
+    rownames_to_column("Predictor") %>%
+    mutate(Model=names(VIF.multivariable)[[i]], Max_VIF=max(VIF)) %>%
+    select(Model, Predictor, VIF, Max_VIF)
+  maxVIF.multivariableDF[[i]]<-VIF.multivariableDF[[i]] %>%
+    select(Model, Max_VIF) %>%
+    unique()
+}
+
+maxVIF_all<-maxVIF.multivariableDF %>% rbindlist()
+#maxVIF_all
+
+compare.AIC<-AIC.multivariable[1:54] %>%
+  as.data.frame() %>% t() %>% as.data.frame() %>%
+  rownames_to_column("Model") %>%
+  rename(AIC=V1)
+compare.BIC<-BIC.multivariable[1:54] %>%
+  as.data.frame() %>% t() %>% as.data.frame() %>%
+  rownames_to_column("Model") %>%
+  rename(BIC=V1)
+
+compare.AIC_BIC<-compare.AIC %>%
+  full_join(compare.BIC, by="Model")
+#compare.AIC_BIC
+
+fit.multivariable_tidy<-fit.multivariable %>% lapply(tidy)
+results.DF<-vector("list", 54)
+for ( i in 1:54 ) {
+  results.DF[[i]]<-fit.multivariable_tidy[[i]] %>%
+    mutate(Model=names(fit.multivariable)[[i]]) %>%
+    select(Model, term, estimate, std.error, statistic, p.value) %>%
+    filter(term!="(Intercept)")
+}
+#results.DF
+
+fit.multivariable_tidyDF<-results.DF %>% rbindlist()
+fit.multivariable_tidyDF
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#fwrite(fit.multivariable_tidyDF, "200325_trainingLOG2results_Models1to55_T21vsAgeFemaleSelectedCytokines.csv")
+```
+
+```{r}
+maxVIF_all
+compare.AIC_BIC
+
+#summary(fit.multivariable[[4]])$deviance.resid
+
+# PICK UP HERE (3/24/2020 @ 2:23PM)
+# Identify lowest deviance model (or set of candidate models)
+# Calculate % change in deviance vs. previous model
+
+null_deviance.df<-null_deviance %>% 
+  lapply(as.data.frame) %>%
+  rbindlist() %>%
+  `colnames<-`("null_deviance") %>%
+  `rownames<-`(names(null_deviance)[1:54]) %>%
+  rownames_to_column("Model")
+
+resid_deviance.df<-resid_deviance %>% 
+  lapply(as.data.frame) %>%
+  rbindlist() %>%
+  `colnames<-`("resid_deviance") %>%
+  `rownames<-`(names(resid_deviance)[1:54]) %>%
+  rownames_to_column("Model")
+
+deviance.DF<-full_join(null_deviance.df, resid_deviance.df, by="Model")
+
+deviance.DF
+```
+
+```{r}
+set.seed(1234)
+#df.list[[2]]
+
+pred.prob<-vector("list", 54)
+names(pred.prob)<-paste("model", seq(1:54), sep="_")
+auc.data<-vector("list", 54)
+names(auc.data)<-paste("model", seq(1:54), sep="_")
+AUC.values<-vector("list", 54)
+names(AUC.values)<-paste("model", seq(1:54), sep="_")
+AUC.df<-vector("list", 54)
+names(AUC.df)<-paste("model", seq(1:54), sep="_")
+data.roc<-vector("list", 54)
+names(data.roc)<-paste("model", seq(1:54), sep="_")
+plot.roc<-vector("list", 54)
+names(plot.roc)<-paste("model", seq(1:54), sep="_")
+for (i in 1:54) {
+  pred.prob[[i]]<-predict(fit.multivariable[[i]], type=c("response")) %>%
+    as.data.frame() %>%
+    `colnames<-`("Predicted_Prob") %>%
+    rownames_to_column("record_id")
+
+  auc.data[[i]]<-df.list[[i]] %>%
+    rownames_to_column("record_id") %>%
+    full_join(pred.prob[[i]], by="record_id")
+  
+  AUC.values[[i]]<-auc(auc.data[[i]]$T21, auc.data[[i]]$Predicted_Prob)
+  AUC.df[[i]]<-AUC.values[[i]] %>%
+    as.data.frame() %>%
+    `colnames<-`("AUC") %>%
+    mutate(Model=names(AUC.values)[[i]]) %>%
+    select(Model, AUC)
+  
+  data.roc[[i]] <- roc(T21 ~ Predicted_Prob, data=auc.data[[i]])
+  plot.roc[[i]]<-plot(data.roc[[i]])
+
+}
+
+#https://www.google.com/search?q=how+to+interpret+roc+curve&rlz=1C1CHBF_enUS878US879&oq=how+to+interpret+ROC+curve&aqs=chrome.0.0l8.5838j0j4&sourceid=chrome&ie=UTF-8#kpvalbx=_z1Z6XvONOtf0tAbd7bHwDg26
+
+AUC.allModels<-AUC.df %>% rbindlist()
+AUC.allModels
+
+AUC.allModels %>% arrange(desc(AUC)) %>% mutate(Rank_AUC=seq(1:54))
+```
+
+```{r}
+plotData_AUCbyModel<-AUC.allModels %>%
+  mutate(Model=gsub("model_", "", Model) %>% as.numeric())
+plotData_AUCbyModel
+
+glm_interceptOnly<-glm(T21 ~ 1, data=DF_ordered)
+AIC_interceptOnly<-AIC(glm_interceptOnly)
+BIC_interceptOnly<-BIC(glm_interceptOnly)
+
+plotData_performanceStats<-compare.AIC_BIC %>%
+  mutate(AIC_interceptOnly=AIC_interceptOnly, BIC_interceptOnly=BIC_interceptOnly) %>%
+  full_join(AUC.allModels, by="Model") %>%
+  full_join(maxVIF_all, by="Model") %>%
+  full_join(deviance.DF, by="Model") %>%
+  mutate(AUC=100*AUC, # Convert AUC to percentage instead of decimal to enable plotting
+         Model=gsub("model_", "", Model) %>% as.numeric(),
+         deltaAIC_from_InterceptOnly=AIC-AIC_interceptOnly,
+         deltaBIC_from_InterceptOnly=BIC-BIC_interceptOnly)
+plotData_performanceStats
+
+#setwd("C:/Users/Jess/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#fwrite(plotData_performanceStats, "200325_trainingLOG2performanceStats_Models1to55_T21vsAgeFemaleSelectedCytokines_wide.csv")
+
+plotData_performanceStats.long<-plotData_performanceStats %>%
+  gather(key="Performance_Statistic",
+         value="Value",
+         AIC:deltaBIC_from_InterceptOnly)
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#fwrite(plotData_performanceStats, "200325_trainingLOG2performanceStats_Models1to55_T21vsAgeFemaleSelectedCytokines_long.csv")
+```
+
+```{r}
+plot.AIC<-ggplot(data=plotData_performanceStats.long %>%
+                                  filter(Performance_Statistic=="AIC"),
+                                aes(x=Model, y=Value, color=Performance_Statistic)) +
+  scale_color_manual(values="dodgerblue") +
+  geom_point() +
+  geom_line() +
+  ylab("AIC") +
+  theme_bw() +
+  theme(legend.position="none") +
+  scale_x_continuous(breaks=seq(0,54,2))
+
+plot.BIC<-ggplot(data=plotData_performanceStats.long %>%
+                                  filter(Performance_Statistic=="BIC"),
+                                aes(x=Model, y=Value, color=Performance_Statistic)) +
+  geom_point() +
+  geom_line() +
+  ylab("BIC") +
+  theme_bw() +
+  theme(legend.position="none") +
+  scale_x_continuous(breaks=seq(0,54,2))
+
+plot.AIC
+plot.BIC
+#plot.BICzoom
+
+plot.AUCbyModel<-ggplot(data=plotData_AUCbyModel, aes(x=Model, y=100*AUC)) +
+  geom_point(color="mediumorchid3") +
+  geom_line(color="mediumorchid3") +
+  theme_bw() +
+  ylab("AUC (%)") +
+  scale_x_continuous(breaks=seq(0,54,2))
+#plot.AUCbyModel
+
+plotData.maxVIF<-maxVIF_all %>%
+  mutate(Model=gsub("model_", "", Model) %>% as.numeric())
+#plotData.maxVIF
+plot.VIFbyModel<-ggplot(data=plotData.maxVIF, aes(x=Model, y=Max_VIF)) +
+  geom_point(color="seagreen3") +
+  geom_line(color="seagreen3") +
+  theme_bw() +
+  ylab("Max(VIF)") +
+  scale_x_continuous(breaks=seq(0,54,2))
+#plot.VIFbyModel
+
+plot.DevianceByModel<-ggplot(data=plotData_performanceStats, aes(x=Model, y=resid_deviance)) +
+  geom_point(color="orange") +
+  geom_line(color="orange") +
+  theme_bw() +
+  ylab("Residual Deviance") +
+  scale_x_continuous(breaks=seq(0,54,2))
+#plot.DevianceByModel
+
+#https://projecteuclid.org/download/pdf_1/euclid.aos/1176345513
+
+#setwd("C:/Users/Jess/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#pdf("200325_trainingLOG2plots_Model_Performance_Statistics_Models1to55_T21vsAgeFemaleSelectedCytokines01.pdf")
+#plot.AIC
+#plot.BIC
+#plot.DevianceByModel
+#plot.VIFbyModel
+#plot.AUCbyModel
+#dev.off()
+
+plot.AIC
+plot.BIC
+plot.DevianceByModel
+plot.VIFbyModel
+plot.AUCbyModel
+```
+
+```{r}
+tempDF<-plotData_performanceStats %>%
+  mutate(Max_VIF=ifelse(is.na(Max_VIF), 1, Max_VIF)) %>%
+  filter(Max_VIF<=20 & AUC>=80)
+
+AUC_vs_maxVIF<-ggplot(data=tempDF, aes(x=Model)) +
+  geom_point(aes(y=AUC),color="mediumorchid3") +
+  geom_line(aes(y=AUC), color="mediumorchid3") +
+
+  theme_bw() +
+  geom_point(aes(y=Max_VIF+85), color="seagreen3") +
+  geom_line(aes(y=Max_VIF+85), color="seagreen") +
+ # scale_y_continuous(sec.axis = sec_axis(~.*0.125, name = "Max(VIF)")) +
+  scale_y_continuous(sec.axis = sec_axis(~ .-85),
+  name = "AUC (%)
+
+Max(VIF)") +
+  scale_x_continuous(breaks=seq(1,55,2)) +
+  theme(axis.text.x = element_text(size=7))
+        
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#pdf("200325_trainingLOG2plot_AUC_vs_maxVIF_Models1to55_T21vsAgeFemaleSelectedCytokines01.pdf", paper='A4r')
+AUC_vs_maxVIF
+dev.off()
+
+# ----
+AUC_vs_maxVIF.zoom1<-ggplot(data=tempDF %>%
+                             filter(Max_VIF<=12), aes(x=Model)) +
+  geom_point(aes(y=AUC),color="mediumorchid3") +
+  geom_line(aes(y=AUC), color="mediumorchid3") +
+
+  theme_bw() +
+  geom_point(aes(y=Max_VIF+85), color="seagreen3") +
+  geom_line(aes(y=Max_VIF+85), color="seagreen3") +
+ # scale_y_continuous(sec.axis = sec_axis(~.*0.125, name = "Max(VIF)")) +
+  scale_y_continuous(sec.axis = sec_axis(~ .-85),
+  name = "AUC (%)
+
+Max(VIF)") +
+  scale_x_continuous(breaks=seq(1,55,2)) +
+  theme(axis.text.x = element_text(size=7))
+
+#AUC_vs_maxVIF.zoom1
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#pdf("200325_trainingLOG2plotZoom1_AUC_vs_maxVIF_Models1to55_T21vsAgeFemaleSelectedCytokines01.pdf", paper='A4r')
+#AUC_vs_maxVIF.zoom1
+#dev.off()
+
+tempDF
+
+## COME BACK TO THIS AFTER REVIEWING PLOTS WITH THIS REVISED DATASET
+# 
+# # 8, 90.9%, 
+# # 11, 92.5%
+# # 22, 95%
+# # 26, 97.5%
+# 
+# tempDF01<-tempDF %>% select(-c(AIC_interceptOnly, BIC_interceptOnly, deltaAIC_from_InterceptOnly, deltaBIC_from_InterceptOnly)) %>%
+#   mutate(`Deviance Reduction (% of null deviance)` = 100*(resid_deviance-null_deviance)/null_deviance) 
+#   
+# a<-tempDF01 %>% filter(Model==8)
+# b<-tempDF01 %>% filter(Model==11)
+# c<-tempDF01 %>% filter(Model==19)
+# d<-tempDF01 %>% filter(Model==26)
+# options<-rbind(a, b, c, d)
+# options
+```
+
+```{r}
+fit.multivariable_tidyDF
+
+fit.multivariable_tidyDF %>% filter(Model=="model_8")
+# Proinflammatory: IL-10, TNF-alpha IL-6
+# Angiogenesis: PlGF
+# Vascular Injury: CRP
+# Cytokine 1: VEGF-A, IL-16, TNF-beta
+```
+
+```{r}
+#setwd("C:/Users/Jess/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/CSV/200306_validated")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/CSV/200306_validated")
+msd<-fread("200306_EXPLORER_MSDexp3456_MeansOnly_FirstPIDsampleOnly01.csv") %>%
+  select(-c(FID,LabID,Visit,Panel,Analyte,Experiment, PID_SampleNumber)) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>%
+  mutate(LOG2calcConcMean_AfterImputation=log2(CalcConcMean_AfterImputation)) %>%
+  select(-CalcConcMean_AfterImputation) %>%
+  select(PID,Source,T21,Age,Female,Panel_Analyte,LOG2calcConcMean_AfterImputation) %>%
+  spread(key=Panel_Analyte, value=LOG2calcConcMean_AfterImputation)
+
+rownames(msd)<-msd$PID
+
+#data.msd_glmm<-msd %>% select(-PID)
+#data.msd_glm<-msd %>% select(-c(PID, Source))
+
+set.seed(1234)
+data.training<-msd %>%
+  select(-c(Source)) %>%
+  group_by(T21, Female) %>%
+  sample_frac(0.8) %>%
+  ungroup()
+data.training
+
+training.PIDs<-data.training %>% select(PID) %>% mutate(Training_Data=1)
+all.PIDs<-msd %>% select(PID) %>% mutate(All_Data=1) %>%
+  full_join(training.PIDs, by="PID") %>%
+  mutate(Training_Data = ifelse(is.na(Training_Data), 0, Training_Data),
+         Validation_Data = ifelse(All_Data==1 & Training_Data==0, 1, 0))
+all.PIDs %>% group_by(Training_Data, Validation_Data) %>%
+  summarise(N=n())
+
+validation.PIDs<-all.PIDs %>% filter(Validation_Data==1)
+
+data.validation<-validation.PIDs %>%
+  full_join(msd, by="PID") %>%
+  select(-c(Source, All_Data, Training_Data, Validation_Data))
+data.validation
+```
+
+```{r}
+data.validation01<-data.validation %>% mutate(T21=ifelse(T21==1, "Yes", "No"))
+require(caret)
+
+predictedval<-list()
+fitted.results.cat<-list()
+cm<-list()
+accuracy<-list()
+prob_T21.df<-list()
+for ( i in 1:54 ) {
+  predictedval[[i]] <- predict(fit.multivariable[[i]], newdata=data.validation[,-1], type='response')
+  names(predictedval[[i]])<-data.validation$PID
+  
+  prob_T21.df[[i]]<-predictedval[[i]] %>% as.data.frame() %>%
+    `colnames<-`("Prob_T21") %>%
+    rownames_to_column("PID") %>%
+    mutate(Model=i) %>%
+    select(Model, PID, Prob_T21)
+  
+  fitted.results.cat[[i]] <- ifelse(predictedval[[i]] > 0.5, 1, 0) %>% as.factor()
+  names(fitted.results.cat[[i]])<-data.validation$PID
+    
+  fitted.results.cat_DF[[i]] <- fitted.results.cat[[i]] %>% as.data.frame %>% mutate_all(as.character) %>%
+    `colnames<-`("Predicted_class") %>%
+    mutate(Model=i, PID=names(fitted.results.cat[[i]])) %>%
+    select(Model, PID, Predicted_class)
+
+  cm[[i]]<-confusionMatrix(data=fitted.results.cat[[i]], 
+                           reference=as.factor(data.validation$T21),
+                           positive="1")
+
+  accuracy[[i]]<-round(cm[[i]]$overall[1],2) %>% as.data.frame() %>%
+    `colnames<-`("Accuracy") %>%
+    mutate(Model=i) %>%
+    select(Model, Accuracy)
+}
+
+cm[[8]]
+accuracy[[8]]
+
+accuracy.DF<-rbindlist(accuracy)
+
+help(geom_point)
+plot.Accuracy<-ggplot(data=accuracy.DF, aes(x=Model, y=Accuracy)) +
+  geom_point(colour="goldenrod2") +
+  geom_line(colour="goldenrod2") +
+  #scale_color_manual(values="red") +
+  ylab("Accuracy") +
+  ggtitle("Classification accuracy in validation set") +
+  theme_bw() +
+  theme(legend.position="none") +
+  scale_x_continuous(breaks=seq(0,54,2))
+plot.Accuracy
+
+accuracy.DF %>%
+  filter(Model==8 | Model==14 | Model==41)
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#pdf("200327_validationLOG2plot_AccuracyValidationSet_T21vsAgeFemaleSelectedCytokines.pdf")
+#dev.off()
+
+prob_T21.DF<-prob_T21.df %>% rbindlist()
+
+prediction.tables<-fitted.results.cat_DF %>% rbindlist() %>%
+  mutate(Predicted_class=ifelse(Predicted_class=="1", "T21",
+                                ifelse(Predicted_class=="0", "D21", NA))) %>%
+  full_join(data.validation, by="PID") %>%
+  select(Model, PID, Predicted_class, T21) %>%
+  mutate(Observed_class=ifelse(T21==1, "T21",
+                               ifelse(T21==0, "D21", NA))) %>%
+  select(-T21) %>%
+  mutate(Correct_call=ifelse(Predicted_class==Observed_class, "TRUE", "FALSE")) %>%
+  full_join(prob_T21.DF, by=c("PID", "Model")) %>%
+  select(Model, PID, Prob_T21, Predicted_class, Observed_class, Correct_call)
+prediction.tables
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/T21_MultiCytokine/Training_LOG2conc")
+#fwrite(prediction.tables, "200327_PredictedClasses_ValidationSet.csv")
+
+pred.mod8<-prediction.tables %>% filter(Model==8)
+pred.mod14<-prediction.tables %>% filter(Model==14)
+pred.mod41<-prediction.tables %>% filter(Model==41)
+
+pred.mod8
+pred.mod14
+pred.mod41
+```
+
+
+
+
+
+

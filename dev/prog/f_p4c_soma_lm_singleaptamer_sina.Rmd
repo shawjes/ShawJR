@@ -1,0 +1,251 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+```{r}
+setwd(dir.ddata)
+list.files(pattern = "tidy")
+t_p4c_soma_lm_singleaptamer_tidy <- fread("t_p4c_soma_lm_singleaptamer_tidy.csv.gz")
+
+t_p4c_soma_lm_singleaptamer_tidy
+```
+
+#### Set default theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"), 
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = 0.5),
+                  panel.background = element_blank(),
+                  panel.grid = element_blank(),
+                  plot.background = element_blank()
+            ) +
+            theme(strip.background = element_rect(colour="black", fill = "light grey", size = 1)) # adjusts facet label borders
+)
+
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3")
+standard_colors <- c("#333333", "#009b4e") 
+
+library("RColorBrewer")
+display.brewer.all()
+distinct_palette(n = NA, pal = "brewerPlus", add = "lightgrey")
+#install.packages("Polychrome")
+library(Polychrome)
+Polychrome::kelly.colors() 
+set.seed(1) # for reproducible stochastic processes
+library(phyloseq)
+library(patchwork) # for combining multiple plots
+library(microViz)
+brewerPlus <- microViz::distinct_palette()
+scales::show_col(brewerPlus)
+```
+
+#### f_p4c_soma_lm_singleaptamer_volcano_t21byage
+```{r}
+brewerPlus <- microViz::distinct_palette()
+scales::show_col(brewerPlus)
+gg_pal_cluster <- distinct_palette(n = 9, pal = "brewerPlus");
+gg_pal_cluster2 <- c("#E31A1C",
+                    "#E6AB02",
+                    "#33A02C",
+                    "#FF7F00",
+                    "#ff69b4",
+                    "#6A3d9a",
+                    "#1F78B4",
+                    "#7edc45",
+                    "#1ff8ff",
+                    "grey")
+  
+f_p4c_soma_lm_singleaptamer_volcano_t21byage <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(grepl("T21[*]Age", model_formula)==TRUE) %>% # model b results
+  filter(term == "T21:Age") %>%
+  mutate(Term = term,
+         Model = "B",
+         Cohort = "T21 + D21",
+         Volcano_Title = "Effect of T21 on age-dependent trajectory",
+         Model_Formula = gsub("lm[(]formula = ", "", model_formula),
+         Model_Formula = gsub(", data = . )", "", Model_Formula),
+         Model_Formula = gsub(" ", "", Model_Formula),
+         Result_Category = case_when(PadjBH < 0.10 & Zlog10FC < 0 ~ "Significantly downregulated",
+                                     PadjBH < 0.10 & Zlog10FC > 0 ~ "Significantly upregulated",
+                                     .default = "Not statistically significant")) %>%
+  dplyr::select(Model, Model_Formula, Cohort,
+                UniProt_Aptamer_Chr_Cluster,
+                Term, Zlog10FC, PadjBH, Result_Category, Volcano_Title,
+                Chromosome,
+                Cluster,
+                UniProt,
+                Aptamer
+                ) %>%
+  dplyr::rename(FDR = PadjBH) %>%
+  ungroup() %>%
+  mutate(updown = case_when(FDR<0.10 & Zlog10FC<0 ~"down",
+                            FDR<0.10 & Zlog10FC>0 ~ "up", .default = NA),
+         result_score = case_when(FDR<0.10 ~ -1*log10(FDR)*Zlog10FC, .default = NA),
+         gg_chromosome = paste0("Chr", Chromosome),
+         gg_chromosome = gsub("ChrNA", "All Other Aptamers", gg_chromosome),
+         gg_chromosome = factor(gg_chromosome,
+                                levels = c(paste0("Chr", seq(1:25)), "All Other Aptamers")),
+         gg_clock_cluster = gsub("Cluster ", "Clock Cluster ", Cluster),
+         gg_clock_cluster = gsub("Clock Cluster Other", "All Other Aptamers", gg_clock_cluster),
+         gg_clock_cluster = factor(gg_clock_cluster,
+                                   levels = c("Clock Cluster 1",
+                                              "Clock Cluster 2",
+                                              "Clock Cluster 3",
+                                              "Clock Cluster 4",
+                                              "Clock Cluster 5",
+                                              "Clock Cluster 6",	
+                                              "Clock Cluster 7",			
+                                              "Clock Cluster 8",			
+                                              "All Other Aptamers")),
+         gg_clock_cluster_color = case_when(FDR>0.10 ~ gg_pal_cluster[[10]],
+                                            gg_clock_cluster == "Clock Cluster 1" ~ gg_pal_cluster[[1]],
+                                            gg_clock_cluster == "Clock Cluster 2" ~ gg_pal_cluster[[2]],
+                                            gg_clock_cluster == "Clock Cluster 3" ~ gg_pal_cluster[[3]],
+                                            gg_clock_cluster == "Clock Cluster 4" ~ gg_pal_cluster[[4]],
+                                            gg_clock_cluster == "Clock Cluster 5" ~ gg_pal_cluster[[5]],
+                                            gg_clock_cluster == "Clock Cluster 6" ~ gg_pal_cluster[[6]],
+                                            gg_clock_cluster == "Clock Cluster 7" ~ gg_pal_cluster[[7]],
+                                            gg_clock_cluster == "Clock Cluster 8" ~ gg_pal_cluster[[8]],
+                                            gg_clock_cluster == "All Other Aptamers" ~ gg_pal_cluster[[9]],
+                                            .default = NA),
+         `Chromosome 21` = case_when(grepl("Chr21", UniProt_Aptamer_Chr_Cluster)==TRUE ~ 1, .default = 0)) %>%
+  arrange(gg_clock_cluster) %>%
+  #group_by(gg_clock_cluster, Result_Category, updown) %>%
+  group_by(Result_Category, updown) %>%
+  arrange(result_score) %>%
+  mutate(result_score_rank = row_number()) %>%
+  ungroup() %>%
+  arrange(FDR) %>%
+  mutate(result_FDR_rank = row_number()) %>%
+  arrange(desc(Zlog10FC)) %>%
+  mutate(result_Zlog10FC_up_rank = row_number()) %>%
+  arrange(Zlog10FC) %>%
+  mutate(result_Zlog10FC_down_rank = row_number()) %>%
+  mutate(gg_label_yn_option1 = case_when(result_score_rank<=2 ~ 1,
+                                 result_FDR_rank<=2 ~ 1,
+                                 result_Zlog10FC_up_rank<=2 ~ 1,
+                                 result_Zlog10FC_down_rank<=2 ~ 1,
+                                 .default = 0),
+         gg_label_option1 = case_when(gg_label_yn_option1 == 1 & Result_Category!="Not statistically significant" ~
+                                Aptamer,
+                              .default = ""),
+         
+         gg_label_yn_option2 = case_when(result_score_rank<=5 ~ 1,
+                                 result_FDR_rank<=5 ~ 1,
+                                 result_Zlog10FC_up_rank<=5 ~ 1,
+                                 result_Zlog10FC_down_rank<=5 ~ 1,
+                                 .default = 0),
+         gg_label_option2 = case_when(gg_label_yn_option2 == 1 & Result_Category!="Not statistically significant" ~
+                                Aptamer,
+                              .default = "")) %>%
+  mutate(gg_clock_cluster = case_when(FDR >0.10 ~ "Not statistically significant",
+                                      .default = gg_clock_cluster),
+         gg_clock_cluster = factor(gg_clock_cluster,
+                                   levels = c("Clock Cluster 1",
+                                              "Clock Cluster 2",
+                                              "Clock Cluster 3",
+                                              "Clock Cluster 4",
+                                              "Clock Cluster 5",
+                                              "Clock Cluster 6",
+                                              "Clock Cluster 7",
+                                              "Clock Cluster 8",
+                                              "All Other Aptamers",
+                                              "Not statistically significant")),
+         gg_clock_cluster_facetby = paste0("Clock ", Cluster),
+         gg_clock_cluster_facetby = gsub("Clock Cluster Other", "All Other Aptamers", gg_clock_cluster_facetby),
+         gg_clock_cluster_facetby = factor(gg_clock_cluster_facetby,
+                                           levels = c("Clock Cluster 1",
+                                              "Clock Cluster 2",
+                                              "Clock Cluster 3",
+                                              "Clock Cluster 4",
+                                              "Clock Cluster 5",
+                                              "Clock Cluster 6",
+                                              "Clock Cluster 7",
+                                              "Clock Cluster 8",
+                                              "All Other Aptamers"))) %>%
+  mutate(gg_label_option1 = case_when(gg_label_option1=="" ~ NA, .default = gg_label_option1)) %>%
+  mutate(gg_label_option2 = case_when(gg_label_option2=="" ~ NA, .default = gg_label_option2));
+
+#### Write figure ddata to file
+setwd(dir.ddata)
+fwrite(f_p4c_soma_lm_singleaptamer_volcano_t21byage, "f_p4c_soma_lm_singleaptamer_volcano_t21byage.csv")
+```
+
+#### Sina plots by Karyotype
+```{r}
+t_p4c_soma_lm_singleaptamer_tidy
+
+aptamers <- as.character(levels(as.factor(t_p4c_soma_lm_singleaptamer_tidy$Aptamer)))
+p <- list()
+for(i in 1:length(levels(as.factor(t_p4c_soma_lm_singleaptamer_tidy$Aptamer)))) {
+  DF <- t_p4c_soma_lm_singleaptamer_tidy %>% filter(Rank_T21==i)
+  AnalyteName <- DF$Analyte[1]
+  Analyte_filename<-DF$Analyte_filename[1]
+  p_i <- DF %>%
+    ggplot(aes(x=Karyotype, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+    #geom_hline(yintercept = 0, linetype = 2) +
+    geom_sina(size = 0.75) +
+    geom_boxplot(aes(fill = Karyotype), notch = TRUE, varwidth = FALSE, outlier.shape = NA, width = 0.3, size = 0.75, alpha = 0.5,
+                 color = c("grey", "#2b8cbe")) +
+    scale_color_manual(values = c("Control" = "grey", "T21" = "#2b8cbe", "DS_other" = "#9ecae1")) +
+    scale_fill_manual(values = c("Control" = "grey", "T21" = "#2b8cbe", "DS_other" = "#9ecae1")) +
+    #theme_bw() +
+    theme(legend.position = "none") +
+#    facet_wrap(~ score_type, nrow = 3) +
+    ylab("log2(Concentration), age- and sex-adjusted") +
+    labs(title=AnalyteName,
+         subtitle =
+paste("log2FC (95% CI): ", DF$`log2FC (95% CI)`, "
+Padj: ", DF$FDR), sep="")
+
+    setwd(dir.output)
+    ggsave(filename = paste0(Analyte_filename, ".png", sep=""),
+         width = 3.5, height = 4, units = "in");
+    setwd(dir.output)
+    ggsave(filename = paste0(Analyte_filename, ".pdf", sep=""),
+         device = cairo_pdf, width = 3.5, height = 4,
+         units = "in");
+  
+  p[[i]]<-p_i
+
+}
+
+length(p) #[1] 54
+p %>% head()
+```

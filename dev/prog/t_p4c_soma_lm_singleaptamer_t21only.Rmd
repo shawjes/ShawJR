@@ -1,0 +1,325 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Overview of fitted models
+##### Model C: Zlog10_relative_abundance ~ Age + Female (T21s only)
+###### Hypotheses tested by model:
+- Difference in the mean value of Zlog10_relative_abundance for each 1 year increase in age at blood draw (i.e., the slope for age), among T21s only.
+- Difference in the group mean of Zlog10_relative_abundance for female T21s as compared to male T21s.
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1) %>%
+  filter(ddata_name == gsub(".Rmd", "", basename(rstudioapi::getSourceEditorContext()$path)))
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ardata.split <- fread(paste0(unique(analysis_tracker$ardata_name), ".csv.gz")) %>%
+  filter(Aptamer_in_P4C == 1) %>%
+  split(., .$UniProt_Aptamer_Chr_Cluster)
+# Note: the above two lines of code should be the only revision to ardata before modeling.
+
+ardata.split %>% rbindlist()
+```
+
+#### Vectorize and name the model formulas to be fit later in this script
+modelc: Zlog10_relative_abundance ~ Age + Female (T21s only)
+```{r}
+tmp <- analysis_tracker %>%
+  dplyr::select(model_formula) %>%
+  unique() %>%
+  mutate(model_name = paste0("model", row_number())) %>%
+  `rownames<-`(NULL) %>%
+  mutate(model_name = "modelC");
+model_formulas <- tmp$model_formula;
+names(model_formulas) <- tmp$model_name;
+
+model_formulas
+```
+
+#### Run linear models pre-specified in '/docs/AnalysisTracker.xlsx'
+```{r, echo = F, results = F}
+options(future.globals.maxSize = 5e10);
+
+model_formula.now <- model_formulas[[1]]
+t0 <- Sys.time()
+set.seed(1234)
+lm_fit <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .));
+lm_vif <- ardata.split %>%
+    purrr::map(~car::vif(lm(as.formula(model_formula.now), data = .))) %>%
+    lapply(as.data.frame) %>%
+    lapply(rownames_to_column, "variable") %>%
+    rbindlist(fill = TRUE, idcol = "id") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+lm_tidy <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(UniProt_Aptamer_Chr_Cluster, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(UniProt_Aptamer_Chr_Cluster, term, Zlog10FC, P, PadjBH, everything());
+lm_glance <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+lm_augment <- ardata.split %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="UniProt_Aptamer_Chr_Cluster") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything());
+t1 <- Sys.time();
+tdiff<- t1 - t0;
+```
+
+```{r}
+t_p4c_soma_lm_singleaptamer_t21only_vif <- lm_vif %>%
+  dplyr::rename(VIF = `X[[i]]`,
+                UniProt_Aptamer_Chr_Cluster = id) %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+t_p4c_soma_lm_singleaptamer_t21only_vif %>%
+  group_by(model_formula, UniProt_Aptamer_Chr_Cluster) %>%
+  summarise(maxVIF = max(VIF)) %>%
+  ungroup() %>%
+  arrange(desc(maxVIF));
+# All good. No indication of multicollinearity.
+
+t_p4c_soma_lm_singleaptamer_t21only_tidy <- lm_tidy %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_t21only_glance <- lm_glance %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_t21only_augment <- lm_augment %>%
+  separate(UniProt_Aptamer_Chr_Cluster,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_t21only_vif
+t_p4c_soma_lm_singleaptamer_t21only_tidy
+t_p4c_soma_lm_singleaptamer_t21only_glance
+t_p4c_soma_lm_singleaptamer_t21only_augment
+```
+
+#### Save output to files with prefix 't_p4c_soma_lm_singleaptamer_'
+```{r}
+setwd(dir.ddata)
+fwrite(t_p4c_soma_lm_singleaptamer_t21only_vif, "t_p4f_soma_lm_singleaptamer_t21only_vif.csv.gz")
+fwrite(t_p4c_soma_lm_singleaptamer_t21only_tidy, "t_p4f_soma_lm_singleaptamer_t21only_tidy.csv.gz")
+fwrite(t_p4c_soma_lm_singleaptamer_t21only_augment, "t_p4f_soma_lm_singleaptamer_t21only_augment.csv.gz")
+fwrite(t_p4c_soma_lm_singleaptamer_t21only_glance, "t_p4f_soma_lm_singleaptamer_t21only_glance.csv.gz")
+```
+
+
+#### Create listing of aptamers significantly associated with age or sex in T21s 
+```{r}
+l_p4c_soma_lm_singleaptamer_t21only_sigage_up <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(term == "Age" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+l_p4c_soma_lm_singleaptamer_t21only_sigage_down <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(term == "Age" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_t21only_sigfemale_up <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(term == "Female" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_t21only_sigfemale_down <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(term == "Female" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+modelc_aptamer_lists <- list(l_p4c_soma_lm_singleaptamer_t21only_sigage_up,
+                             l_p4c_soma_lm_singleaptamer_t21only_sigage_down,
+                             l_p4c_soma_lm_singleaptamer_t21only_sigfemale_up,
+                             l_p4c_soma_lm_singleaptamer_t21only_sigfemale_down);
+names(modelc_aptamer_lists) <- c("l_p4c_soma_lm_singleaptamer_t21only_sigage_up",
+                                 "l_p4c_soma_lm_singleaptamer_t21only_sigage_down",
+                                 "l_p4c_soma_lm_singleaptamer_t21only_sigfemale_up",
+                                 "l_p4c_soma_lm_singleaptamer_t21only_sigfemale_down")
+
+for ( i in 1:length(modelc_aptamer_lists) ){
+  setwd(dir.ddata)
+  write.table(modelc_aptamer_lists[[i]], paste0(names(modelc_aptamer_lists)[[i]], ".txt"),
+              quote = FALSE,
+              row.names = FALSE,
+              col.names = FALSE)
+  }
+```
+
+#### Create listings of aptamers significantly associated with each model term and output to files with prefix 'l_p4c_soma_lm_singleaptamer_modelc_'
+```{r}
+l_p4c_soma_lm_singleaptamer_t21only_sigage_up <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Age" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique();
+l_p4c_soma_lm_singleaptamer_t21only_sigage_down <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Age" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+l_p4c_soma_lm_singleaptamer_t21only_sigfemale_up <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Female" & PadjBH<0.10 & Zlog10FC > 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+l_p4c_soma_lm_singleaptamer_t21only_sigfemale_down <- t_p4c_soma_lm_singleaptamer_t21only_tidy %>%
+  filter(grepl("T21*Age", model_formula)==TRUE & term == "Female" & PadjBH<0.10 & Zlog10FC < 0) %>%
+  dplyr::select(Aptamer) %>%
+  unique() %>%
+  `rownames<-`(NULL);
+
+modelc_aptamer_lists <- list(l_p4c_soma_lm_singleaptamer_t21only_sigage_up,
+                             l_p4c_soma_lm_singleaptamer_t21only_sigage_down,
+                             l_p4c_soma_lm_singleaptamer_t21only_sigfemale_up,
+                             l_p4c_soma_lm_singleaptamer_t21only_sigfemale_down);
+names(modelc_aptamer_lists) <- c("l_p4c_soma_lm_singleaptamer_t21only_sigage_up",
+                                 "l_p4c_soma_lm_singleaptamer_t21only_sigfge_down",
+                                 "l_p4c_soma_lm_singleaptamer_t21only_sigfemale_up",
+                                 "l_p4c_soma_lm_singleaptamer_t21only_sigfemale_down")
+
+for ( i in 1:length(modelc_aptamer_lists) ){
+  setwd(dir.ddata)
+  write.table(modelc_aptamer_lists[[i]], paste0(names(modelc_aptamer_lists)[[i]], ".txt"),
+              quote = FALSE,
+              row.names = FALSE,
+              col.names = FALSE)
+  }
+```

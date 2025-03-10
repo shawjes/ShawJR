@@ -1,0 +1,705 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r echo=True, include=FALSE}
+# For data management
+# install.packages('tidyverse')
+# BiocManager::install("clusterProfiler")
+# BiocManager::install("org.Hs.eg.db")
+# # For visualisation
+# install.packages('pheatmap')
+# install.packages("DOSE")
+# install.packages("enrichplot")
+# install.packages("ggupset")
+
+options(max.print = .Machine$integer.max, scipen = 999, stringsAsFactors = F, dplyr.summarise.inform = F) # avoid truncated output in R console and scientific notation
+# Loading relevant libraries 
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(pheatmap)
+library(clusterProfiler) # for PEA analysis
+library('org.Hs.eg.db')
+library(DOSE)
+library(enrichplot) # for visualisations
+library(ggupset) # for visualisations
+```
+
+#### Run startup function
+```{r echo=True, include=FALSE}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+
+select <- dplyr::select
+filter <- dplyr::filter
+rename <- dplyr::rename
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read requisite ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_daDSmeanZ_rna_metab_cytof <- fread("ar_p4c_daDSmeanZ_rna_metab_cytof.csv.gz")
+
+ar_p4c_daDSmeanZ_rna_metab_cytof %>% head()
+```
+
+
+```{r}
+ar_p4c_daDSsumZ_rna_metab_cytof <- ar_p4c_daDSsumZ_rna_metab_cytof %>%
+  # WARNING: DO SOMETHING SMARTER THAN THIS IN FINAL  ANALYSIS
+  filter(Analyte!="" & !is.na(Value) & Value!=-Inf & Value!=Inf) %>%
+
+ar_p4c_daDSsumZ_rna_metab_cytof.split <- ar_p4c_daDSsumZ_rna_metab_cytof %>%
+  split(., .$Analyte)
+
+ar_p4c_daDSsumZ_rna_metab_cytof.split[[1]]
+ar_p4c_daDSsumZ_rna_metab_cytof.split[[2]]
+ar_p4c_daDSsumZ_rna_metab_cytof.split[[36]]
+
+ar_p4c_daDSsumZ_rna_metab_cytof.split %>% lapply(nrow) %>% unique()
+# LATER: Follow up on why different numbers for different analytes...
+
+ar_p4c_daDSsumZ_rna_metab_cytof %>% head(n=100)
+```
+
+```{r}
+# ar_p4c_daDSsumZ_rna_metab_cytof$Analyte_type %>% unique()
+# #[1] "Protein abundance" "Gene expression"   "Metabolite"        "Immune cell type" 
+# 
+# ar_p4c_daDSsumZ_rna_metab_cytof %>%
+#   filter(grepl("Immune cell type", Analyte_type)==TRUE & !is.na(Value)) %>%
+#   nrow()
+# ar_p4c_daDSsumZ_rna_metab_cytof %>%
+#   filter(grepl("Prot", Analyte_type)==TRUE & !is.na(Value)) %>%
+#   nrow()
+# ar_p4c_daDSsumZ_rna_metab_cytof %>%
+#   filter(grepl("expression", Analyte_type)==TRUE & !is.na(Value)) %>%
+#   nrow()
+# ar_p4c_daDSsumZ_rna_metab_cytof %>%
+#   filter(grepl("Metabolite", Analyte_type)==TRUE & !is.na(Value)) %>%
+#   nrow()
+```
+
+
+```{r}
+# length(ar_p4c_daDSsumZ_rna_metab_cytof.split) #[1] 60877
+
+
+set.seed(1234)
+lm_tidy <- ar_p4c_daDSsumZ_rna_metab_cytof.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(Value ~ T21 + Age + Female + T21*Age, data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="Analyte") %>%
+    mutate(model_formula = "Value ~ T21 + Age + Female + T21*Age") %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)")
+
+lm_tidy %>% head(n=500)
+
+setwd(dir.ddata)
+fwrite(lm_tidy, "t_p4c_daDSsumZ_rna_metab_cytof_lm.csv.gz")
+```
+
+```{r}
+t_p4c_daDSsumZ_rna_metab_cytof_lm <- lm_tidy %>%
+  full_join(ar_p4c_daDSsumZ_rna_metab_cytof %>%
+              select(Omics_type, Analyte_type, Analyte) %>%
+              unique(),
+            by = "Analyte") %>%
+  group_by(Omics_type, Analyte, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND ANALYTE
+  mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+  ungroup() %>%
+  dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+  dplyr::select(Analyte, term, Zlog10FC, P, PadjBH, everything());
+
+setwd(dir.ddata)
+fwrite(t_p4c_daDSsumZ_rna_metab_cytof_lm, "t_p4c_daDSsumZ_rna_metab_cytof_lm.csv.gz")
+```
+
+```{r}
+rm(lm_tidy); gc()
+
+t_p4c_daDSsumZ_rna_metab_cytof_lm %>%
+  filter(term == "T21:Age" & PadjBH<0.05) %>%
+  nrow()
+
+ar_p4c_daDSsumZ_vs_sigt21byage_multiomics <- t_p4c_daDSsumZ_rna_metab_cytof_lm %>%
+  filter(term == "T21:Age" & PadjBH<0.05) %>%
+  arrange(desc(abs(Zlog10FC))) %>%
+  left_join(ar_p4c_daDSsumZ_rna_metab_cytof, by = "Analyte")
+
+ar_p4c_daDSsumZ_vs_sigt21byage_multiomics %>% colnames()
+
+setwd(dir.ardata)
+fwrite(ar_p4c_daDSsumZ_vs_sigt21byage_multiomics,
+       "ar_p4c_daDSsumZ_vs_sigt21byage_multiomics.csv.gz")
+```
+
+```{r}
+# lmC_tidy %>%
+#   filter(grepl("[:]", term)==TRUE & 
+#            grepl("T21", term)==TRUE &
+#            PadjBH<0.05)
+
+f_trajectory_sigt21byage_cytof_metab.split <- ar_cytof_metab %>%
+  filter(Analyte %in% 
+           (lmB_tidy %>%
+              filter(grepl("[:]", term)==TRUE & PadjBH<0.05))$Analyte) %>%
+  mutate(Karyotype_Sex = factor(Karyotype_Sex, c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+  arrange(Karyotype) %>%
+  split(., .$Analyte);
+
+gg_trajectory_sigt21byage_cytof_metab <- list()
+for ( i in 1:length(f_trajectory_sigt21byage_cytof_metab.split) ) {
+  gg_trajectory_sigt21byage_cytof_metab[[i]] <- f_trajectory_sigt21byage_cytof_metab.split[[i]] %>%
+    #ggplot(aes(x = Age, y = Value, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+    ggplot(aes(x = Age, y = Value, color = Karyotype, fill = Karyotype)) +
+    geom_smooth(method = "lm", linewidth = 0.75, se = TRUE) +
+    scale_colour_manual(values = RedBlue) +
+    scale_fill_manual(values = RedBlue) +
+    # scale_colour_manual(values = c("pink3",
+    #                                RedBlue[[1]],
+    #                                "navy",
+    #                                RedBlue[[2]])) +
+    # scale_fill_manual(values = c("pink3",
+    #                                RedBlue[[1]],
+    #                                "navy",
+    #                                RedBlue[[2]]))  +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    theme(aspect.ratio = 1.0,
+          legend.position = "bottom",
+          legend.title = element_blank(),
+          plot.title = element_text(size = 12),
+          plot.subtitle = element_text(size = 10.5)) +
+    ggtitle(names(f_trajectory_sigt21byage_cytof_metab.split)[[i]])
+    #ylab("Relative abundance (Zlog10)") +
+    #facet_wrap(~Analyte, ncol = 3, scales = "free");
+  
+  save_as <- paste0("f_trajectory_sigt21byage_", 
+                    gsub("[/]", "_",
+                         names(f_trajectory_sigt21byage_cytof_metab.split)[[i]]));
+  setwd(dir.output)
+  ggsave(gg_trajectory_sigt21byage_cytof_metab[[i]],
+       filename = paste0(save_as, ".png"),
+       width = 5, height = 5, units = "in")
+}
+```
+
+
+
+
+
+```{r, echo = F, results = F}
+options(future.globals.maxSize = 5e10);
+
+tdiff <- list()
+lm_fit <- list()
+lm_tidy <-list()
+lm_augment <- list()
+lm_glance <- list()
+lm_vif <- list()
+for ( i in 1:length(model_formulas) ) {
+#for ( i in 1:2 ) {
+  #model_formula.now <- model_formulas[[i]]
+
+  t0 <- Sys.time()
+  set.seed(1234)
+  lm_fit[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    #purrr::map(~lm(as.formula(model_formula.now), data = .))
+    purrr::map(~lm(Value ~ T21 + Age + Female + T21*Age, data = .))
+  
+  lm_vif[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~car::vif(lm(as.formula(model_formula.now), data = .))) %>%
+    lapply(as.data.frame) %>%
+    lapply(rownames_to_column, "variable") %>%
+    rbindlist(fill = TRUE, idcol = "id") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything())
+  
+  lm_tidy[[i]] <- ardata.split %>%
+    #head(n=3) %>%
+    purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="Analyte") %>%
+    mutate(model_formula = model_formula.now) %>%
+    dplyr::select(model_formula, everything()) %>%
+    filter(term!="(Intercept)") %>%
+    group_by(Analyte, term) %>% # IMPORTANT: MUST GROUP BY BOTH TERM AND APTAMER.
+    mutate(PadjBH = p.adjust(p.value, method = "BH")) %>%
+    ungroup() %>%
+    dplyr::rename(Zlog10FC = estimate, P = p.value) %>%
+    dplyr::select(Analyte, term, Zlog10FC, P, PadjBH, everything());
+  
+  # lm_glance[[i]] <- ardata.split %>%
+  #   #head(n=3) %>%
+  #   purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+  #   purrr::map(.x = .,
+  #        .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+  #     bind_rows(.id="Analyte") %>%
+  #   mutate(model_formula = model_formula.now) %>%
+  #   dplyr::select(model_formula, everything());
+
+  # lm_augment[[i]] <- ardata.split %>%
+  #   #head(n=3) %>%
+  #   purrr::map(~lm(as.formula(model_formula.now), data = .)) %>%
+  #   purrr::map(.x = .,
+  #        .f = ~glance(x = .x, conf.int=TRUE, data = .y)) %>%
+  #     bind_rows(.id="Analyte") %>%
+  #   mutate(model_formula = model_formula.now) %>%
+  #   dplyr::select(model_formula, everything());
+
+  t1 <- Sys.time();
+  
+  tdiff<- t1 - t0
+}
+```
+
+
+```{r}
+t_p4c_soma_lm_singleaptamer_vif <- lm_vif %>%
+  rbindlist() %>%
+  dplyr::rename(VIF = `X[[i]]`,
+                Analyte = id) %>%
+  separate(Analyte,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+t_p4c_soma_lm_singleaptamer_vif %>%
+  group_by(model_formula, Analyte) %>%
+  summarise(maxVIF = max(VIF)) %>%
+  ungroup() %>%
+  arrange(desc(maxVIF));
+# Note: All VIFs are <6 for all models and aptamers - both models are suitable for valid inferences.
+
+t_p4c_soma_lm_singleaptamer_tidy <- lm_tidy %>%
+  rbindlist() %>%
+  separate(Analyte,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_glance <- lm_glance %>% rbindlist() %>%
+  separate(Analyte,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+t_p4c_soma_lm_singleaptamer_augment <- lm_augment %>% rbindlist() %>%
+  separate(Analyte,
+           into = c("UniProt", "other"),
+           sep = "[|]",
+           extra = "merge",
+           remove = FALSE) %>%
+  separate(other,
+           into = c("Aptamer", "other"),
+           sep = "[()]",
+           extra = "merge",
+           remove = TRUE) %>%
+  separate(other,
+           into = c("Chromosome", "Cluster"),
+           sep = ",",
+           extra = "merge",
+           remove = TRUE) %>%
+  mutate(Cluster = gsub(")", "", Cluster)) %>%
+    arrange(Chromosome) %>%
+    mutate(Chromosome = gsub("Chr", "", Chromosome)) %>%
+    mutate(Chromosome = case_when(!is.na(as.numeric(Chromosome)) ~ as.numeric(Chromosome),
+                                  Chromosome == "X" ~ 23,
+                                  Chromosome == "Y" ~ 24,
+                                  Chromosome == "X|Y" ~ 25,
+                                  Chromosome == "MT" ~ 26,
+                                  .default = NA));
+
+t_p4c_soma_lm_singleaptamer_vif
+t_p4c_soma_lm_singleaptamer_tidy
+t_p4c_soma_lm_singleaptamer_glance
+t_p4c_soma_lm_singleaptamer_augment
+```
+
+```{r}
+f_trajectory_cytof <- ar_cytof
+f_trajectory_cytof.split <- f_trajectory_cytof %>%
+  split(., .$CyTOF_cell_population)
+
+gg_trajectory_cytof <- ar_cytof %>%
+      ggplot(aes(x = Age,
+             y = Value,
+             color = Karyotype_Sex,
+             fill = Karyotype_Sex)) +
+      geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+      geom_hline(yintercept = 0, linetype = "dashed") +
+      theme(aspect.ratio = 1.0,
+            legend.position = "bottom",
+            legend.title = element_blank(),
+            plot.title = element_text(size = 12),
+            plot.subtitle = element_text(size = 12)) +
+      xlab("Age") +
+      ylab("Cell type frequency (%)") +
+      ggtitle("Aging trajectories of immune cell types (CyTOF)") +
+      scale_colour_manual(values = c("pink3",
+                                     RedBlue[[1]],
+                                     "navy",
+                                     RedBlue[[2]])) +
+      scale_fill_manual(values = c("pink3",
+                                     RedBlue[[1]],
+                                     "navy",
+                                     RedBlue[[2]])) +
+  facet_wrap(~CyTOF_cell_population, scales = "free")
+
+gg_trajectory_cytof
+
+setwd(dir.output)
+ggsave(gg_trajectory_cytof,
+       filename = "f_trajectory_cytof.png",
+       width = 15, height = 15, units = "in")
+```
+
+```{r}
+gg_trajectory_age_vs_CyTOF <- list()
+for (i in 1:length(f_trajectory_cytof.split)) {
+  gg_trajectory_age_vs_CyTOF[[i]] <- f_trajectory_cytof.split[[i]] %>%
+      ggplot(aes(x = Age,
+             y = Zlog10_percentOfCD45posCD66low,
+             color = Karyotype_Sex,
+             fill = Karyotype_Sex)) +
+      geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+      geom_hline(yintercept = 0, linetype = "dashed") +
+      theme(aspect.ratio = 1.0,
+            legend.position = "right",
+            legend.title = element_blank(),
+            plot.title = element_text(size = 12),
+            plot.subtitle = element_text(size = 12)) +
+      xlab("Age") +
+      ylab("Cell population frequency (%)") +
+      ggtitle(paste0(unique(f_trajectory_cytof.split[[i]]$CyTOF_cell_population)[1])) +
+      scale_colour_manual(values = c("pink3",
+                                     RedBlue[[1]],
+                                     "navy",
+                                     RedBlue[[2]])) +
+      scale_fill_manual(values = c("pink3",
+                                     RedBlue[[1]],
+                                     "navy",
+                                     RedBlue[[2]])) }
+#+
+      #facet_wrap(~CyTOF_cell_population, ncol = 5, scales = "free") +
+      #labs(caption = "*Percent of total CD45+/CD66- white blood cells.")
+
+gg_trajectory_age_vs_CyTOF[[2]]
+
+```
+
+#### KEEP!!!
+```{r}
+#f_d21t21clustered_daDScluster_sumZ_vscytof.split[[3]]
+
+gg_d21t21clustered_daDScluster_sumZ_vscytof <- list()
+for (i in 1:length(f_d21t21clustered_daDScluster_sumZ_vscytof.split)){
+  out_filename <- paste0("f_daDScluster",
+                         unique(f_d21t21clustered_daDScluster_sumZ_vscytof.split[[i]]$DA_DS_Cluster),
+                         "_vs_CyTOF.png");
+  
+  gg_d21t21clustered_daDScluster_sumZ_vscytof[[i]] <- f_d21t21clustered_daDScluster_sumZ_vscytof.split[[i]] %>%
+      ggplot(aes(x = Zlog10_percentOfCD45posCD66low, y = SUM_Zlog10_relative_abundance,
+             color = Karyotype_Sex, fill = Karyotype_Sex)) +
+      geom_smooth(method = "lm", linewidth = 0.75, se = TRUE) +
+      geom_hline(yintercept = 0, linetype = "dashed") +
+      theme(aspect.ratio = 1.0,
+            legend.position = "right",
+            legend.title = element_blank(),
+            plot.title = element_text(size = 12),
+            plot.subtitle = element_text(size = 12)) +
+      #xlab("Percent* (%)") +
+      #ylab("Relative Abundance (sum_Zlog10)") +
+      ggtitle(paste0("DA-DS Cluster ", unique(f_d21t21clustered_daDScluster_sumZ_vscytof.split[[i]]$DA_DS_Cluster)[1])) +
+      scale_colour_manual(values = c("pink3",
+                                     RedBlue[[1]],
+                                     "navy",
+                                     RedBlue[[2]])) +
+      scale_fill_manual(values = c("pink3",
+                                     RedBlue[[1]],
+                                     "navy",
+                                     RedBlue[[2]])) +
+      facet_wrap(~CyTOF_cell_population, ncol = 5, scales = "free") +
+      labs(caption = "*Percent of total CD45+/CD66- white blood cells.")
+  
+      setwd(dir.output)
+      ggsave(gg_d21t21clustered_daDScluster_sumZ_vscytof[[i]],
+             filename = out_filename,
+             width = 15, height = 15, units = "in")
+}
+
+gg_d21t21clustered_daDScluster_sumZ_vscytof[[3]]
+gg_d21t21clustered_daDScluster_sumZ_vscytof[[10]]
+
+#save_as <- "f_trajectory_byktsex_nonsigt21byage_cluster_facet";
+#setwd(dir.output)
+#ggsave(gg_trajectory_byktsex_nonsigt21byage_cluster_facet,
+#       filename = paste0(save_as, ".png"),
+#       width = 15, height = 15, units = "in")
+
+
+```
+
+
+
+
+```{r}
+#f_d21t21clustered_daDScluster_sumZ_vscytof %>% head()
+
+gg_d21t21clustered_daDScluster_sumZ_vscytof <- list()
+for ( i in 1:length(f_d21t21clustered_daDScluster_sumZ_vscytof.split) ){
+  gg_d21t21clustered_daDScluster_sumZ_vscytof[[i]] <- f_d21t21clustered_daDScluster_sumZ_vscytof.split[[i]] %>%
+      ggplot(aes(x = Zlog10_percentOfCD45posCD66low, y = SUM_Zlog10_relative_abundance,
+                 color = Karyotype_Sex,
+                 fill = Karyotype_Sex)) +
+      geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+      geom_hline(yintercept = 0, linetype = "dashed") +
+      theme(aspect.ratio = 1.0,
+            legend.position = "right",
+            legend.title = element_blank(),
+            plot.title = element_text(size = 12),
+            plot.subtitle = element_text(size = 12)) +
+      ylab("Percent* (%)") +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+      facet_wrap(~DA_DS_Cluster + CyTOF_cell_population)
+}
+
+```
+
+
+
+```{r}
+ar_d21t21clustered_daDScluster_sumZ_vscytof <- ar_d21t21clustered_daDScluster_sumZ %>%
+    left_join((in_cytof %>%
+                 dplyr::rename(`percent of CD45posCD66low` = Value) %>%
+                 dplyr::select(-c(Platform, Data_contact, Date_exported, Script, Units)) %>%
+                 unique()),
+              by = "LabID") %>%
+  dplyr::rename(CyTOF_cell_population = Cell_cluster_name) %>%
+  mutate(splitBy = paste0(DA_DS_Cluster, "|", CyTOF_cell_population)) %>%
+  na.omit();
+
+ar_d21t21clustered_daDScluster_sumZ_vscytof.split <- ar_d21t21clustered_daDScluster_sumZ_vscytof %>%
+  split(., .$splitBy);
+
+gg_trajectory_daDScluster_vscytof <- ar_d21t21clustered_daDScluster_sumZ_vscytof %>%
+  ggplot(aes(x = Age, y = `percent of CD45posCD66low`,
+             color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12)) +
+  ylab("Percent* (%)") +
+  labs(caption = "*Percent of total CD45+/CD66- white blood cells.") +
+  facet_wrap(~CyTOF_cell_population);
+
+gg_trajectory_daDScluster_vscytof_freescale <- ar_d21t21clustered_daDScluster_sumZ_vscytof %>%
+  ggplot(aes(x = Age, y = `percent of CD45posCD66low`,
+             color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12)) +
+  ylab("Percent* (%)") +
+  labs(caption = "*Percent of total CD45+/CD66- white blood cells.") +
+  facet_wrap(~CyTOF_cell_population, scales = "free")
+
+gg_trajectory_daDScluster_vscytof
+
+ar_d21t21clustered_daDScluster_sumZ_vscytof.split[[1]] %>%
+  ggplot() +
+  geom_smooth(aes(x = Age, y = `percent of CD45posCD66low`,
+             color = Karyotype_Sex, fill = Karyotype_Sex),
+             method = "loess", linewidth = 0.75, se = TRUE, ) +
+  geom_smooth(aes(x = Age, y =SUM_Zlog10_relative_abundance,
+             color = Karyotype_Sex, fill = Karyotype_Sex),
+             method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12)) +
+  ylab("Percent* (%)") +
+  labs(caption = "*Percent of total CD45+/CD66- white blood cells.") +
+  facet_wrap(~CyTOF_cell_population, scales = "free")
+
+```
+
+```{r}
+select<-dplyr::select; filter<-dplyr::filter
+
+ar_d21t21clustered_daDScluster_sumZ_vscytof_t21only.split <- ar_d21t21clustered_daDScluster_sumZ %>%
+    left_join((in_cytof %>%
+                 dplyr::rename(`percent of CD45posCD66low` = Value) %>%
+                 dplyr::select(-c(Platform, Data_contact, Date_exported, Script, Units)) %>%
+                 unique()),
+              by = "LabID") %>%
+  dplyr::rename(CyTOF_cell_population = Cell_cluster_name) %>%
+  mutate(splitBy = paste0(DA_DS_Cluster, "|", CyTOF_cell_population)) %>%
+  filter(Karyotype == "T21") %>%
+  na.omit() %>%
+  split(., .$splitBy)
+
+tidy.daDScluster_sumZ_vs_cytof_t21only <-  ar_d21t21clustered_daDScluster_sumZ_vscytof_t21only.split %>%
+  purrr::map(~lm(SUM_Zlog10_relative_abundance ~ `percent of CD45posCD66low` + Age + Female, data = .)) %>%
+    purrr::map(.x = .,
+         .f = ~broom::tidy(x = .x, conf.int=TRUE, data = .y)) %>%
+      bind_rows(.id="splitBy") %>%
+    filter(term!="(Intercept)") %>%
+  arrange(p.value) %>%
+  separate(splitBy, into = c("DA_DS_Cluster", "CyTOF_cell_population"),
+           sep = "[|]", extra = "merge", remove = TRUE) %>%
+  group_by(DA_DS_Cluster, term) %>%
+  mutate(Padj_BH = p.adjust(p.value, method = "BH")) %>%
+  ungroup() %>%
+  dplyr::rename(SUM_Zlog10_FC = estimate)
+
+tidy.daDScluster_sumZ_vs_cytof_t21only %>% 
+  dplyr::select(-c(std.error, statistic, conf.low, conf.high)) %>%
+  filter(grepl("`percent of CD45posCD66low`", term)==TRUE) %>%
+  filter(Padj_BH<0.10) %>%
+  arrange(DA_DS_Cluster)
+
+# DA-DS Cluster FNC -> PMN-MDSC:
+# Neutrophils are one of the major mechanisms of protection against invading pathogens, whereas PMN-MDSC have immune suppressive activity and restrict immune responses in cancer, chronic infectious disease, trauma, sepsis, and many other pathological conditions.
+
+# DA-DS Cluster MH -> mDCs CD1c+:
+
+```
+
+```{r}
+ar_d21t21clustered_daDScluster_sumZ
+
+in_cytof %>% head(n=10)
+in_rna %>% head(n=10)
+in_metab %>% head(n=10)
+```
+
+

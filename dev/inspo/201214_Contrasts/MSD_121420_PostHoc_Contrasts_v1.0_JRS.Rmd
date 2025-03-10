@@ -1,0 +1,31 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# https://www.middleprofessor.com/files/applied-biostatistics_bookdown/_book/Walker-elementary-statistical-modeling-draft.pdf
+
+# fit the model
+m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
+# estimated marginal means table
+m1_emm <- emmeans(m1, specs = "treatment")
+# contrasts table
+(m1_pairs <- contrast(m1_emm, method = "revpairwise") %>%
+    summary(infer = TRUE))
+
+
+# Marginal means table:
+(fig3d_m1_emm <- emmeans(fig3d_m1, specs = "treatment"))
+# Contrasts table:
+(fig3d_m1_pairs <- contrast(fig3d_m1_emm,
+                            method = "revpairwise") %>%
+    summary(infer = TRUE))
+
+                      
+fig_2i_m1_emm <- emmeans(fig_2i_m1, specs = "treatment")
+fig_2i_m1_pairs <- contrast(fig_2i_m1_emm,
+method = "revpairwise") %>%
+summary(infer = TRUE)                      
+```
+

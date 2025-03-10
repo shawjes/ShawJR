@@ -1,0 +1,55 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Obtain P4C metadata from Donovan et al. 2024:
+# https://www.nature.com/articles/s41467-024-49781-1#Sec40
+
+#### Run startup function
+```{r}
+setwd("~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/macro")
+source("ui_init.R")
+```
+#### Define paths to directories
+```{r}
+dir.donovan2024_source <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev/rawdata/Donovan2024_syn31481952.5"
+
+dir.project <- "~/Dropbox/EspinosaGroup/ANALYSIS/2025/dev"
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/dddata")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_p4c_soma <- fread("ar_p4c_soma.csv.gz")
+
+ar_p4c_soma
+```
+
+#### Evaluate the overlap of proteins in P4C's SomaLogic vs. in the published proteomic clock proteins
+```{r}
+dd_aptamer_overlap_p4c_lethallier2019 <- ar_p4c_soma %>%
+  dplyr::select(Aptamer, Aptamer_in_p4c_soma, Aptamer_in_Lehallier2019) %>%
+  unique() %>%
+  mutate(Aptamer_in_p4c_soma = case_when(is.na(Aptamer_in_p4c_soma) ~ 0,
+                                         .default = Aptamer_in_p4c_soma),
+         Aptamer_in_Lehallier2019 = case_when(is.na(Aptamer_in_Lehallier2019) ~ 0,
+                                              .default = Aptamer_in_Lehallier2019),
+         In_sum = Aptamer_in_p4c_soma + Aptamer_in_Lehallier2019) %>%
+  group_by(Aptamer_in_p4c_soma, Aptamer_in_Lehallier2019, In_sum) %>%
+  summarise(N = n()) %>%
+  ungroup()
+
+dd_aptamer_overlap_p4c_lethallier2019
+```
+
+```{r}
+setwd(dir.ddata)
+fwrite(dd_aptamer_overlap_p4c_lethallier2019, "dd_aptamer_overlap_p4c_lethallier2019.csv")
+```
+

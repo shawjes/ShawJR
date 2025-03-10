@@ -1,0 +1,342 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(WGCNA)
+library(psych)
+```
+
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd_T21<-msd %>% filter(T21==1)
+msd_D21<-msd %>% filter(T21==0)
+```
+
+```{r}
+temp<-msd %>% filter(Analyte=="TNF-beta") %>%
+  select(RecordID, LabID, Source, T21, Age, Female, Analyte, CalcConcMean_AfterImputation) %>%
+  mutate(log2Conc = log2(CalcConcMean_AfterImputation))
+
+plot(density(log2(temp$CalcConcMean_AfterImputation)))
+
+temp %>%
+  ggplot(aes(x=))
+```
+
+```{r}
+# msd_T21.resid<-msd_T21 %>%
+#    select(RecordID, Age, Female, Source,
+#           Analyte, CalcConcMean_AfterImputation) %>%
+#    unique() %>%
+#    mutate(log2Conc = log2(CalcConcMean_AfterImputation)) %>%
+#    select(-CalcConcMean_AfterImputation) %>%
+#    group_by(Analyte) %>%
+#    mutate(resid_log2Conc = resid(lmerTest::lmer(log2Conc ~ Age + Female + (1|Source)))) %>%
+#    ungroup()
+# msd_D21.resid<-msd_D21 %>%
+#    select(RecordID, Age, Female, Source,
+#           Analyte, CalcConcMean_AfterImputation) %>%
+#    unique() %>%
+#    mutate(log2Conc = log2(CalcConcMean_AfterImputation)) %>%
+#    select(-CalcConcMean_AfterImputation) %>%
+#    group_by(Analyte) %>%
+#    mutate(resid_log2Conc = resid(lmerTest::lmer(log2Conc ~ Age + Female + (1|Source)))) %>%
+#    ungroup()
+# 
+# msd_T21.resid_wide<-msd_T21.resid %>%
+#    select(RecordID, Analyte, resid_log2Conc) %>%
+#    unique() %>%
+#    mutate(Analyte = paste("resid_log2_", Analyte, sep="")) %>%
+#    spread(key="Analyte", value="resid_log2Conc")
+# msd_D21.resid_wide<-msd_D21.resid %>%
+#    select(RecordID, Analyte, resid_log2Conc) %>%
+#    unique() %>%
+#    mutate(Analyte = paste("resid_log2_", Analyte, sep="")) %>%
+#    spread(key="Analyte", value="resid_log2Conc")
+# 
+# msd_T21_wide
+# msd_T21.resid_wide
+# msd_D21_wide
+# msd_D21.resid_wide
+```
+
+```{r}
+msd_D21_wide<-msd_D21 %>%
+  select(RecordID, Analyte, CalcConcMean_AfterImputation) %>%
+  mutate(log2Conc = log2(CalcConcMean_AfterImputation)) %>%
+  select(-CalcConcMean_AfterImputation) %>%
+  unique() %>%
+  mutate(Analyte = paste("log2_", Analyte, sep="")) %>%
+  spread(key="Analyte", value="log2Conc")
+msd_T21_wide<-msd_T21 %>%
+  select(RecordID, Analyte, CalcConcMean_AfterImputation) %>%
+  mutate(log2Conc = log2(CalcConcMean_AfterImputation)) %>%
+  select(-CalcConcMean_AfterImputation) %>%
+  unique() %>%
+  mutate(Analyte = paste("log2_", Analyte, sep="")) %>%
+  spread(key="Analyte", value="log2Conc")
+
+indices<-(msd_T21_wide %>% colnames())[-1] %>%
+  as.data.frame() %>%
+  `colnames<-`("Analyte") %>%
+  mutate(Index = as.numeric(seq(1:length(Analyte)))) %>%
+  select(Index, everything())
+df<-list()
+for ( i in 1:max(indices$Index) ){
+  df[[i]]<-indices %>% rename(Index1=Index, Analyte1=Analyte) %>% mutate(Index2 = i) %>%
+    left_join(indices, by=c("Index2"="Index")) %>% rename(Analyte2=Analyte)
+}
+DF<-df %>% rbindlist()
+
+# indices.resid<-(msd_T21.resid_wide %>% colnames())[-1] %>%
+#   as.data.frame() %>%
+#   `colnames<-`("Analyte") %>%
+#   mutate(Index = as.numeric(seq(1:length(Analyte)))) %>%
+#   select(Index, everything())
+# df.resid<-list()
+# for ( i in 1:max(indices$Index) ){
+#   df.resid[[i]]<-indices.resid %>% rename(Index1=Index, Analyte1=Analyte) %>% mutate(Index2 = i) %>%
+#     left_join(indices.resid, by=c("Index2"="Index")) %>% rename(Analyte2=Analyte)
+# }
+# DF.resid<-df.resid %>% rbindlist()
+
+# View the resulting dataframes:
+DF
+#DF.resid
+```
+
+#### Calculate cytokine-cytokine correlations using raw data, no adjustment for age/sex/source
+```{r}
+spearman_rcorr.D21 <- msd_D21_wide %>%
+  column_to_rownames("RecordID") %>%
+  as.matrix() %>%
+  Hmisc::rcorr(type = "spearman")
+sp_corr_matrix.D21 <- spearman_rcorr.D21$r
+sp_pval_matrix.D21 <- spearman_rcorr.D21$P
+sp_n_matrix.D21 <- spearman_rcorr.D21$n
+meltCorr.D21<-sp_corr_matrix.D21 %>% reshape2::melt(na.rm = TRUE)
+
+spearman_rcorr.T21 <- msd_T21_wide %>%
+  column_to_rownames("RecordID") %>%
+  as.matrix() %>%
+  Hmisc::rcorr(type = "spearman")
+sp_corr_matrix.T21 <- spearman_rcorr.T21$r
+sp_pval_matrix.T21 <- spearman_rcorr.T21$P
+sp_n_matrix.T21 <- spearman_rcorr.T21$n
+meltCorr.T21<-sp_corr_matrix.T21 %>% reshape2::melt(na.rm = TRUE)
+
+# https://www.mathsisfun.com/combinatorics/combinations-permutations-calculator.html
+# 54 choose 2 --> 1431 unique pairs of cytokines (order doesn't matter, without replacement)
+unique_pairs<-DF %>%
+  filter(Index2>Index1)
+
+meltCorr.D21_distinct<-unique_pairs %>%
+  left_join(meltCorr.D21 %>% rename(Analyte1=Var1, Analyte2=Var2, Corr_D21=value), by=c("Analyte1", "Analyte2")) %>%
+  arrange(Index1, Index2) %>%
+  mutate(rownum = as.numeric(seq(1:length(Index1))))
+
+meltCorr.T21_distinct<-unique_pairs %>%
+  left_join(meltCorr.T21 %>% rename(Analyte1=Var1, Analyte2=Var2, Corr_T21=value), by=c("Analyte1", "Analyte2")) %>%
+  arrange(Index1, Index2) %>%
+  mutate(rownum = as.numeric(seq(1:length(Index1))))
+
+meltCorr.D21_distinct
+meltCorr.T21_distinct
+```
+
+#### Save sample sizes to objects
+```{r}
+N_D21<-msd_D21_wide %>% select(RecordID) %>% unique() %>% nrow()
+N_T21<-msd_T21_wide %>% select(RecordID) %>% unique() %>% nrow()
+```
+
+#### Test for differences in correlation coefficients calculated from raw data
+```{r}
+test.diff_corr<-list()
+test.diff_corr.PVAL<-list()
+analyte1_D21<-list()
+analyte2_D21<-list()
+analyte1_T21<-list()
+analyte2_T21<-list()
+results_i<-list()
+
+for ( i in 1:max(meltCorr.T21_distinct$rownum) ){
+  
+  analyte1_D21[[i]]<-meltCorr.D21_distinct[i,2]
+  analyte2_D21[[i]]<-meltCorr.D21_distinct[i,4]
+  analyte1_T21[[i]]<-meltCorr.T21_distinct[i,2]
+  analyte2_T21[[i]]<-meltCorr.T21_distinct[i,4]
+  
+  corr_D21<-meltCorr.D21_distinct[i,]$Corr_D21[1]
+  corr_T21<-meltCorr.T21_distinct[i,]$Corr_T21[1]
+  
+  test.diff_corr[[i]]<-try( psych::paired.r(corr_D21, corr_T21, yz=NULL, n=N_D21, n2=N_T21, twotailed=TRUE) )
+  
+  test.diff_corr.PVAL[[i]]<-try( test.diff_corr[[i]]$p )
+
+  results_i[[i]]<-cbind(analyte1_D21[[i]], analyte2_D21[[i]], test.diff_corr.PVAL[[i]]) %>%
+    as.data.frame() %>%
+    `colnames<-`(c("Analyte1", "Analyte2", "P"))
+}
+
+#identical(analyte1_D21, analyte1_T21) #[1] TRUE
+#identical(analyte2_D21, analyte2_T21) #[1] TRUE
+
+test.diff_corr[[1]]
+
+help("paired.r")
+```
+
+#### Organize the results
+```{r}
+results.diffCorr = results_i %>%
+  rbindlist() %>%
+  mutate(P_BH = p.adjust(P, method="BH"),
+         Sig_BH = ifelse(P_BH<0.10, 1, 0)) %>%
+  arrange(P_BH)
+
+results.diffCorr
+
+results.diffCorr %>% filter(Sig_BH==1) # 368 cytokines pairs with significantly different correlations in T21s than D21s.
+
+sig.Analyte1<-results.diffCorr %>% filter(Sig_BH==1) %>% select(Analyte1)
+sig.Analyte2<-results.diffCorr %>% filter(Sig_BH==1) %>% select(Analyte2)
+
+sig.Analytes<-rbind(sig.Analyte1 %>% rename(Sig_Analyte = Analyte1), sig.Analyte2 %>% rename(Sig_Analyte = Analyte2))
+
+N_dysregulated_connections<-sig.Analytes %>%
+  group_by(Sig_Analyte) %>%
+  summarise(`N dysregulated connections`=n()) %>%
+  arrange(desc(`N dysregulated connections`))
+N_dysregulated_connections
+# log2_TNF-beta
+# log2_GM-CSF
+# log2_IL-23
+# log2_IL-5
+
+sum(N_dysregulated_connections$`N dysregulated connections`) # A total of 368 dysregulated cytokine-cytokine connections
+
+batman.TNFbeta<-results.diffCorr %>%
+  mutate(Batman = ifelse(Analyte1=="log2_TNF-beta" | Analyte2=="log2_TNF-beta", "log2_TNF-beta", NA),
+         Robin = ifelse(Batman=="log2_TNF-beta" & Analyte1!="log2_TNF-beta", Analyte1,
+                           ifelse(Batman=="log2_TNF-beta" & Analyte2!="log2_TNF-beta", Analyte2, NA))) %>%
+  filter(Batman=="log2_TNF-beta") %>%
+  select(Batman, Robin, P, P_BH, Sig_BH) %>%
+  unique() %>%
+  filter(Sig_BH==1)
+
+batman.GMCSF<-results.diffCorr %>%
+  mutate(Batman = ifelse(Analyte1=="log2_GM-CSF" | Analyte2=="log2_GM-CSF", "log2_GM-CSF", NA),
+         Robin = ifelse(Batman=="log2_GM-CSF" & Analyte1!="log2_GM-CSF", Analyte1,
+                           ifelse(Batman=="log2_GM-CSF" & Analyte2!="log2_GM-CSF", Analyte2, NA))) %>%
+  filter(Batman=="log2_GM-CSF") %>%
+  select(Batman, Robin, P, P_BH, Sig_BH) %>%
+  unique() %>%
+  filter(Sig_BH==1)
+
+batman.IL23<-results.diffCorr %>%
+  mutate(Batman = ifelse(Analyte1=="log2_IL-23" | Analyte2=="log2_IL-23", "log2_IL-23", NA),
+         Robin = ifelse(Batman=="log2_IL-23" & Analyte1!="log2_IL-23", Analyte1,
+                           ifelse(Batman=="log2_IL-23" & Analyte2!="log2_IL-23", Analyte2, NA))) %>%
+  filter(Batman=="log2_IL-23") %>%
+  select(Batman, Robin, P, P_BH, Sig_BH) %>%
+  unique() %>%
+  filter(Sig_BH==1)
+
+batman.IL5<-results.diffCorr %>%
+  mutate(Batman = ifelse(Analyte1=="log2_IL-5" | Analyte2=="log2_IL-5", "log2_IL-5", NA),
+         Robin = ifelse(Batman=="log2_IL-5" & Analyte1!="log2_L-5", Analyte1,
+                           ifelse(Batman=="log2_IL-5" & Analyte2!="log2_IL-5", Analyte2, NA))) %>%
+  filter(Batman=="log2_IL-5") %>%
+  select(Batman, Robin, P, P_BH, Sig_BH) %>%
+  unique() %>%
+  filter(Sig_BH==1)
+
+batman.TNFbeta # N=28
+batman.GMCSF # N=26
+batman.IL23 # N=20
+batman.IL5 # N=20
+
+(28+26+20+20)/368 #[1] 0.2554348
+
+results.diffCorr %>%
+  filter( (Analyte1=="log2_TNF-beta" & Analyte2=="log2_GM-CSF") | (Analyte1=="log2_GM-CSF" & Analyte2=="log2_TNF-beta")) # *
+
+results.diffCorr %>%
+  filter( (Analyte1=="log2_TNF-beta" & Analyte2=="log2_IL-23") | (Analyte1=="log2_IL-23" & Analyte2=="log2_TNF-beta")) # x
+
+results.diffCorr %>%
+  filter( (Analyte1=="log2_TNF-beta" & Analyte2=="log2_IL-5") | (Analyte1=="log2_IL-5" & Analyte2=="log2_TNF-beta")) # x
+
+
+results.diffCorr %>%
+  filter( (Analyte1=="log2_GM-CSF" & Analyte2=="log2_IL-23") | (Analyte1=="log2_IL-23" & Analyte2=="log2_GM-CSF")) # *
+
+results.diffCorr %>%
+  filter( (Analyte1=="log2_GM-CSF" & Analyte2=="log2_IL-5") | (Analyte1=="log2_IL-5" & Analyte2=="log2_GM-CSF")) # *
+
+results.diffCorr %>%
+  filter( (Analyte1=="log2_IL-23" & Analyte2=="log2_IL-5") | (Analyte1=="log2_IL-5" & Analyte2=="log2_IL-23")) # *
+
+# TNF-beta has significantly different correlation with GM-CSF, not IL-23 or IL-5...
+# GM-CSF has significantly different correlation with IL-23 and IL-5, not TNF-beta...
+# IL-23 has significantly different correlation with IL-5, GM-CSF, but not TNF-beta...
+```
+
+
+```{r}
+out.list<-list("Results" = results.diffCorr,
+               "N dysregulated connections" = N_dysregulated_connections)
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/Delta_Correlation")
+write.xlsx(out.list, "MSD_082420_Results_Test_DiffCorrelation.xlsx")
+```
+

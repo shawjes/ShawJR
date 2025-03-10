@@ -1,0 +1,10 @@
+model_formula,r.squared,adj.r.squared,sigma,statistic,p.value,df,logLik,AIC,BIC,deviance,df.residual,nobs
+"log(Age) ~ sumZ_Cluster_1 +
+                                        sumZ_Cluster_2 +
+                                        sumZ_Cluster_3 +
+                                        sumZ_Cluster_4 +
+                                        sumZ_Cluster_5 +
+                                        sumZ_Cluster_6 +
+                                        sumZ_Cluster_7 +
+                                        sumZ_Cluster_8 +
+                                        Female",0.78883711721716,0.768401999528498,0.320808139995769,38.6020344602582,1.21545796125302e-27,9,-23.7890609098633,69.5781218197265,98.5601406902525,9.5713612299417,93,103

@@ -1,0 +1,399 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#rm(list = ls(all = TRUE))
+library(openxlsx)
+library(data.table)
+library(dplyr)
+library(tidyr)
+#library(lattice)
+library(ggplot2)
+#library(infer)
+library(miceadds)
+require(dplyr)
+library(FedData)
+library(ggrepel)
+# https://cran.r-project.org/web/packages/sjPlot/vignettes/plot_interactions.html
+#library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+```
+
+# Read in clean Crnic MSD data from experiments 3-6
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd
+```
+
+# Prepare data to be plotted, including log2 fold changes, 95% confidence intervals, and corrected P-values (BH)
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results")
+resultsT21.model2<-read.xlsx("MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx", sheet="Model 2") %>%
+  select(Panel_Analyte,
+         log2FC_T21, CI.low_T21, CI.high_T21, FDR_T21,
+         log2FC_Age, CI.low_Age, CI.high_Age, FDR_Age,
+         `log2FC_T21:Age`, `CI.low_T21:Age`, `CI.high_T21:Age`, `FDR_T21:Age`) %>%
+  unique() %>%
+  filter(`FDR_T21:Age`<0.05) %>%
+  arrange(`FDR_T21:Age`) %>%
+  mutate(Rank_T21byAge = seq(1:length(`FDR_T21:Age`))) %>%
+  # mutate(`log2FC (95% CI)` = paste( round(`log2FC_T21:Age`, digits=2),
+  #                                   " (", round(CI.low_T21, digits=2), ", ",
+  #                                   round(CI.high_T21, digits=2), ")", sep="")) %>%
+  mutate(FDR_T21 = ifelse(FDR_T21<0.00001, formatC(FDR_T21, format = "e", digits = 2), round(FDR_T21, digits=4)),
+         FDR_Age = ifelse(FDR_T21<0.00001, formatC(FDR_Age, format = "e", digits = 2), round(FDR_Age, digits=4)),
+         `FDR_T21:Age` = ifelse(FDR_T21<0.00001, formatC(`FDR_T21:Age`, format = "e", digits = 2), round(`FDR_T21:Age`, digits=4))) %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=TRUE)
+resultsT21.model2
+
+msd01<-resultsT21.model2 %>%
+  left_join(msd, by=c("Panel", "Analyte"))
+msd01
+```
+
+# Define where to output plots
+```{r}
+out.dir<-"/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Age_trajectories"
+```
+
+# Define colors for plotting
+```{r}
+# https://cran.r-project.org/web/packages/broom.mixed/broom.mixed.pdf
+# .fitted = predicted values 
+# .fixed = predicted values with no random effects
+
+#fills<-c("snow3", "snow3")
+fills<-c("gray42", "#007db8")
+values<-c("gray42", "#007db8")
+colors<-c("#1874CD", "#007db8")
+RedBlue<-c("#CD3333", "#1874CD")
+Purple<-"#551A8B"
+GrayBlue<-c("gray42", "#1874CD")
+```
+
+```{r}
+# Analytes with significant T21*Age interactions:
+# VascularInjury_SAA
+# UPLEX_IL-29
+# TH17_IL-22
+# TH17_IL-27
+# Angiogenesis_VEGF-C
+```
+
+# Plot age-associated trajectories
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"), 
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = 0.5),
+                  panel.background = element_blank(),
+                  panel.grid = element_blank(),
+                  plot.background = element_blank()
+            ) +
+            theme(strip.background = element_rect(colour="black", fill = "light grey", size = 1)) # adjusts facet label borders
+)
+
+set.seed(1234)
+plot.loess<-vector("list", max(msd01$Rank_T21byAge))
+plot.linear<-vector("list", max(msd01$Rank_T21byAge))
+for (i in 1:max(msd01$Rank_T21byAge)) {
+  df<-msd01 %>% filter(Rank_T21byAge==i)
+  analyte<-df$Analyte[1]
+  plot.loess_i<-ggplot(aes(x=Age, y=Concentration, colour=Cohort), data=df) +
+    geom_smooth() +
+#    geom_smooth(data=sim.slopeAge_SAA, aes(x=Age, y = Concentration), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+    ggtitle(analyte) +
+    scale_fill_manual(values=RedBlue) +
+    scale_color_manual(values=RedBlue)
+  plot.linear_i<-ggplot(aes(x=Age, y=Concentration, colour=Cohort), data=df) +
+    geom_smooth(method="lm") +
+    ggtitle(analyte) +
+    scale_fill_manual(values=RedBlue) +
+    scale_color_manual(values=RedBlue) #+
+
+    setwd(paste(out.dir, "PNG"))
+    ggsave(filename = paste0(Analyte_filename, ".png", sep=""), width = 3.5, height = 4, units = "in")
+    setwd(paste(out.dir, "PDF"))
+    ggsave(filename = paste0(Analyte_filename, ".pdf", sep=""), device = cairo_pdf, width = 3.5, height = 4, units = "in")
+  
+  plot.linear[[i]]<-plot.linear_i
+  plot.loess[[i]]<-plot.loess_i
+}
+
+length(plot.loess)
+
+# setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Age")
+# pdf("200503_Concentration_by_Age_LOESS.pdf")
+# plot.loess
+# dev.off()
+# 
+# setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Age")
+# pdf("200503_Concentration_by_Age_Linear.pdf")
+# print(plot.linear)
+# dev.off()
+```
+
+# Now with log2 concentration
+```{r}
+plot.loess<-vector("list", 54)
+plot.linear<-vector("list", 54)
+index<-msd %>% select(Analyte) %>% unique() %>% mutate(Index=seq(1:54))
+
+msd01<-msd %>% full_join(index, by="Analyte") %>%
+  mutate(Cohort=ifelse(Cohort=="Control", "D21",
+                       ifelse(Cohort=="Down syndrome", "T21", NA)))
+
+for (i in 1:54) {
+  df<-msd01 %>% filter(Index==i)
+  analyte<-df$Analyte[1]
+  plot.loess[[i]]<-ggplot(aes(x=Age, y=log2(Concentration), colour=Cohort), data=df) +
+    geom_smooth() +
+    ggtitle(analyte) +
+    scale_fill_manual(values=RedBlue) +
+    scale_color_manual(values=RedBlue)
+  plot.linear[[i]]<-ggplot(aes(x=Age, y=log2(Concentration), colour=Cohort), data=df) +
+    geom_smooth(method="lm") +
+    ggtitle(analyte) +
+    scale_fill_manual(values=RedBlue) +
+    scale_color_manual(values=RedBlue) #+
+    #theme(aspect.ratio = 0.8,
+    #    legend.position = c(0.1, 0.85)) # depends on data scales
+        #legend.position = "none" ) +
+   #    legend.background = element_blank() )
+}
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Age")
+pdf("200503_log2Concentration_by_Age_LOESS.pdf")
+plot.loess
+dev.off()
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Age")
+pdf("200503_log2Concentration_by_Age_Linear.pdf")
+print(plot.linear)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+#### Plot predicted concentration over age for cytokines with significant T21*Age interactions
+##### SAA
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+
+# lm
+ggplot(data=augment %>%
+         mutate(Cohort=ifelse(T21==1, "T21", ifelse(T21==0, "D21", NA))) %>%
+         filter(Panel_Analyte=="VascularInjury_SAA"),
+       aes(x=Age, y = .fitted, color=Cohort)) +
+  geom_smooth(method="lm") +
+  geom_smooth(aes(x=Age, y = .fixed), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+  ylab(bquote('Predicted'~log[2](Concentration)~'')) +
+  scale_fill_manual(values=RedBlue) +
+  scale_color_manual(values=RedBlue) +
+  theme(aspect.ratio = 0.8,
+        legend.position = c(0.1, 0.85)) + # depends on data scales
+        #legend.position = "none" ) +
+   #    legend.background = element_blank() ) +
+  labs(title = "Predicted Serum Amyloid A (SAA) over Age",
+    subtitle = "LMM: log2(Conc.)~T21+Age+Female+(1|Source)")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Predicted_over_age")
+#ggsave(filename = "200430_MSD_PredictedOverAge_Linear_SAA_Model2.png", width = 5, height = 5, units = "in")
+#ggsave("200430_MSD_PredictedOverAge_Linear_SAA_Model2.pdf", device = cairo_pdf, width = 5, height = 5, units = "in")
+
+# loess
+ggplot(data=augment %>%
+         mutate(Cohort=ifelse(T21==1, "T21", ifelse(T21==0, "D21", NA))) %>%
+         filter(Panel_Analyte=="VascularInjury_SAA"),
+       aes(x=Age, y = .fitted, color=Cohort)) +
+  geom_smooth(method="loess") +
+  geom_smooth(aes(x=Age, y = .fixed), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+  ylab(bquote('Predicted'~log[2](Concentration)~'')) +
+  scale_fill_manual(values=RedBlue) +
+  scale_color_manual(values=RedBlue) +
+  theme(aspect.ratio = 0.8,
+        legend.position = c(0.1, 0.85)) + # depends on data scales
+        #legend.position = "none" ) +
+   #    legend.background = element_blank() ) +
+  labs(title = "Predicted Serum Amyloid A (SAA) over Age",
+    subtitle = "LMM: log2(Conc.)~T21+Age+Female+(1|Source)")
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Predicted_over_age")
+#ggsave(filename = "200430_MSD_PredictedOverAge_LOESS_SAA_Model2.png", width = 5, height = 5, units = "in")
+#ggsave("200430_MSD_PredictedOverAge_LOESS_SAA_Model2.pdf", device = cairo_pdf, width = 5, height = 5, units = "in")
+```
+
+##### UPLEX_IL-29	
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+
+ggplot(data=augment %>%
+         mutate(Cohort=ifelse(T21==1, "T21", ifelse(T21==0, "D21", NA))) %>%
+         filter(Panel_Analyte=="UPLEX_IL-29"),
+       aes(x=Age, y = .fitted, color=Cohort)) +
+  geom_smooth(method="lm") +
+  geom_smooth(aes(x=Age, y = .fitted), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+#  ylab("Predicted log(Concentration)") +
+  ylab(bquote('Predicted'~log[2](Concentration)~'')) +
+# ylab(paste("Predicted ", bquote(''~log[2](Concentration)~''), sep="" )) +
+  scale_fill_manual(values=RedBlue) +
+  scale_color_manual(values=RedBlue) +
+  #ylim(1,4) +
+  theme(aspect.ratio = 0.8,
+        legend.position = c(0.15, 0.95), # depends on data scales
+        legend.background = element_blank(),
+        legend.title=element_blank(),
+        legend.box = "horizontal") +
+  labs(title = "Predicted IL-29 over Age",
+    subtitle = "LMM: log2(Conc.)~T21+Age+Female+T21*Age+(1|Source)") +
+  guides(colour = guide_legend(nrow = 1))
+
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Predicted_over_age")
+ggsave(filename = "200430_MSD_PredictedOverAge_Linear_IL29_Model2.png", width = 5, height = 5, units = "in")
+ggsave("200430_MSD_PredictedOverAge_Linear_IL29_Model2.pdf", device = cairo_pdf, width = 5, height = 5, units = "in")
+
+ggplot(data=augment %>%
+         mutate(Cohort=ifelse(T21==1, "T21", ifelse(T21==0, "D21", NA))) %>%
+         filter(Panel_Analyte=="UPLEX_IL-29"),
+       aes(x=Age, y = .fitted, color=Cohort)) +
+  geom_smooth(method="loess") +
+  geom_smooth(aes(x=Age, y = .fitted), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+#  ylab("Predicted log(Concentration)") +
+  ylab(bquote('Predicted'~log[2](Concentration)~'')) +
+# ylab(paste("Predicted ", bquote(''~log[2](Concentration)~''), sep="" )) +
+  scale_fill_manual(values=RedBlue) +
+  scale_color_manual(values=RedBlue) +
+  #ylim(1,4) +
+  theme(aspect.ratio = 0.8,
+        legend.position = c(0.15, 0.95), # depends on data scales
+        legend.background = element_blank(),
+        legend.title=element_blank(),
+        legend.box = "horizontal") +
+  labs(title = "Predicted IL-29 over Age",
+    subtitle = "LMM: log2(Conc.)~T21+Age+Female+T21*Age+(1|Source)") +
+  guides(colour = guide_legend(nrow = 1))
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Predicted_over_age")
+ggsave(filename = "200430_MSD_PredictedOverAge_LOESS_IL29_Model2.png", width = 5, height = 5, units = "in")
+ggsave("200430_MSD_PredictedOverAge_LOESS_IL29_Model2.pdf", device = cairo_pdf, width = 5, height = 5, units = "in")
+```
+
+##### TH17_IL-22
+
+##### TH17_IL-27
+
+
+##### Angiogenesis_VEGF-C
+```{r}
+# Setting and modifying theme for plots
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14), 
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+
+ggplot(data=augment %>%
+         mutate(Cohort=ifelse(T21==1, "T21", ifelse(T21==0, "D21", NA))) %>%
+         filter(Panel_Analyte=="VascularInjury_SAA"),
+       aes(x=Age, y = .fitted, color=Cohort)) +
+  geom_smooth(method="lm") +
+  geom_smooth(aes(x=Age, y = .fitted), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+#  ylab("Predicted log(Concentration)") +
+  ylab(bquote('Predicted'~log[2](Concentration)~'')) +
+# ylab(paste("Predicted ", bquote(''~log[2](Concentration)~''), sep="" )) +
+  scale_fill_manual(values=RedBlue) +
+  scale_color_manual(values=RedBlue) +
+  theme(aspect.ratio = 0.8,
+        legend.position = c(0.1, 0.85)) + # depends on data scales
+        #legend.position = "none" ) +
+   #    legend.background = element_blank() ) +
+  labs(title = "Predicted Serum Amyloid A (SAA) over Age",
+    subtitle = "LMM: log2(Conc.)~T21+Age+Female+T21*Age+(1|Source)")
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Predicted_over_age")
+ggsave(filename = "200430_MSD_PredictedOverAge_Linear_SAA_Model2.png", width = 5, height = 5, units = "in")
+ggsave("200430_MSD_PredictedOverAge_Linear_SAA_Model2.pdf", device = cairo_pdf, width = 5, height = 5, units = "in")
+
+
+ggplot(data=augment %>%
+         mutate(Cohort=ifelse(T21==1, "T21", ifelse(T21==0, "D21", NA))) %>%
+         filter(Panel_Analyte=="VascularInjury_SAA"),
+       aes(x=Age, y = .fitted, color=Cohort)) +
+  geom_smooth(method="loess") +
+  geom_smooth(aes(x=Age, y = .fitted), color=Purple, method="lm", se = FALSE, linetype = "dashed") +
+#  ylab("Predicted log(Concentration)") +
+  ylab(bquote('Predicted'~log[2](Concentration)~'')) +
+# ylab(paste("Predicted ", bquote(''~log[2](Concentration)~''), sep="" )) +
+  scale_fill_manual(values=RedBlue) +
+  scale_color_manual(values=RedBlue) +
+  theme(aspect.ratio = 0.8,
+        legend.position = c(0.1, 0.85)) + # depends on data scales
+        #legend.position = "none" ) +
+   #    legend.background = element_blank() ) +
+  labs(title = "Predicted Serum Amyloid A (SAA) over Age",
+    subtitle = "LMM: log2(Conc.)~T21+Age+Female+T21*Age+(1|Source)")
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots/Predicted_over_age")
+ggsave(filename = "200430_MSD_PredictedOverAge_LOESS_SAA_Model2.png", width = 5, height = 5, units = "in")
+ggsave("200430_MSD_PredictedOverAge_LOESS_SAA_Model2.pdf", device = cairo_pdf, width = 5, height = 5, units = "in")
+```
+

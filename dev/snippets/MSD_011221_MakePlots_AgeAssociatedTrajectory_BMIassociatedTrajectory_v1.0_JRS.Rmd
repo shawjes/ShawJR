@@ -1,0 +1,216 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+#library(modelr)
+library(tidyverse)
+#library(miceadds)
+library(ggforce)
+require(openxlsx)
+library(ggrepel)
+library(emmeans)
+
+select <- dplyr::select
+```
+
+# Setting and modifying theme for plots
+```{r}
+theme_set(theme_gray(base_size = 12, base_family = "Arial") +
+            theme(panel.border = element_rect(colour="black", fill = "transparent"),
+                  plot.title = element_text(face="bold", hjust = 0), # lineheight=.8, size=20,
+                  axis.text = element_text(color="black", size = 14),
+                  axis.text.x = element_text(angle = 0, hjust = NULL),
+                  strip.background = element_rect(colour="black", fill = "light grey", size = 1), # adjusts facet label borders (if any)
+                  panel.background = element_blank(),
+                  panel.grid = element_blank()
+          ))
+
+RedBlue <- c("#CD3333", "#1874CD")
+```
+
+#### Read in obesity variable
+```{r}
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Comorbidities/Derived")
+Obesity <- fread("Comorb_121620_Obesity_for_Age_and_Sex_v1.0_JRS.csv")
+
+Obesity
+```
+
+#### Read in MSD data
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+# sample_source
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  dplyr::select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+# meta
+
+#### Read in Family IDs:
+fid<-fread("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Family_Info/HTP_Participant_Family_Fields_2020_09_28.txt") %>%
+  rename(FID = family_id)
+# fid
+
+#### Read in BMI for consideration as covariate:
+bmi <- fread("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Comorbidities/BMI Report 06.12.20.csv") %>%
+  rename(RecordID = `Record ID`, LabID = `Lab ID`) %>%
+  mutate(RecordID = gsub("NDAR_", "", RecordID)) %>%
+  select(RecordID, LabID, BMI)
+# bmi
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd <- fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  dplyr::select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") %>% # Keep only samples obtained locally or at NDSC
+  left_join(fid, by="LabID") %>%
+  dplyr::select(FID, everything()) %>%
+  rename(Date.char_original = Date) %>%
+  separate(Date.char_original, into = c("Month", "Day", "Year"), sep = "[/]", remove=FALSE, extra="merge") %>%
+  mutate(Date = as.Date(paste(Year, Month, Day, sep = "-"))) %>%
+  mutate(Season = ifelse(Month >=3 & Month<=5, "Spring",
+                       ifelse(Month >= 6 & Month <= 8, "Summer",
+                              ifelse(Month >= 9 & Month <=11, "Fall",
+                                     ifelse(Month == 12 | Month <= 2, "Winter", NA))))) %>%
+  left_join(bmi, by = c("RecordID", "LabID")) %>%
+  mutate(BMI = as.numeric(BMI),
+         log2Conc = log2(CalcConcMean_AfterImputation),
+         Analyte_for_filename = gsub("/", "", Analyte),
+         Analyte_for_filename = gsub("-", "", Analyte_for_filename),
+         Analyte_for_filename = gsub("[(]", "", Analyte_for_filename),
+         Analyte_for_filename = gsub("[)]", "", Analyte_for_filename),
+         Analyte_for_filename = gsub(" ", "", Analyte_for_filename)
+         )
+
+# View the full dataset:
+msd
+
+msd$Analyte_for_filename %>% unique()
+```
+
+```{r}
+msd.split <- split(msd, msd$Analyte)
+```
+
+#### Make age-associated trajectory plots
+```{r}
+set.seed(1234)
+age_trajectory.lm <- list()
+age_trajectory.loess <- list()
+for ( i in 1:54 ){
+  analyte <- msd.split[[i]]$Analyte[1]
+  
+  analyte_for_filename <- msd.split[[i]]$Analyte_for_filename[1]
+  
+  age_trajectory.lm[[i]] <- msd.split[[i]] %>%
+    ggplot(aes(x = Age, y = log2Conc, color = Karyotype)) +
+    geom_smooth(method = "lm") +
+    geom_point(size=0.5, alpha=0.5) +
+    scale_colour_manual(values = c("Control" = RedBlue[1],
+                                   "T21" = RedBlue[2])) +
+    ggtitle(analyte) +
+    ylab("log2(Concentration)") +
+    theme(legend.position = "none") +
+    scale_x_continuous(breaks = seq(from = 0, to = 50, by = 10))
+  filename <- paste("MSD_011221_Linear_Age_Associated_Trajectory_", analyte_for_filename, "_v1.0_JRS", sep = "")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/Age_associated_trajectories/Linear/PNG")
+  ggsave(age_trajectory.lm[[i]], filename = paste0(filename, ".png", sep=""), width = 3.5, height = 4, units = "in")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/Age_associated_trajectories/Linear/PDF")
+  ggsave(filename = paste0(filename, ".pdf", sep=""), device = cairo_pdf, width = 3.5, height = 4, units = "in")
+
+  age_trajectory.loess[[i]] <- msd.split[[i]] %>%
+    ggplot(aes(x = Age, y = log2Conc, color = Karyotype)) +
+    geom_smooth(method = "loess") +
+    geom_point(size=0.5, alpha=0.5) +
+    scale_colour_manual(values = c("Control" = RedBlue[1],
+                                   "T21" = RedBlue[2])) +
+    ggtitle(analyte) +
+    ylab("log2(Concentration)") +
+    theme(legend.position = "none") +
+    scale_x_continuous(breaks = seq(from = 0, to = 50, by = 10))
+  filename <- paste("MSD_011221_LOESS_Age_Associated_Trajectory_", analyte_for_filename, "_v1.0_JRS", sep = "")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/Age_associated_trajectories/LOESS/PNG")
+  ggsave(age_trajectory.lm[[i]], filename = paste0(filename, ".png", sep=""), width = 3.5, height = 4, units = "in")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/Age_associated_trajectories/LOESS/PDF")
+  ggsave(filename = paste0(filename, ".pdf", sep=""), device = cairo_pdf, width = 3.5, height = 4, units = "in")
+}
+```
+
+#### Make BMI-associated trajectory plots
+```{r}
+set.seed(1234)
+bmi_trajectory.lm <- list()
+bmi_trajectory.loess <- list()
+for ( i in 1:54 ){
+  analyte <- msd.split[[i]]$Analyte[1]
+  
+  analyte_for_filename <- msd.split[[i]]$Analyte_for_filename[1]
+  
+  bmi_trajectory.lm[[i]] <- msd.split[[i]] %>%
+    ggplot(aes(x = BMI, y = log2Conc, color = Karyotype)) +
+    geom_smooth(method = "lm") +
+    geom_point(size=0.5, alpha=0.5) +
+    scale_colour_manual(values = c("Control" = RedBlue[1],
+                                   "T21" = RedBlue[2])) +
+    ggtitle(analyte) +
+    ylab("log2(Concentration)") +
+    theme(legend.position = "none") +
+    scale_x_continuous(breaks = seq(from = 0, to = 50, by = 10))
+  filename <- paste("MSD_011221_Linear_BMI_Associated_Trajectory_", analyte_for_filename, "_v1.0_JRS", sep = "")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/BMI_associated_trajectories/Linear/PNG")
+  ggsave(bmi_trajectory.lm[[i]], filename = paste0(filename, ".png", sep=""), width = 3.5, height = 4, units = "in")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/BMI_associated_trajectories/Linear/PDF")
+  ggsave(filename = paste0(filename, ".pdf", sep=""), device = cairo_pdf, width = 3.5, height = 4, units = "in")
+
+  bmi_trajectory.loess[[i]] <- msd.split[[i]] %>%
+    ggplot(aes(x = BMI, y = log2Conc, color = Karyotype)) +
+    geom_smooth(method = "loess") +
+    geom_point(size=0.5, alpha=0.5) +
+    scale_colour_manual(values = c("Control" = RedBlue[1],
+                                   "T21" = RedBlue[2])) +
+    ggtitle(analyte) +
+    ylab("log2(Concentration)") +
+    theme(legend.position = "none") +
+    scale_x_continuous(breaks = seq(from = 0, to = 50, by = 10))
+  filename <- paste("MSD_011221_LOESS_BMI_Associated_Trajectory_", analyte_for_filename, "_v1.0_JRS", sep = "")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/BMI_associated_trajectories/LOESS/PNG")
+  ggsave(bmi_trajectory.lm[[i]], filename = paste0(filename, ".png", sep=""), width = 3.5, height = 4, units = "in")
+  setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/Manuscript/All_samples/BMI_associated_trajectories/LOESS/PDF")
+  ggsave(filename = paste0(filename, ".pdf", sep=""), device = cairo_pdf, width = 3.5, height = 4, units = "in")
+}
+```
+
+
+

@@ -1,0 +1,140 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_d21clustered <- fread("ar_sigt21byage_d21clustered.csv.gz")
+
+head(ar_sigt21byage_d21clustered)
+```
+
+#### f_sigt21byage_d21clustered_bykaryotype
+```{r}
+n_aptamers <- "_" # stand-in
+
+f_sigt21byage_d21clustered_bykaryotype <- ar_sigt21byage_d21clustered %>%
+  mutate(Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+         `T21-by-Age Cluster` = paste0("T21-by-Age Cluster ", `T21-by-Age Cluster`, "\n(N=", n_aptamers, " with FDR<0.10)")) 
+
+setwd(dir.output)
+fwrite(f_sigt21byage_d21clustered_bykaryotype, "f_sigt21byage_d21clustered_bykaryotype.csv.gz")
+```
+
+```{r}
+# f_sigt21byage_d21clustered_bykaryotype %>%
+#   filter(`T21-by-Age Cluster` == "T21-by-Age Cluster 1\n(N=_ with FDR<0.10)") %>%
+#   arrange(Karyotype) %>%
+#   ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+#   geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+#   scale_colour_manual(values = RedBlue) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   theme(aspect.ratio = 1.0,
+#         legend.position = "bottom") +
+#   ylab("Relative abundance (Zlog10)")
+```
+
+```{r}
+set.seed(1234)
+gg_sigt21byage_d21clustered_bykaryotype <- f_sigt21byage_d21clustered_bykaryotype %>%
+  arrange(Karyotype) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = RedBlue) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~`T21-by-Age Cluster`, ncol = 4)
+```
+
+```{r}
+save_as <- "gg_sigt21byage_d21clustered_bykaryotype"
+setwd(dir.output)
+ggsave(gg_sigt21byage_d21clustered_bykaryotype,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in")
+```
+
+```{r}
+f_sigt21byage_d21clustered_bykaryotype %>%
+  filter(`T21-by-Age Cluster` == "T21-by-Age Cluster 1\n(N=_ with FDR<0.10)") %>%
+  arrange(Karyotype) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype, fill = Karyotype)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = FALSE) +
+  scale_colour_manual(values = RedBlue) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+  ylab("Relative abundance (Zlog10)")
+```
+
+```{r}
+ar_sigt21byage_d21clustered %>% select(contains("Karyotype")) %>% colnames()
+ar_sigt21byage_d21clustered %>% select(Karyotype_Sex) %>% head()
+ar_sigt21byage_d21clustered$Karyotype_Sex %>% unique()
+#[1] "T21 XX" "T21 XY" "D21 XY" "D21 XX"
+
+gg_sigt21byage_d21clustered_bykaryotypesex <- ar_sigt21byage_d21clustered %>%
+  mutate(Karyotype = factor(Karyotype, levels = c("D21", "T21")),
+         `T21-by-Age Cluster` = paste0("T21-by-Age Cluster ", `T21-by-Age Cluster`, "\n(N=", n_aptamers, " with FDR<0.10)"),
+         Karyotype_Sex = factor(Karyotype_Sex, c("D21 XX", "D21 XY", "T21 XX", "T21 XY"))) %>%
+  arrange(Karyotype) %>%
+  ggplot(aes(x = Age, y = Zlog10_relative_abundance, color = Karyotype_Sex, fill = Karyotype_Sex)) +
+  geom_smooth(method = "loess", linewidth = 0.75, se = TRUE) +
+  scale_colour_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  scale_fill_manual(values = c("pink3",
+                                 RedBlue[[1]],
+                                 "navy",
+                                 RedBlue[[2]])) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "bottom") +
+  ylab("Relative abundance (Zlog10)") +
+  facet_wrap(~`T21-by-Age Cluster`, ncol = 4)
+
+save_as <- "gg_sigt21byage_d21clustered_bykaryotypesex"
+setwd(dir.output)
+ggsave(gg_sigt21byage_d21clustered_bykaryotypesex,
+       filename = paste0(save_as, ".png"),
+       width = 11, height = 11, units = "in")
+```
+

@@ -1,0 +1,58 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# KEEP SCRIPT
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+library(factoextra)
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### ar_p4c_soma_sigt21byage_t21only_clustering_input
+```{r}
+#significance_threshold <- 0.10
+significance_threshold <- 0.05
+
+setwd(dir.ddata)
+t_p4c_soma_lm_singleaptamer_tidy <- fread("t_p4c_soma_lm_singleaptamer_tidy.csv.gz")
+
+head(t_p4c_soma_lm_singleaptamer_tidy)
+```
+
+```{r}
+ar_p4c_soma_nonsigt21byage_t21only_clustering_input <- t_p4c_soma_lm_singleaptamer_tidy %>%
+  filter(PadjBH > significance_threshold & term == "T21:Age") %>%
+  left_join(fread(paste0(dir.ardata, "/ar_p4c_soma_t21only.csv.gz")),
+            by = c("UniProt_Aptamer_Chr_Cluster", "UniProt", "Aptamer", "Cluster"))
+
+setwd(dir.ardata)
+fwrite(ar_p4c_soma_nonsigt21byage_t21only_clustering_input, "ar_p4c_soma_nonsigt21byage_t21only_clustering_input.csv.gz")
+```
+

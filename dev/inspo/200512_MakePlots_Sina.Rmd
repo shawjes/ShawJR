@@ -1,0 +1,452 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#install.packages(c("purrr", "dplyr", "tidyr", "ggplot2", "data.table",
+#                   "reshape2", "latticeExtra", "RColorBrewer", "cowplot",
+#                   "broom", "ggforce", "bigmemory"))
+library(data.table); library(dplyr); library(tidyr); library(ggplot2)
+#library(purrr)
+#require(reshape2)
+#library(latticeExtra)
+library(RColorBrewer)
+library(cowplot)
+library(broom)
+library(ggforce)
+library(limma)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(broom)
+library(broomExtra)
+library(tibble)
+library(sjstats)
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tibble)
+library(modelr)
+library(tidyverse)
+library(miceadds)
+library(ggforce)
+require(openxlsx)
+```
+
+# Read in clean Crnic MSD data from experiments 3-5
+```{r}
+#### Read in dataset of sample Source (for batch effect correction):
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/Demographics")
+sample_source<-fread("LAB_ID Source 4.30.20.csv") %>%
+  rename(RecordID=`Record ID`, LabID=`Lab ID`, Date=`Date Obtained`, Source=`Source vlookup`) %>%
+  mutate(RecordID=gsub("NDAR_", "", RecordID)) %>%
+  mutate(I_SourceData=1)
+
+#### Read in master meta-data:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/META/Re__MASTER_RecordID_vs_LabID.Labels.05.11.20")
+meta<-fread("HTP_CLEANED_051120_v0.3_MASTER_RecordID_vs_LabID.Labels.csv") %>%
+  rename(Age=Age_at_visit, Date=Date_obtained) %>%
+  mutate(T21=ifelse(Cohort_type=="Down syndrome", 1,
+                    ifelse(Cohort_type=="Control", 0, NA)),
+         Female=ifelse(Sex=="Female", 1,
+                       ifelse(Sex=="Male", 0, NA))) %>%
+  select(-c(Cohort_type)) %>%
+  mutate(I_MetaData=1)
+
+#### Read in MSD data and join with master meta-data and sample Source dataset:
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/DATA_MAIN/MSD/Derived/Master/200413/Clean/")
+msd<-fread("200413_CLEAN_noMeta_Exp3456_firstPIDsampleOnly_meansOnly.csv") %>%
+  rename(RecordID=PID) %>%
+  select(-T21) %>%
+  filter(Panel_Analyte!="Angiogenesis_VEGF-A") %>% # VEGF-A was included on two different panels. Both have excellent detection rates, but the VEGF-A from the Cytokine 1 panel has perfect detection. So, I'm keeping Cytokine 1_VEGF-A and removing Angiogenesis_VEGF-A.
+  mutate(I_MSDdata=1) %>%
+  left_join(meta, by=c("RecordID", "LabID")) %>%
+  left_join(sample_source, by=c("RecordID", "LabID", "Date")) %>%
+  filter(Source=="Local" | Source=="NDSC 2018" | Source=="NDSC 2019") # Keep only samples obtained locally or at NDSC
+
+msd
+```
+
+#### Define custom function for cleaning results generated below
+```{r}
+# tidy:
+# Define new function that defaults to include confidence intervals in output:
+tidyPlus <- function(x, print=TRUE) {
+  result <- tidy(x, conf.int=T)
+  return(result)
+}
+```
+
+#### Model 1 without T21: log2(Concentration) ~ Age + Female + (1|Source)
+```{r}
+# Remove all objects other than the data required for analysis and the tidyPlus function:
+#rm(list=setdiff(ls(), c("msd", "T21", "D21", "tidyPlus", "stats.wide")))
+
+set.seed(1234)
+
+samples<-"T21 + D21"
+df<-msd
+
+# Run Model 1 without T21:
+lmm_forBoxplots = df %>%
+  group_by(Panel_Analyte) %>%
+  do(fit.lmm = lmerTest::lmer(log2(CalcConcMean_AfterImputation) ~ Age + Female + (1|Source), data = ., REML=TRUE))
+
+#----------------------------------------------------------------------------------
+#####################
+##  DO NOT MODIFY  ##
+#####################
+
+# Name each dataframe in list of results:
+names(lmm_forBoxplots$fit.lmm)<-lmm_forBoxplots$Panel_Analyte
+
+tidy(summary(lmm_forBoxplots$fit.lmm[[1]]))
+
+# Extract model method and call (i.e., model parameterization), to integrate into results workbooks below.
+# Note: Only need to do this for any one of the 54 models, since method and call are the same for all analytes.
+fit.method<-summary(lmm_forBoxplots$fit.lmm[[1]])$methTitle
+temp<-summary(lmm_forBoxplots$fit.lmm[[1]])$call %>%
+  as.character() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("V1", "V2", "V3", "V4"))
+fit.call<-paste(temp$V1, "(formula = ", temp$V2, ", data = ", temp$V3, " , REML = ", temp$V4, ")", sep="")
+
+# Extract model diagnostic info:
+augment.lmm_forBoxplots = broom::augment(lmm_forBoxplots, fit.lmm, data=df) # Note: Must explicitly include data=msd, as opposed to data=. , so that sample info gets included along with augment output (residuals, Cook's distance, etc.)
+glance.lmm_forBoxplots = broom::glance(lmm_forBoxplots, fit.lmm)
+
+# Apply tidyPlus to all dataframes in list 'lmm_forBoxplots$fit.lmm'
+tidy.lmm_forBoxplots<-lapply(lmm_forBoxplots$fit.lmm, tidyPlus) %>%
+  bind_rows(., .id="Panel_Analyte") %>%
+  mutate(Model_Call = fit.call,
+         Statistical_Method = fit.method,
+         Samples_Analyzed = samples) %>%
+  select(Panel_Analyte, Model_Call, Statistical_Method, Samples_Analyzed, term, estimate, std.error, p.value, conf.low, conf.high) %>%
+  `colnames<-`(c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed",
+                 "Term", "log2FC", "SE", "P", "CI.low", "CI.high"))
+
+# Separate results by model term to apply multiple testing correction to each:
+Female_results_forBoxplots<-tidy.lmm_forBoxplots %>% filter(Term=="Female") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+  #left_join(stats.wide %>%
+  #            select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+  #          by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+         #Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+#colnames(Female_results_forBoxplots)[12:18]<-paste(colnames(Female_results_forBoxplots)[12:18], Female_results_forBoxplots$Term[1], sep="_")
+
+Age_results_forBoxplots<-tidy.lmm_forBoxplots %>% filter(Term=="Age") %>%
+  mutate(FDR=p.adjust(P, method="BH")) %>%
+  arrange(FDR) %>%
+  mutate(Rank=seq(1:length(levels(as.factor(Panel_Analyte))))) %>%
+#  left_join(stats.wide %>%
+#              select(Panel_Analyte, Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21),
+#            by="Panel_Analyte") %>%
+  select(Panel_Analyte,
+#         Mean.All, Mean.T21, Mean.D21, Median.All, Median.T21, Median.D21,
+         Model_Call, Statistical_Method, Samples_Analyzed, Samples_Analyzed, 
+         Term, log2FC, SE, P, CI.low, CI.high, FDR, Rank)
+#colnames(Age_results_forBoxplots)[12:18]<-paste(colnames(Age_results_forBoxplots)[12:18], Age_results_forBoxplots$Term[1], sep="_")
+
+# results_wide_forBoxplots<-Age_results_forBoxplots %>%
+#   full_join(Female_results_forBoxplots[,-c(2:7)], by=c("Panel_Analyte", "Model_Call", "Statistical_Method", "Samples_Analyzed"))
+# 
+# results_wide_forBoxplots
+
+Age_results_forBoxplots
+Female_results_forBoxplots
+```
+
+```{r}
+augment.lmm_forBoxplots %>% class()
+augment.lmm_forBoxplots %>% as.data.frame() %>% class()
+
+plotData<-augment.lmm_forBoxplots %>%
+  as.data.frame() %>%
+  ungroup() %>%
+  select(RecordID, Panel, Analyte, Karyotype, .fitted, .resid) %>%
+  mutate(Karyotype = ifelse(Karyotype=="T21", "T21",
+                            ifelse(Karyotype=="Control", "D21", NA)) %>%
+           as.factor())
+groups(plotData)
+class(plotData)
+plotData
+```
+
+```{r}
+results.model1<-read.xlsx("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Results/MSD_200512_RESULTS_SUMMARY_Models1231A1B_LMM_JRS.xlsx", sheet="Model 1") %>%
+  select(Panel_Analyte, Mean.T21, Mean.D21, log2FC_T21, CI.low_T21, CI.high_T21, FDR_T21) %>%
+  mutate(`log2FC (95% CI)` = paste( round(log2FC_T21, digits=2), " (", round(CI.low_T21, digits=2), ", ", round(CI.high_T21, digits=2), ")", sep="")) %>%
+  mutate(FDR = ifelse(FDR_T21<0.00001, formatC(FDR_T21, format = "e", digits = 2), round(FDR_T21, digits=4))) %>%
+  select(-FDR_T21) %>%
+  separate(Panel_Analyte, into=c("Panel", "Analyte"), sep="_", extra="merge", remove=TRUE)
+results.model1
+
+plotData01<-plotData %>%
+  left_join(results.model1, by=c("Panel", "Analyte"))
+plotData01
+```
+
+
+#### Sina plots by Karyotype
+```{r}
+# Define colors for plotting:
+# HEX colors pulled from the Crnic/HTP logo @ trisome.org:
+# https://coolors.co/83781b-95b46a-709255-3e5622-172815
+# https://www.colorhexa.com/006c9e
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3")
+#fills<-c("gray42", "#007db8")
+c("#DADDE4", "#006C9E")
+c("#c5c8d1", "#006C9E")
+
+values<-c("gray42", "#007db8")
+colors<-c("gray42", "#007db8")
+RedBlue<-c("#CD3333", "#1874CD")
+Purple<-"#551A8B"
+
+
+############################################
+##  Render PDF of boxplots + sina plots:  ##
+############################################
+panels<-as.character(levels(as.factor(plotData$Panel)))
+p.resid<-list()
+for(i in 1:length(panels)){
+  DF<-plotData %>% filter(Panel==panels[i])
+  PanelName<-DF$Panel[1]
+  p.resid[[i]]<-ggplot(data = DF, aes(x=Karyotype, y=.resid)) +
+    geom_sina(aes(fill=Karyotype, color=Karyotype),
+              stat='sina',
+              alpha=0.1,
+              size=0.05,
+              #maxwidth=0.5,
+              show.legend=FALSE,
+              position='dodge') +
+    facet_wrap(~Analyte, scales="free") +
+    scale_fill_manual(values=fills, guide=FALSE) +
+    scale_color_manual(values=c("#dadbe4", "#006C9E")) +
+    geom_boxplot(aes(fill=Karyotype, group=Karyotype, outcex=0.05),
+                 alpha=0.4,
+                 #outlier.color = "#9e001d",
+                 #outlier.fill = NULL,
+                 #outlier.shape = 16,
+                 outlier.size = 0.05,
+                 # outlier.stroke = 0.5, outlier.alpha = 0.5,
+                 #notch = FALSE, notchwidth = 0.5, varwidth = FALSE, na.rm = FALSE,
+                 show.legend = FALSE, inherit.aes = TRUE) +
+    facet_wrap(~Analyte, scales="free") +
+    guides(fill=FALSE) +
+    theme_minimal() +
+    ylab("resid( log2(Conc.) ~ Age + Female + (1|Source) )") +
+    labs(title=paste("MSD", PanelName, "Panel", sep=" ")) +
+    theme(#axis.title = element_text(size = rel(2)),
+      axis.text = element_text(size = 8))
+}
+
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200512/Plots/Sina")
+pdf("MSD_200512_sina_Resid_Log2Conc_byT21_AdjustedAgeSexSource_v1_JRS.pdf", width = 10, height = 8, pointsize=12)
+print(p.resid)
+dev.off()
+```
+
+# 
+AWESOME: https://cran.r-project.org/web/packages/dotwhisker/vignettes/dotwhisker-vignette.html
+```{r}
+library(dotwhisker)
+
+lapply(lmm$fit.lmm, dwplot)
+
+panels<-as.character(levels(as.factor(plotData$Panel)))
+p.resid<-list()
+for(i in 1:length(panels)){
+  DF<-plotData %>% filter(Panel==panels[i])
+  PanelName<-DF$Panel[1]
+  p.resid[[i]]<-ggplot(data = DF, aes(x=Karyotype, y=.resid)) +
+    geom_sina(aes(fill=Karyotype, color=Karyotype),
+              size=0.2, alpha=0.3, maxwidth=0.5, show.legend=FALSE) +
+    geom_boxplot(aes(fill=Karyotype, group=Karyotype, outcex=0.5),
+                 #outlier.color = "#9e001d",
+                 #outlier.fill = NULL,
+                 #outlier.shape = 16,
+                 #outlier.size = 0.9, outlier.stroke = 0.5, outlier.alpha = 0.5,
+                notch = FALSE, notchwidth = 0.5, varwidth = FALSE, na.rm = FALSE,
+                show.legend = FALSE, inherit.aes = TRUE,
+                alpha=0.4) +
+    facet_wrap(~Analyte, scales="free") +
+    scale_fill_manual(values=fills, guide=FALSE) +
+    scale_color_manual(values=RedBlue) +
+    guides(fill=FALSE) +
+    theme_bw() +
+    ylab("resid( log2(Concentration)~Age+Female+(1|Source) )") +
+    labs(title=paste("MSD", PanelName, "Panel", sep=" "))
+  #print(p)
+}
+
+p.resid[[1]]
+```
+
+
+
+#### Sina plots by Karyotype and Sex
+```{r}
+# Define colors for plotting:
+# HEX colors pulled from the Crnic/HTP logo @ trisome.org:
+# https://coolors.co/83781b-95b46a-709255-3e5622-172815
+# https://www.colorhexa.com/006c9e
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3", "snow3", "snow3")
+
+############################################
+##  Render PDF of boxplots + sina plots:  ##
+############################################
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots")
+pdf("200430_MSD_sina_log2Conc_byKaryotypeSex.pdf", width = 10, height = 8, pointsize=12)
+
+panels<-as.character(levels(as.factor(msd$Panel)))
+class(panels)
+for(i in 1:length(panels)){
+  DF<-msd %>% filter(Panel==panels[i])
+  PanelName<-DF$Panel[1]
+  p<-ggplot(data = DF %>% filter(!is.na(T21) & !is.na(Female)), aes(x=Group, y=log2(CalcConcMean_AfterImputation))) +
+    geom_sina(aes(fill=Group, color=Group),
+              size=0.5, alpha=0.5, maxwidth=0.5, show.legend=FALSE) +
+    geom_boxplot(aes(fill=Group, group=Group, outcex=0.5),
+                 outlier.color = "#9e001d",
+                 outlier.fill = NULL,
+                 outlier.shape = 16,
+                 outlier.size = 0.9, outlier.stroke = 0.5, outlier.alpha = 0.5,
+                notch = FALSE, notchwidth = 0.5, varwidth = FALSE, na.rm = FALSE,
+                show.legend = FALSE, inherit.aes = TRUE,
+                alpha=0.6) +
+    facet_wrap(~Analyte, scales="free") +
+    scale_fill_manual(values=fills, guide=FALSE) +
+    scale_color_manual(values=c("gray42", "gray42", "#007db8", "#007db8")) +
+    guides(fill=FALSE) +
+    theme_bw() +
+    ylab("log2(Mean Calculated Concentration)") +
+    labs(title=paste("MSD", PanelName, "Panel", sep=" "))
+  print(p)
+}
+#Panel
+#PanelName
+
+dev.off()
+```
+
+#### Sina plots by Karyotype, age and sex adjusted
+```{r}
+# Define colors for plotting:
+# HEX colors pulled from the Crnic/HTP logo @ trisome.org:
+# https://coolors.co/83781b-95b46a-709255-3e5622-172815
+# https://www.colorhexa.com/006c9e
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3")
+
+############################################
+##  Render PDF of boxplots + sina plots:  ##
+############################################
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots")
+pdf("200430_MSD_sina_log2ConcADJageSex_byKaryotype.pdf", width = 10, height = 8, pointsize=12)
+
+panels<-as.character(levels(as.factor(msd$Panel)))
+class(panels)
+for(i in 1:length(panels)){
+  DF<-msd %>% filter(Panel==panels[i]) %>%
+    mutate(log2Concentration_Adjusted = try(resid( lm( log2(CalcConcMean_AfterImputation) ~ Age + Sex))))
+  PanelName<-DF$Panel[1]
+  p<-ggplot(data = DF, aes(x=Karyotype, y = log2Concentration_Adjusted)) +
+    geom_sina(aes(fill=Karyotype, color=Karyotype),
+              size=0.5, alpha=0.5, maxwidth=0.5, show.legend=FALSE) +
+    geom_boxplot(aes(fill=Karyotype, group=Karyotype, outcex=0.5),
+                 outlier.color = "#9e001d",
+                 outlier.fill = NULL,
+                 outlier.shape = 16,
+                 outlier.size = 0.9, outlier.stroke = 0.5, outlier.alpha = 0.5,
+                notch = FALSE, notchwidth = 0.5, varwidth = FALSE, na.rm = FALSE,
+                show.legend = FALSE, inherit.aes = TRUE,
+                alpha=0.6) +
+    facet_wrap(~Analyte, scales="free") +
+    scale_fill_manual(values=fills, guide=FALSE) +
+    scale_color_manual(values=c("gray42", "#007db8")) +
+    guides(fill=FALSE) +
+    theme_bw() +
+    ylab("log2(Mean Calculated Concentration, age- and sex-adjusted)") +
+    labs(title=paste("MSD", PanelName, "Panel", sep=" "))
+  print(p)
+}
+#Panel
+#PanelName
+
+dev.off()
+```
+
+#### Sina plots by Karyotype and Sex
+```{r}
+# Define colors for plotting:
+# HEX colors pulled from the Crnic/HTP logo @ trisome.org:
+# https://coolors.co/83781b-95b46a-709255-3e5622-172815
+# https://www.colorhexa.com/006c9e
+htp.colors<-c("#153152", # dark blue
+              "#006C9E", # dark teal #003852 #00496b #005b85 *#006c9e #007db8 #008fd1 #00a0eb
+              "#4C4E64", # dark blue-gray
+              "#54759B", # light blue-gray
+              "#DADDE4") # pale gray
+fills<-c("snow3", "snow3", "snow3", "snow3")
+
+############################################
+##  Render PDF of boxplots + sina plots:  ##
+############################################
+setwd("/Users/shawjes/Dropbox/EspinosaGroup/ANALYSIS/MSD/Final/200430/Plots")
+pdf("200430_MSD_sina_log2ConcADJage_byKaryotypeSex.pdf", width = 10, height = 8, pointsize=12)
+
+panels<-as.character(levels(as.factor(msd$Panel)))
+class(panels)
+for(i in 1:length(panels)){
+  DF<-msd %>% filter(Panel==panels[i]) %>%
+    mutate(log2Concentration_Adjusted = try(resid( lm( log2(CalcConcMean_AfterImputation) ~ Age))))
+  PanelName<-DF$Panel[1]
+  p<-ggplot(data = DF %>% filter(!is.na(T21) & !is.na(Female)), aes(x=Group, y=log2(CalcConcMean_AfterImputation))) +
+    geom_sina(aes(fill=Group, color=Group),
+              size=0.5, alpha=0.5, maxwidth=0.5, show.legend=FALSE) +
+    geom_boxplot(aes(fill=Group, group=Group, outcex=0.5),
+                 outlier.color = "#9e001d",
+                 outlier.fill = NULL,
+                 outlier.shape = 16,
+                 outlier.size = 0.9, outlier.stroke = 0.5, outlier.alpha = 0.5,
+                notch = FALSE, notchwidth = 0.5, varwidth = FALSE, na.rm = FALSE,
+                show.legend = FALSE, inherit.aes = TRUE,
+                alpha=0.6) +
+    facet_wrap(~Analyte, scales="free") +
+    scale_fill_manual(values=fills, guide=FALSE) +
+    scale_color_manual(values=c("gray42", "gray42", "#007db8", "#007db8")) +
+    guides(fill=FALSE) +
+    theme_bw() +
+    ylab("log2(Mean Calculated Concentration, age-adjusted)") +
+    labs(title=paste("MSD", PanelName, "Panel", sep=" "))
+  print(p)
+}
+#Panel
+#PanelName
+
+dev.off()
+```

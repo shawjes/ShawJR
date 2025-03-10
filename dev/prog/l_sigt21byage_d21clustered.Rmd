@@ -1,0 +1,201 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# KEEP SCRIPT
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+ar_sigt21byage_d21clustered <- fread("ar_sigt21byage_d21clustered.csv.gz")
+
+head(ar_sigt21byage_d21clustered)
+```
+
+#### Prepare lists for input to GSEA
+```{r}
+ar_sigt21byage_clusters <- ar_sigt21byage_d21clustered %>%
+  dplyr::select(T21byAge_Cluster, UniProt_Aptamer_Chr_Cluster, Aptamer, UniProt, GeneSymbol, Target, TargetFullName,
+                `Chromosome(s)`, Chromosome,
+                Aptamer_in_P4C, Aptamer_in_Lehallier2019,
+                Lehallier2019_ClusterID) %>%
+    unique();
+
+ar_sigt21byage_clusters
+
+setwd(dir.ardata)
+fwrite(ar_sigt21byage_clusters, "ar_sigt21byage_clusters.csv.gz")
+```
+```{r}
+l_sigt21byage_aptamers_cluster <- ar_sigt21byage_clusters %>%
+  split(., .$T21byAge_Cluster) %>%
+  lapply(select, c(GeneSymbol))
+```
+
+
+```{r}
+for ( i in 1:length(l_sigt21byage_aptamers_cluster)) {
+  setwd(dir.ddata)
+  write.table(l_sigt21byage_aptamers_cluster[[i]], 
+            paste0("l_sigt21byage_cluster_", names(l_sigt21byage_aptamers_cluster)[[i]], ".txt"),
+             sep = "/t",
+             quote = FALSE, row.names = FALSE, col.names = FALSE)
+}
+```
+
+
+#### Prepare background genes (https://biostatsquid.com/pathway-enrichment-analysis-tutorial-clusterprofiler/)
+```{r}
+# Set input path
+#in_path <- "Datasets/" # input path, where your data is located
+#out_path <- "PEA/Results/" # output path, where you want your results exported to
+#bg_path <- "PEA/Background_genes/" # folder with your background genes used for PEA
+
+bg_path <- "~/Dropbox/ShawJR/2025/dev/background_gene_sets"
+out_gsea_path <- "~/Dropbox/ShawJR/2025/dev/output/gsea"
+
+#### GSEA for significant T21-by-Age interactions (UP)
+# Settings
+name_of_comparison <- 'T21byAge (up)' # for our filename
+background_genes <- 'c7 immunologic signature gene sets' # for our filename
+# Get the genes that are present in your dataframe
+setwd(bg_path)
+bg_genes.c7 <- read.gmt("c7.all.v2024.1.Hs.symbols.gmt")
+bg_genes.h <- read.gmt("h.all.v2024.1.Hs.symbols.gmt")
+bg_genes.c2 <- read.gmt("c2.cp.reactome.v2024.1.Hs.symbols.gmt")
+bg_genes.c1 <- read.gmt("c1.all.v2024.1.Hs.symbols.gmt")
+
+##############################
+##  C7 (Immune signatures)  ## 
+##############################
+gsea_c7 <- list()
+gsea_c1 <- list()
+gsea_c2 <- list()
+gsea_h <- list()
+for ( i in 1:length(gene_lists) ) {
+  set.seed(1234)
+  gsea_c7[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+            TERM2GENE = bg_genes.c7, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_c7)[[i]] <- names(gene_lists)[[i]];
+  
+  gsea_c1[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+            TERM2GENE = bg_genes.c1, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_c1)[[i]] <- names(gene_lists)[[i]];
+  
+  gsea_c2[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+            TERM2GENE = bg_genes.c2, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_c2)[[i]] <- names(gene_lists)[[i]];
+
+  gsea_h[[i]] <- try( (enricher(gene = gene_lists[[i]]$GeneSymbol,
+            TERM2GENE = bg_genes.h, #%>%
+              #filter(gene %in% gene_lists[[i]]$GeneSymbol)
+              #),
+             #minGSSize = 10,
+             pvalueCutoff = 0.10,
+             pAdjustMethod = "BH"))@result );
+  names(gsea_h)[[i]] <- names(gene_lists)[[i]];
+}
+
+gsea_c7 %>%
+  rbindlist(idcol = "gene_list") %>%
+  mutate(gene_list = factor(gene_list, levels = c(names(gene_lists)))) %>%
+  arrange(gene_list) %>%
+  dplyr::select(gene_list, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(rank_p.adjust = row_number()) %>%
+  group_by(gene_list) %>%
+  filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$gene_list)
+
+gsea_c1 %>%
+  rbindlist(idcol = "gene_list") %>%
+  mutate(gene_list = factor(gene_list, levels = c(names(gene_lists)))) %>%
+  arrange(gene_list) %>%
+  dplyr::select(gene_list, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(rank_p.adjust = row_number()) %>%
+  group_by(gene_list) %>%
+  filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$gene_list)
+
+gsea_c2 %>%
+  rbindlist(idcol = "gene_list") %>%
+  mutate(gene_list = factor(gene_list, levels = c(names(gene_lists)))) %>%
+  arrange(gene_list) %>%
+  dplyr::select(gene_list, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(rank_p.adjust = row_number()) %>%
+  group_by(gene_list) %>%
+  filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$gene_list)
+
+gsea_h %>%
+  rbindlist(idcol = "gene_list") %>%
+  mutate(gene_list = factor(gene_list, levels = c(names(gene_lists)))) %>%
+  arrange(gene_list) %>%
+  dplyr::select(gene_list, p.adjust, everything()) %>%
+  arrange(p.adjust) %>%
+  mutate(rank_p.adjust = row_number()) %>%
+  group_by(gene_list) %>%
+  filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  #filter(p.adjust < 0.05 | rank_p.adjust<=10) %>%
+  ungroup() %>%
+  split(., .$gene_list)
+
+# PICK UP HERE (2/17/2025 ~8PM)
+```

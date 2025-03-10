@@ -1,0 +1,326 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### Run startup function
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+
+setwd(paste0(dir.project, "/macro"))
+source("ui_init.R")
+
+select <- dplyr::select;
+filter <- dplyr::filter;
+rename <- dplyr::rename;
+```
+#### Define paths to directories
+```{r}
+dir.project <- "~/Dropbox/ShawJR/2025/dev"
+dir.donovan2024_source <- paste0(dir.project, "/rawdata/Donovan2024_syn31481952.5")
+dir.indata <- paste0(dir.project, "/indata")
+dir.aidata <- paste0(dir.project, "/aidata")
+dir.ardata <- paste0(dir.project, "/ardata")
+dir.ddata <- paste0(dir.project, "/ddata")
+dir.docs <- paste0(dir.project, "/docs")
+dir.output <- paste0(dir.project, "/output")
+```
+
+#### Read Analysis Tracker
+```{r}
+setwd(dir.docs)
+analysis_tracker <- read.xlsx("AnalysisTracker.xlsx") %>%
+  filter(run_model == 1)
+
+analysis_tracker
+```
+
+#### Read ardata
+```{r}
+setwd(dir.ardata)
+#ar_sigt21byage_d21clustered <- fread("ar_sigt21byage_d21clustered.csv.gz")
+setwd(dir.ardata)
+ar_sigt21byage_d21t21clustered <- fread("ar_sigt21byage_d21t21clustered.csv.gz")
+```
+
+#### f_bar_cca_sigt21byage_cluster_proportion
+#### f_bar_cca_sigt21byage_supercluster_proportion
+```{r}
+f_bar_cca_sigt21byage_cluster_proportion <- ar_sigt21byage_d21t21clustered %>%
+  dplyr::rename(`T21-by-Age Cluster` = T21byAge_Cluster) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                `T21-by-Age Cluster`,
+                Lehallier2019_ClusterID) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  mutate(Lehallier2019_Cluster = case_when(is.na(Lehallier2019_ClusterID)~"None",
+                                           .default = as.character(Lehallier2019_ClusterID))) %>%
+  dplyr::select(-c(Lehallier2019_ClusterID)) %>%
+  group_by(`T21-by-Age Cluster`, Lehallier2019_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  group_by(`T21-by-Age Cluster`) %>%
+  mutate(N_Total = sum(N_Aptamers),
+         Proportion = N_Aptamers/N_Total,
+         checksum = sum(Proportion)) %>%
+  ungroup() %>%
+  mutate(Proportion = N_Aptamers/N_Total) %>%
+  dplyr::rename(`Proteomic Clock Cluster` = Lehallier2019_Cluster) %>%
+  dplyr::select(-c(checksum)) %>%
+  dplyr::rename(`Clock Cluster*` = `Proteomic Clock Cluster`);
+setwd(dir.ddata)
+fwrite(f_bar_cca_sigt21byage_cluster_proportion, "f_bar_cca_sigt21byage_cluster_proportion.csv");
+
+f_bar_cca_sigt21byage_supercluster_proportion <- ar_sigt21byage_d21t21clustered %>%
+  dplyr::rename(`T21-by-Age SuperCluster` = T21byAge_SuperCluster) %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster,
+                `T21-by-Age SuperCluster`,
+                Lehallier2019_ClusterID) %>%
+  unique() %>%
+  `rownames<-`(NULL) %>%
+  mutate(Lehallier2019_Cluster = case_when(is.na(Lehallier2019_ClusterID)~"None",
+                                           .default = as.character(Lehallier2019_ClusterID))) %>%
+  dplyr::select(-c(Lehallier2019_ClusterID)) %>%
+  group_by(`T21-by-Age SuperCluster`, Lehallier2019_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  group_by(`T21-by-Age SuperCluster`) %>%
+  mutate(N_Total = sum(N_Aptamers),
+         Proportion = N_Aptamers/N_Total,
+         checksum = sum(Proportion)) %>%
+  ungroup() %>%
+  mutate(Proportion = N_Aptamers/N_Total) %>%
+  dplyr::rename(`Proteomic Clock Cluster` = Lehallier2019_Cluster) %>%
+  dplyr::select(-c(checksum)) %>%
+  dplyr::rename(`Clock Cluster*` = `Proteomic Clock Cluster`);
+setwd(dir.ddata)
+fwrite(f_bar_cca_sigt21byage_supercluster_proportion, "f_bar_cca_sigt21byage_supercluster_proportion.csv");
+
+f_bar_cca_sigt21byage_cluster_proportion
+f_bar_cca_sigt21byage_supercluster_proportion
+```
+
+#### gg_cca_barplot_proportion
+```{r}
+# f_bar_cca_sigt21byage_cluster_proportion
+# f_bar_cca_sigt21byage_supercluster_proportion
+
+gg_bar_cca_sigt21byage_cluster_proportion <- f_bar_cca_sigt21byage_cluster_proportion %>%
+  ggplot(aes(x = `T21-by-Age Cluster`, y = N_Aptamers,
+             color = `Clock Cluster*`,
+             fill = `Clock Cluster*`,
+             width = 0.8)) + 
+  geom_bar(position = "stack", stat = "identity") +
+  ylab("Aptamers (Proportion)") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "right",
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = "\n*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters") +
+  # set colors
+  scale_colour_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]])) #+
+       #scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8),
+      #                    labels=c("A", "B", "C", "D", "E", "F", "G", "H"))
+
+save_as <- "f_bar_cca_sigt21byage_cluster_proportion"
+setwd(dir.output)
+ggsave(gg_bar_cca_sigt21byage_cluster_proportion,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 5, units = "in");
+
+gg_bar_cca_sigt21byage_supercluster_proportion <- f_bar_cca_sigt21byage_supercluster_proportion %>%
+  ggplot(aes(x = `T21-by-Age SuperCluster`, y = N_Aptamers,
+             color = `Clock Cluster*`,
+             fill = `Clock Cluster*`,
+             width = 0.8)) + 
+  geom_bar(position = "stack", stat = "identity") +
+  ylab("Aptamers (Proportion)") +
+  theme(aspect.ratio = 1.0,
+        legend.position = "right",
+        plot.caption = element_text(hjust = 0)) +
+  labs(caption = "\n*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters") +
+  # set colors
+  scale_colour_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("1" = P4C_extended_cluster_colors[[1]],
+                                "2" = P4C_extended_cluster_colors[[2]], 
+                                "3" = P4C_extended_cluster_colors[[3]], 
+                                "4" = P4C_extended_cluster_colors[[4]], 
+                                "5" = P4C_extended_cluster_colors[[5]], 
+                                "6" = P4C_extended_cluster_colors[[6]], 
+                                "7" = P4C_extended_cluster_colors[[7]], 
+                                "8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]])) #+
+       #scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8),
+      #                    labels=c("A", "B", "C", "D", "E", "F", "G", "H"))
+
+save_as <- "f_bar_cca_sigt21byage_supercluster_proportion"
+setwd(dir.output)
+ggsave(gg_bar_cca_sigt21byage_supercluster_proportion,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 5, units = "in");
+
+f_bar_cca_sigt21byage_cluster_proportion
+f_bar_cca_sigt21byage_supercluster_proportion
+```
+
+
+```{r}
+f_cca_barplot_proportion <- ar_sigt21byage_d21t21clustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Aptamer, UniProt, GeneSymbol,
+                Target, TargetFullName,
+                `Chromosome(s)`, Chromosome,
+                Lehallier2019_ClusterID, T21byAge_Cluster) %>%
+  unique() %>%
+  group_by(Lehallier2019_ClusterID, T21byAge_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  dplyr::select(T21byAge_Cluster, Lehallier2019_ClusterID, N_Aptamers) %>%
+  arrange(T21byAge_Cluster, Lehallier2019_ClusterID) %>%
+  mutate(Lehallier2019_ClusterID = case_when(is.na(Lehallier2019_ClusterID) ~ "None",
+                                             .default = paste0("Clock Cluster ", Lehallier2019_ClusterID))) %>%
+  spread(key = Lehallier2019_ClusterID, value = N_Aptamers, fill = 0) %>%
+  gather(key = "Clock Cluster", value = "N_Aptamers", `Clock Cluster 1`:None) %>%
+  group_by(T21byAge_Cluster) %>%
+  mutate(N_T21byAge_Cluster_Aptamers = sum(N_Aptamers),
+         Proportion_of_T21byAge_Cluster_Aptamers = N_Aptamers/N_T21byAge_Cluster_Aptamers) %>%
+  ungroup() %>%
+  dplyr::rename(`Clock Cluster*` = `Clock Cluster`)
+
+f_cca_barplot_proportion$`Clock Cluster*` %>% unique()
+
+gg_cca_barplot_proportion <- f_cca_barplot_proportion %>%
+  ggplot(aes(x = T21byAge_Cluster, y = Proportion_of_T21byAge_Cluster_Aptamers, color = `Clock Cluster*`, fill = `Clock Cluster*`)) +
+  geom_bar(position = "stack", stat = "identity") +
+  ylab("Proportion") +
+  xlab("T21-by-Age Cluster") +
+  theme(plot.caption = element_text(hjust = 0)) + # set the left align here
+  labs(title = "Cluster correspondence analysis (CCA):\nProteomic Clock Clusters comprising each T21-by-Age Cluster", 
+       #subtitle = "This is the subtitile.", 
+       caption = "*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters") +
+  # set colors
+  scale_colour_manual(values = c("Clock Cluster 1" = P4C_extended_cluster_colors[[1]],
+                                "Clock Cluster 2" = P4C_extended_cluster_colors[[2]], 
+                                "Clock Cluster 3" = P4C_extended_cluster_colors[[3]], 
+                                "Clock Cluster 4" = P4C_extended_cluster_colors[[4]], 
+                                "Clock Cluster 5" = P4C_extended_cluster_colors[[5]], 
+                                "Clock Cluster 6" = P4C_extended_cluster_colors[[6]], 
+                                "Clock Cluster 7" = P4C_extended_cluster_colors[[7]], 
+                                "Clock Cluster 8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("Clock Cluster 1" = P4C_extended_cluster_colors[[1]],
+                                "Clock Cluster 2" = P4C_extended_cluster_colors[[2]], 
+                                "Clock Cluster 3" = P4C_extended_cluster_colors[[3]], 
+                                "Clock Cluster 4" = P4C_extended_cluster_colors[[4]], 
+                                "Clock Cluster 5" = P4C_extended_cluster_colors[[5]], 
+                                "Clock Cluster 6" = P4C_extended_cluster_colors[[6]], 
+                                "Clock Cluster 7" = P4C_extended_cluster_colors[[7]], 
+                                "Clock Cluster 8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]])) #+
+       #scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8),
+      #                    labels=c("A", "B", "C", "D", "E", "F", "G", "H"))
+
+gg_cca_barplot_proportion
+
+save_as <- "f_cca_barplot_proportion"
+setwd(dir.output)
+ggsave(gg_cca_barplot_proportion,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 5, units = "in");
+```
+
+```{r}
+f_cca_barplot_n <- ar_sigt21byage_d21t21clustered %>%
+  dplyr::select(UniProt_Aptamer_Chr_Cluster, Aptamer, UniProt, GeneSymbol,
+                Target, TargetFullName,
+                `Chromosome(s)`, Chromosome,
+                Lehallier2019_ClusterID, T21byAge_Cluster) %>%
+  unique() %>%
+  group_by(Lehallier2019_ClusterID, T21byAge_Cluster) %>%
+  summarise(N_Aptamers = n()) %>%
+  ungroup() %>%
+  dplyr::select(T21byAge_Cluster, Lehallier2019_ClusterID, N_Aptamers) %>%
+  arrange(T21byAge_Cluster, Lehallier2019_ClusterID) %>%
+  mutate(Lehallier2019_ClusterID = case_when(is.na(Lehallier2019_ClusterID) ~ "None",
+                                             .default = paste0("Clock Cluster ", Lehallier2019_ClusterID))) %>%
+  spread(key = Lehallier2019_ClusterID, value = N_Aptamers, fill = 0) %>%
+  gather(key = "Clock Cluster", value = "N_Aptamers", `Clock Cluster 1`:None) %>%
+  group_by(T21byAge_Cluster) %>%
+  mutate(N_T21byAge_Cluster_Aptamers = sum(N_Aptamers)) %>%
+  ungroup() %>%
+  dplyr::rename(`Clock Cluster*` = `Clock Cluster`)
+
+f_cca_barplot_n$`Clock Cluster*` %>% unique()
+
+gg_cca_barplot_n <- f_cca_barplot_n %>%
+  ggplot(aes(x = T21byAge_Cluster, y = N_Aptamers, color = `Clock Cluster*`, fill = `Clock Cluster*`,
+             width = 0.5)) +
+  geom_bar(position = "stack", stat = "identity") +
+  ylab("Aptamers (N)") +
+  xlab("T21-by-Age Cluster") +
+  theme(plot.caption = element_text(hjust = 0)) + # set the left align here
+  labs(title = "Cluster correspondence analysis (CCA):\nProteomic Clock Clusters comprising each T21-by-Age Cluster", 
+       #subtitle = "This is the subtitile.", 
+       caption = "*As published in Lehallier et al., 2019.") +
+  ggtitle("Correspondence of T21-by-Age Clusters with Proteomic Clock Clusters") +
+  # set colors
+  scale_colour_manual(values = c("Clock Cluster 1" = P4C_extended_cluster_colors[[1]],
+                                "Clock Cluster 2" = P4C_extended_cluster_colors[[2]], 
+                                "Clock Cluster 3" = P4C_extended_cluster_colors[[3]], 
+                                "Clock Cluster 4" = P4C_extended_cluster_colors[[4]], 
+                                "Clock Cluster 5" = P4C_extended_cluster_colors[[5]], 
+                                "Clock Cluster 6" = P4C_extended_cluster_colors[[6]], 
+                                "Clock Cluster 7" = P4C_extended_cluster_colors[[7]], 
+                                "Clock Cluster 8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]]))  +
+  # set colors
+  scale_fill_manual(values = c("Clock Cluster 1" = P4C_extended_cluster_colors[[1]],
+                                "Clock Cluster 2" = P4C_extended_cluster_colors[[2]], 
+                                "Clock Cluster 3" = P4C_extended_cluster_colors[[3]], 
+                                "Clock Cluster 4" = P4C_extended_cluster_colors[[4]], 
+                                "Clock Cluster 5" = P4C_extended_cluster_colors[[5]], 
+                                "Clock Cluster 6" = P4C_extended_cluster_colors[[6]], 
+                                "Clock Cluster 7" = P4C_extended_cluster_colors[[7]], 
+                                "Clock Cluster 8" = P4C_extended_cluster_colors[[8]], 
+                                "None" = GrayBlue[[1]])) #+
+       #scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8),
+      #                    labels=c("A", "B", "C", "D", "E", "F", "G", "H"))
+
+gg_cca_barplot_n
+
+save_as <- "f_cca_barplot_n"
+setwd(dir.output)
+ggsave(gg_cca_barplot_n,
+       filename = paste0(save_as, ".png"),
+       width = 7, height = 5, units = "in")
+```
+

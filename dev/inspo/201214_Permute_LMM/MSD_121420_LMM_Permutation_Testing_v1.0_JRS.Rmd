@@ -1,0 +1,192 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# library(predictmeans)
+## Test random effects
+# fm1 <- lmer(Reaction ~ Days + (Days | Subject), sleepstudy)
+# fm2 <- lmer(Reaction ~ Days + (Days || Subject), sleepstudy)
+# fm3 <- update(fm1, . ~ . - (Days | Subject) + (1 | Subject))
+# anova(fm1, fm2, fm3)
+# permlmer(fm3, fm2)
+# permlmer(fm2, fm1)
+
+## Test fixed effects
+# Oats$nitro <- factor(Oats$nitro)
+# fm0 <- lmer(yield ~ nitro+Variety+(1|Block/Variety), data=Oats)
+# fm <- lmer(yield ~ nitro*Variety+(1|Block/Variety), data=Oats)
+# permlmer(fm0, fm)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(broom)
+library(broom.mixed)
+library(broomExtra)
+library(predictmeans)
+```
+
+```{r}
+data(Oats)
+
+Oats.df <- Oats %>% as.data.frame() %>% dplyr::ungroup()
+Oats.df
+
+skim(Oats.df)
+
+levels(Oats.df$Block)
+levels(Oats.df$Variety)
+#[1] "VI"  "V"   "III" "IV"  "II"  "I"  
+#[1] "Golden Rain" "Marvellous"  "Victory"
+
+Oats.df01 <- Oats.df %>% filter(Variety == "Victory" | Variety == "Marvellous") %>%
+  rename(Karyotype = Variety) %>%
+  mutate(Karyotype = ifelse(Karyotype == "Victory", "Control",
+                            ifelse(Karyotype == "Marvellous", "T21", NA))) %>%
+  rename(log2Conc = yield) %>%
+  filter(Block == "I" | Block == "II") %>%
+  mutate(Sex = ifelse(Block == "I", "Male",
+                      ifelse(Block == "II", "Female", NA))) %>%
+  rename(Source = Block) %>%
+  mutate(Age = rnorm(n = length(Sex), mean = 40, sd = 15))
+
+Oats.df01$Age %>% summary()
+
+Oats.df01
+```
+```{r}
+set.seed(1234)
+fm <- lmerTest::lmer(log2Conc ~ Age + Karyotype + (1|Source), data=Oats.df01)
+
+tidy.fm <- tidy(fm)
+tidy.fm
+# effect      group     term            estimate      std.error   statistic   df          p.value
+# fixed	      NA	      (Intercept)	    110.2910461	  22.5876130	4.8828110	  3.665303	  0.01014374
+# fixed	      NA	      Age	            0.1843322	    0.5544923	  0.3324342	  12.002926	  0.74529519
+# fixed	      NA	      KaryotypeT21	  7.5884282	    15.5141402	0.4891298	  12.000855	  0.63356723
+# ran_pars	  Source	  sd__(Intercept)	20.6661334	  NA	        NA	        NA	        NA
+# ran_pars	  Residual	sd__Observation	26.1093976	  NA	        NA	        NA	        NA
+
+anova.fm <- anova(fm)
+anova.fm
+# Type III Analysis of Variance Table with Satterthwaite's method
+#            Sum Sq Mean Sq NumDF  DenDF F value Pr(>F)
+# Age        75.336  75.336     1 12.003  0.1105 0.7453
+# Karyotype 163.095 163.095     1 12.001  0.2392 0.6336
+
+# anova() Pr(>F) = tidy() p.value
+```
+
+```{r}
+set.seed(1234)
+out.anovalmer <- anovalmer(fm)
+
+help(anovalmer)
+# "This function provides ANOVA of a linear mixed effects model for"
+
+out.anovalmer
+# Analysis of Variance Table of type I with Kenward-Roger
+# approximation for degrees of freedom
+#            Sum Sq Mean Sq NumDF  DenDF F value  Pr(>F)    DDf p.value
+# Age        75.336  75.336     1 12.003  0.1105 0.74530 12.002 0.49195
+# Karyotype 163.095 163.095     1 12.001  0.2392 0.63357 12.001 0.63359
+
+# anovalmer() Pr(>F) = tidy() p.value
+```
+
+```{r}
+help(permanova.lmer)
+# "This function provides permutation ANOVA for lmer model."
+
+set.seed(1234)
+out.permanova.lmer <- permanova.lmer(fm, nperm = 999)
+#refitting model(s) with ML (instead of REML)
+#refitting model(s) with ML (instead of REML)
+
+out.permanova.lmer %>% class()
+#[1] "anova"      "data.frame"
+out.permanova.lmer %>% names()
+# [1] "Sum Sq"  "Mean Sq" "NumDF"   "DenDF"   "F value" "Pr(>F)"  "DDf"     "p.value" "Perm.p" 
+out.permanova.lmer %>% length()
+# [1] 9
+
+out.permanova.lmer
+# Analysis of Variance Table of type I with Kenward-Roger
+# approximation for degrees of freedom
+#            Sum Sq Mean Sq NumDF  DenDF F value  Pr(>F)    DDf p.value Perm.p
+# Age        75.336  75.336     1 12.003  0.1105 0.74530 12.002 0.49195  0.699
+# Karyotype 163.095 163.095     1 12.001  0.2392 0.63357 12.001 0.63359  0.580
+
+# Pr(>F) = original p.value from the original model fit
+# Perm.p = permuted p-value
+
+# anova() Pr(>F) = tidy() p.value
+# anovalmer() Pr(>F) = tidy() p.value
+# permanova.lmer() Pr(>F) = tidy() p.value
+# permanova.lmer() p.value = anovalmer() p.value
+# Not clear if Perm.p is the permuted version of the column named 'Pr(>F)' or the column named 'p.value'......
+
+help(permanova.lmer)
+
+permanova.lmer(fm, nperm = 999, drop = FALSE)
+# Analysis of Variance Table of type I with Kenward-Roger
+# approximation for degrees of freedom
+#            Sum Sq Mean Sq NumDF  DenDF F value  Pr(>F)    DDf p.value Perm.p
+# Age        75.336  75.336     1 12.003  0.1105 0.74530 12.002 0.49195  0.430
+# Karyotype 163.095 163.095     1 12.001  0.2392 0.63357 12.001 0.63359  0.615
+```
+
+```{r}
+contrastmeans(fm)
+```
+
+```{r}
+# http://www.imsbio.co.jp/RGM/R_rdfile?f=predictmeans/man/permmodels.Rd&d=R_CC
+out.permmodels <- permmodels(fm, data = Oats)
+
+names(out.permmodels)
+length(out.permmodels)
+
+out.permmodels$ANOVA 
+summary(out.permmodels)
+
+permmodels(fm, data = Oats, nsim = 10)$coefficients
+help(permmodels)
+
+fm.predicted_means <- predictmeans(model=fm, modelterm="Variety", plot=FALSE)
+fm.predicted_means %>% names()
+fm.predicted_means$mean_table
+
+predictmeans(model=fm, modelterm="Variety", plot=FALSE)$mean_table
+predictmeans(model=fm, modelterm="Variety", permlist = out.permmodels$permlist)$p_valueMatrix
+
+out.permmodels$permlist
+
+out.permmodels %>% names()
+out.permmodels$permlist %>% names()
+out.permmodels$ANOVA %>% names()
+
+out.permmodels$permlist %>% head(n=1)
+
+out.permmodels$permlist$coef
+
+tidy(fm)
+anova(fm)
+out.anovalmer
+out.permanova.lmer
+
+out.anovalmer %>% summary()
+out.permanova.lmer %>% summary()
+```
+
+```{r}
+out.permmodels[1]
+
+contrastmeans(fm, "nitro:Variety")
+```
+
