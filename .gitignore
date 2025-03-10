@@ -1,0 +1,16 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Ignore folders:
+'/Users/jessica/Dropbox/ShawJR/2025/dev/papers'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/rawdata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/indata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/aidata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/ardata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/ddata'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/output'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/background_gene_sets'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/inspo'
+'/Users/jessica/Dropbox/ShawJR/2025/dev/renv'
