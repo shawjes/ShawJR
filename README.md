@@ -1,3 +1,3 @@
 # ShawJR
 
-Repository for a manuscript in preparation regarding Differential Aging in Down Syndrome.
+A repository for a manuscript in preparation regarding Differential Aging in Down Syndrome.
