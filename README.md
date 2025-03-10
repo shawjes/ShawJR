@@ -1,5 +1,3 @@
 # ShawJR
 
-This is a test.
-
-This is a second test.
+Repository for a manuscript in preparation regarding Differential Aging in Down Syndrome.
